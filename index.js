@@ -172,6 +172,10 @@ const charSets = {
 };
 
 function generateRandom(type, length, customSet) {
+  if (type === 'custom' && customSet) {
+    return pick(customSet);
+  }
+
   let result = '';
   let characters = '';
 
@@ -183,9 +187,14 @@ function generateRandom(type, length, customSet) {
   else if (type === 'abcnum_upper') characters = charSets.upper + charSets.num;
   else if (type === 'abcnum') characters = charSets.lower + charSets.upper + charSets.num;
   else if (type === 'grawlix') characters = charSets.grawlix;
-  else if (type === 'custom' && customSet) {
-    characters = customSet;
-  } else return '';
+  else if (type === 'ascii') {
+    for (let i = 0; i < length; i++) {
+        result += String.fromCharCode(Math.floor(Math.random() * (127 - 33 + 1)) + 33);
+    }
+    return result;
+  }
+  
+  if (!characters) return '';
   
   for (let i = 0; i < length; i++) {
     result += characters.charAt(Math.floor(Math.random() * characters.length));
@@ -296,8 +305,8 @@ async function processMessage(msg, sessionId = "default") {
         reply = reply.replace(randomVarRegex, (match, type, param1, param2) => {
           let length, customSet;
           if (type === 'custom') {
-            length = parseInt(param1);
-            customSet = param2.split(',');
+            const parts = param2.split(',');
+            return pick(parts);
           } else if (type === 'num') {
             const [min, max] = param1.split('_').map(Number);
             return Math.floor(Math.random() * (max - min + 1)) + min;
