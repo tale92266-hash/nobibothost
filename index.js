@@ -1,4 +1,3 @@
-// server.js
 require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
@@ -16,12 +15,11 @@ const io = new Server(server, { cors: { origin: "*" } });
 app.use(express.json({ limit: "1mb" }));
 
 // -------------------- Persistent Stats --------------------
-const dataDir = path.join(__dirname, "data");
-const statsFilePath = path.join(dataDir, "stats.json");
+const statsFilePath = path.join(__dirname, "data", "stats.json");
 
-// Ensure data folder and stats file exist
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+// Auto-create stats.json if missing
 if (!fs.existsSync(statsFilePath)) {
+  fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
   fs.writeFileSync(
     statsFilePath,
     JSON.stringify({
@@ -44,49 +42,42 @@ function saveStats() {
 // -------------------- Chat Context --------------------
 const chatContexts = {};
 
-// -------------------- Keywords & Replies --------------------
-let KEYWORDS = [];
-let DEFAULT_REPLIES = [];
-
-function loadAllKeywords() {
-  try {
-    KEYWORDS = [];
-    fs.readdirSync(dataDir).forEach(file => {
-      if (file.endsWith(".json") && file !== "default.json" && file !== "stats.json") {
-        const fileData = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
-        KEYWORDS = KEYWORDS.concat(fileData);
+// -------------------- RULES LOADING --------------------
+let RULES = [];
+function loadRules() {
+  const dataDir = path.join(__dirname, "data");
+  RULES = [];
+  fs.readdirSync(dataDir).forEach(file => {
+    if (file.endsWith(".json") && file !== "stats.json") {
+      try {
+        const data = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
+        RULES.push(data);
+      } catch (err) {
+        console.error(`❌ Failed to load ${file}:`, err.message);
       }
-    });
-    console.log(`⚡ LOADED ${KEYWORDS.length} KEYWORDS`);
-  } catch (err) {
-    console.error("❌ Failed to load chat keywords:", err.message);
-    KEYWORDS = [];
-  }
+    }
+  });
+  console.log(`⚡ LOADED ${RULES.length} RULES`);
 }
 
-function loadDefaultReplies() {
-  try {
-    const defaultPath = path.join(dataDir, "default.json");
-    const data = JSON.parse(fs.readFileSync(defaultPath, "utf8"));
-    DEFAULT_REPLIES = data.defaultReplies || [];
-    console.log(`⚡ LOADED ${DEFAULT_REPLIES.length} DEFAULT REPLIES`);
-  } catch (err) {
-    console.error("❌ Failed to load default replies:", err.message);
-    DEFAULT_REPLIES = [];
-  }
-}
-
-// Watch data folder for updates
-fs.watch(dataDir, (eventType, filename) => {
+// -------------------- Watch data folder --------------------
+fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json") && filename !== "stats.json") {
-    console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    loadAllKeywords();
-    loadDefaultReplies();
+    console.log(`📂 ${filename} UPDATED, RELOADING RULES...`);
+    loadRules();
   }
 });
 
 // -------------------- Helpers --------------------
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function splitKeywords(str) { return str.split("//").map(k => k.trim()).filter(Boolean); }
+function splitReplies(str) { return str.split("<#>").map(r => r.trim()).filter(Boolean); }
+function matchPattern(msg, pattern) {
+  // Convert *abc* style into regex
+  const regexStr = pattern.split("*").map(s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
+  const regex = new RegExp(`^${regexStr}$`, "i");
+  return regex.test(msg);
+}
 
 // Emit stats to clients via Socket.io
 function emitStats() {
@@ -99,10 +90,9 @@ function emitStats() {
   });
 }
 
-// Process incoming message
+// -------------------- Process incoming message --------------------
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
-
   if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
 
   // -------------------- Update Stats --------------------
@@ -113,36 +103,45 @@ function processMessage(msg, sessionId = "default") {
   if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
   saveStats();
 
-  // -------------------- Match Keywords --------------------
+  // -------------------- Match Rules --------------------
   let reply = null;
-  for (let k of KEYWORDS) {
-    if (k.type === "contain") {
-      for (let pattern of k.patterns) if (msg.includes(pattern.toLowerCase())) { reply = pick(k.replies); break; }
-    } else if (k.type === "exact" && k.pattern.toLowerCase() === msg) reply = pick(k.replies);
-    else if (k.type === "pattern" && new RegExp(k.pattern, "i").test(msg)) reply = pick(k.replies);
+  for (let rule of RULES) {
+    const keywords = splitKeywords(rule.keywords);
+    for (let kw of keywords) {
+      if (rule.rule_type === "WELCOME" && chatContexts[sessionId].dialogueState === "normal") {
+        reply = pick(splitReplies(rule.reply_text));
+        chatContexts[sessionId].dialogueState = "welcomed";
+        break;
+      } else if (rule.rule_type === "EXACT" && kw.toLowerCase() === msg) {
+        reply = pick(splitReplies(rule.reply_text));
+        break;
+      } else if ((rule.rule_type === "PATTERN" || rule.rule_type === "EXPERT") && matchPattern(msg, kw.toLowerCase())) {
+        reply = pick(splitReplies(rule.reply_text));
+        break;
+      }
+    }
     if (reply) break;
   }
 
-  if (!reply) reply = pick(DEFAULT_REPLIES);
+  if (!reply) return null; // No default reply now
 
   chatContexts[sessionId].lastIntent = reply;
   chatContexts[sessionId].lastMessage = msg;
 
   emitStats();
-
   return reply.toUpperCase();
 }
 
-// -------------------- Load initial data --------------------
-loadAllKeywords();
-loadDefaultReplies();
+// -------------------- Load initial rules --------------------
+loadRules();
 
 // -------------------- Webhook --------------------
 app.post("/webhook", (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
   const replyText = processMessage(msg, sessionId);
-  res.json({ replies: [{ message: replyText }] });
+  if (replyText) res.json({ replies: [{ message: replyText }] });
+  else res.json({ replies: [] });
 });
 
 // -------------------- Stats API --------------------
@@ -151,7 +150,7 @@ app.get("/stats", (req, res) => {
     totalUsers: stats.totalUsers.length,
     totalMsgs: stats.totalMsgs,
     todayUsers: stats.todayUsers.length,
-    todayMsgs: stats.todayMsgs,
+    todayMsgs: stats.todayMsgs.length,
     nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
   });
 });
@@ -166,24 +165,7 @@ app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 // -------------------- Start server --------------------
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// -------------------- Self-ping every 5 mins with rate-limit safe --------------------
-setInterval(async () => {
-  try {
-    await axios.get(`${SERVER_URL}/ping`);
-    console.log("🔁 Self-ping sent!");
-  } catch (err) {
-    if (err.response && err.response.status === 429) {
-      console.log("⚠️ Ping rate-limit hit, will retry in next interval.");
-    } else {
-      console.log("❌ Ping failed:", err.message);
-    }
-  }
-}, 5 * 60 * 1000);
-
-// -------------------- Socket.io connection --------------------
-io.on("connection", socket => {
-  console.log("👤 New client connected:", socket.id);
-  emitStats();
-
-  socket.on("disconnect", () => console.log("👤 Client disconnected:", socket.id));
+// -------------------- Self-ping every 5 mins --------------------
+setInterval(() => {
+  axios.get(`${SERVER_URL}/ping`).then(() => console.log("🔁 Self-ping sent!")).catch(err => console.log("❌ Ping failed:", err.message));
 });
