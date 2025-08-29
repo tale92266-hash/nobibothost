@@ -1,0 +1,7 @@
+{
+  "rule_name": "complex_expressions",
+  "rule_type": "EXPERT",
+  "keywords": "*I*LOVE*YOU*//HELLO*WORLD*",
+  "replies_type": "RANDOM",
+  "reply_text": "WOW, EXPERT LEVEL MESSAGE!<#>YOU ARE GOOD AT THIS!<#>👌 PERFECT MATCH"
+}
