@@ -4,10 +4,8 @@ const PORT = process.env.PORT || 10000;
 
 app.use(express.json({ limit: '1mb' }));
 
-// Context and state tracking
 const chatContexts = {};
 
-// Reply Pool (more structured and human-like)
 const replies = {
   greetings: {
     intent: ['HI', 'HELLO', 'SUP', 'NAMASTE', 'RAM RAM'],
@@ -70,14 +68,33 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Function to match message with advanced regex patterns
+function getReplyFromMessage(msg) {
+  if (msg.match(/\b(hi|hello|he[y]+|sup|namaste|ram\s?ram)\b/i)) {
+    return 'greetings';
+  }
+  if (msg.match(/\b(how\s?are\s?you|hw\s?r\s?u|k[ae]is[ae]\s?ho|kya\s?haal|kaisi\s?hai|kaise\s?ho)\b/i)) {
+    return 'howAreYou';
+  }
+  if (msg.match(/\b(thank|thanks|shukr[iya]+|dhanyawad)\b/i)) {
+    return 'thanks';
+  }
+  if (msg.match(/\b(price|cost|daam|kya\s?daam|kitne\s?ka|kya\s?price)\b/i)) {
+    return 'price';
+  }
+  if (msg.match(/\b(detail|more\s?info|kuch\s?aur\s?batao|zyaada\s?jaankari|details)\b/i)) {
+    return 'details';
+  }
+  return 'default';
+}
+
 app.post('/webhook', (req, res) => {
   const sessionId = req.body.session_id || 'default_session';
   const msg = (req.body.query?.message || '').toLowerCase();
 
   let replyText;
   let currentIntent = 'default';
-  
-  // Get current session context or create a new one
+
   if (!chatContexts[sessionId]) {
     chatContexts[sessionId] = {
       lastIntent: null,
@@ -87,50 +104,28 @@ app.post('/webhook', (req, res) => {
   }
   const context = chatContexts[sessionId];
 
-  // Logic to handle clarification state
   if (context.dialogueState === 'waiting_for_clarification') {
-    // Acha, samajh gaya
-    replyText = pick(replies.confirmation.responses);
-    context.dialogueState = 'normal'; // Reset state after receiving clarification
-    
-    // Now try to process the new, clearer message
-    if (msg.match(/\b(price|cost|daam|kitne ka)\b/)) {
-        replyText += ' ' + pick(replies.price.responses);
-        currentIntent = 'price';
-    } else if (msg.match(/\b(detail|more info|kuch aur batao|zyaada jaankari)\b/)) {
-        replyText += ' ' + pick(replies.details.responses);
-        currentIntent = 'details';
+    const userIntent = getReplyFromMessage(msg);
+    if (userIntent !== 'default') {
+      replyText = pick(replies.confirmation.responses) + ' ' + pick(replies[userIntent].responses);
+      currentIntent = userIntent;
+      context.dialogueState = 'normal';
     } else {
-        // If clarification still doesn't work, give up or ask a different question
-        replyText = pick(replies.clarification.responses);
-        context.dialogueState = 'waiting_for_clarification';
+      replyText = pick(replies.clarification.responses);
+      context.clarificationCount++;
     }
   } else {
-    // Normal Intent matching
-    if (msg.match(/\b(hi|hello|namaste|ram ram|sup)\b/)) {
-      replyText = pick(replies.greetings.responses);
-      currentIntent = 'greetings';
-    } else if (msg.match(/\b(how are you|kaisa hai|kya haal|kaisi hai|kaise ho)\b/)) {
-      replyText = pick(replies.howAreYou.responses);
-      currentIntent = 'howAreYou';
-    } else if (msg.match(/\b(thank|shukriya|dhanyawad)\b/)) {
-      replyText = pick(replies.thanks.responses);
-      currentIntent = 'thanks';
-    } else if (msg.match(/\b(price|cost|daam|kitne ka)\b/)) {
-      replyText = pick(replies.price.responses);
-      currentIntent = 'price';
-    } else if (msg.match(/\b(detail|more info|kuch aur batao|zyaada jaankari)\b/)) {
-      replyText = pick(replies.details.responses);
-      currentIntent = 'details';
+    const userIntent = getReplyFromMessage(msg);
+    if (userIntent !== 'default') {
+      replyText = pick(replies[userIntent].responses);
+      currentIntent = userIntent;
     } else {
-      // If intent not matched, ask for clarification
       replyText = pick(replies.clarification.responses);
       context.dialogueState = 'waiting_for_clarification';
       currentIntent = 'clarification';
     }
   }
 
-  // Update context for the next turn
   context.lastIntent = currentIntent;
   context.lastMessage = msg;
 
