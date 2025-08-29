@@ -53,6 +53,7 @@ function processMessage(msg, sessionId = "default") {
 
   return reply.toUpperCase();
 }
+
 // helper pick function
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
