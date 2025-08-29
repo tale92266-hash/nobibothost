@@ -37,18 +37,16 @@ document.addEventListener("DOMContentLoaded", () => {
       replyTextField.style.display = 'block';
       targetUsersToggle.closest('.mb-3').style.display = 'block';
     }
-    // Set default replies type to RANDOM for new rules
     if (!currentRuleNumber) {
       document.getElementById('repliesType').value = 'RANDOM';
     }
   }
 
   function toggleTargetUsersField() {
-    if (targetUsersToggle.value === 'TARGET') {
-      targetUsersField.style.display = 'block';
-    } else {
-      targetUsersField.style.display = 'none';
-      document.getElementById('targetUsers').value = "ALL";
+    const isTargetOrIgnored = targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED';
+    targetUsersField.style.display = isTargetOrIgnored ? 'block' : 'none';
+    if (!isTargetOrIgnored) {
+        document.getElementById('targetUsers').value = "ALL";
     }
   }
 
@@ -114,9 +112,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('repliesType').value = rule.REPLIES_TYPE;
     document.getElementById('replyText').value = rule.REPLY_TEXT;
     
-    // Set up Target Users field
     if (Array.isArray(rule.TARGET_USERS)) {
-      targetUsersToggle.value = 'TARGET';
+      // Check if it's an IGNORED rule
+      if (rule.RULE_TYPE === "IGNORED") {
+        targetUsersToggle.value = 'IGNORED';
+      } else {
+        targetUsersToggle.value = 'TARGET';
+      }
       document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
     } else {
       targetUsersToggle.value = 'ALL';
@@ -138,17 +140,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData(ruleForm);
     const ruleData = Object.fromEntries(formData.entries());
     
-    // Convert ruleNumber to integer
     ruleData.ruleNumber = parseInt(ruleData.ruleNumber);
+    ruleData.oldRuleNumber = currentRuleNumber;
 
-    // Convert replies type text to array if not ALL
     if (ruleData.repliesType !== 'ALL') {
         const replies = ruleData.replyText.split('<#>').filter(Boolean);
         ruleData.replyText = replies.join('<#>');
     }
 
-    // Convert targetUsers to array if 'TARGET' is selected
-    if (targetUsersToggle.value === 'TARGET') {
+    if (targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED') {
       ruleData.targetUsers = ruleData.targetUsers.split(',').map(id => id.trim());
     } else {
       ruleData.targetUsers = "ALL";
@@ -177,7 +177,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   deleteRuleBtn.addEventListener('click', async () => {
-    if (confirm(`Are you sure you want to delete Rule #${currentRuleNumber}?`)) {
+    const isConfirmed = confirm(`Are you sure you want to delete Rule #${currentRuleNumber}?`);
+    if (isConfirmed) {
       const payload = {
         type: 'delete',
         rule: { ruleNumber: currentRuleNumber }
