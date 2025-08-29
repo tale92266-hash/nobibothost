@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function editRule(rule) {
     currentRuleNumber = rule.RULE_NUMBER;
     formTitle.innerText = `Edit Rule #${rule.RULE_NUMBER}`;
-
+    
     // Field values
     document.getElementById('ruleName').value = rule.RULE_NAME || '';
     document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
@@ -162,11 +162,11 @@ document.addEventListener("DOMContentLoaded", () => {
     toggleFormFields(rule.RULE_TYPE);
     toggleTargetUsersField();
 
-    // Show delete button
+    // Show delete button & modal
     deleteRuleBtn.style.display = 'block';
-
-    // Show modal and force redraw
     ruleModal.show();
+
+    // Force modal redraw (bootstrap sometimes fucks up if height 0)
     const modalEl = document.getElementById('ruleModal');
     modalEl.style.display = 'block';
     modalEl.classList.add('show');
