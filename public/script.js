@@ -10,31 +10,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const keywordsField = document.getElementById('keywordsField');
   const repliesTypeField = document.getElementById('repliesTypeField');
   const replyTextField = document.getElementById('replyTextField');
+  const targetUsersToggle = document.getElementById('targetUsersToggle');
   const targetUsersField = document.getElementById('targetUsersField');
+  const toastLiveExample = document.getElementById('liveToast');
+  const toastBody = document.querySelector('#liveToast .toast-body');
+  const toast = new bootstrap.Toast(toastLiveExample);
   let currentRuleNumber = null;
 
-  function toggleFormFields(ruleType) {
-    keywordsField.style.display = 'block';
-    repliesTypeField.style.display = 'block';
-    replyTextField.style.display = 'block';
-    targetUsersField.style.display = 'block';
+  function showToast(message, type = 'success') {
+    toastBody.innerText = message;
+    toastLiveExample.classList.remove('success', 'fail');
+    toastLiveExample.classList.add(type);
+    toast.show();
+  }
 
+  function toggleFormFields(ruleType) {
     if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
       keywordsField.style.display = 'none';
-      repliesTypeField.style.display = 'block';
-      replyTextField.style.display = 'block';
       targetUsersField.style.display = 'none';
-    } else if (ruleType === 'IGNORED') {
-      targetUsersField.style.display = 'block';
-      keywordsField.style.display = 'block';
-      repliesTypeField.style.display = 'block';
-      replyTextField.style.display = 'block';
+      targetUsersToggle.closest('.mb-3').style.display = 'none';
     } else {
-        // For EXACT, PATTERN, EXPERT
-        keywordsField.style.display = 'block';
-        repliesTypeField.style.display = 'block';
-        replyTextField.style.display = 'block';
-        targetUsersField.style.display = 'block';
+      keywordsField.style.display = 'block';
+      targetUsersField.style.display = 'block';
+      targetUsersToggle.closest('.mb-3').style.display = 'block';
+    }
+  }
+
+  function toggleTargetUsersField() {
+    if (targetUsersToggle.value === 'TARGET') {
+      targetUsersField.style.display = 'block';
+    } else {
+      targetUsersField.style.display = 'none';
     }
   }
 
@@ -81,6 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('ruleNumber').value = lastRuleNumber + 1;
       });
     toggleFormFields(ruleTypeSelect.value);
+    toggleTargetUsersField();
     ruleModal.show();
   }
 
@@ -92,15 +99,24 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('keywords').value = rule.KEYWORDS || '';
     document.getElementById('repliesType').value = rule.REPLIES_TYPE;
     document.getElementById('replyText').value = rule.REPLY_TEXT;
-    document.getElementById('targetUsers').value = Array.isArray(rule.TARGET_USERS) ? rule.TARGET_USERS.join('//') : rule.TARGET_USERS || 'ALL';
+    
+    // Set up Target Users field
+    if (Array.isArray(rule.TARGET_USERS)) {
+      targetUsersToggle.value = 'TARGET';
+      document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
+    } else {
+      targetUsersToggle.value = 'ALL';
+    }
+    
     deleteRuleBtn.style.display = 'block';
     toggleFormFields(rule.RULE_TYPE);
+    toggleTargetUsersField();
     ruleModal.show();
   }
 
   addRuleBtn.addEventListener('click', () => setupAddForm());
-
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
+  targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
 
   ruleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -110,11 +126,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // Convert ruleNumber to integer
     ruleData.ruleNumber = parseInt(ruleData.ruleNumber);
 
-    // Convert targetUsers to array if not "ALL"
-    if (ruleData.targetUsers && ruleData.targetUsers !== 'ALL') {
-      ruleData.targetUsers = ruleData.targetUsers.split('//').map(id => id.trim());
+    // Convert replies type text to array if not ALL
+    if (ruleData.repliesType !== 'ALL') {
+        const replies = ruleData.replyText.split('<#>').filter(Boolean);
+        ruleData.replyText = replies.join('<#>');
+    }
+
+    // Convert targetUsers to array if 'TARGET' is selected
+    if (targetUsersToggle.value === 'TARGET') {
+      ruleData.targetUsers = ruleData.targetUsers.split(',').map(id => id.trim());
     } else {
-        ruleData.targetUsers = "ALL";
+      ruleData.targetUsers = "ALL";
     }
 
     const payload = {
@@ -131,11 +153,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const result = await res.json();
     if (result.success) {
-      alert("Rule saved successfully!");
+      showToast("Rule saved successfully!");
       ruleModal.hide();
       fetchRules();
     } else {
-      alert("Error saving rule: " + result.message);
+      showToast("Error saving rule: " + result.message, 'fail');
     }
   });
 
@@ -152,11 +174,11 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const result = await res.json();
       if (result.success) {
-        alert("Rule deleted successfully!");
+        showToast("Rule deleted successfully!");
         ruleModal.hide();
         fetchRules();
       } else {
-        alert("Error deleting rule: " + result.message);
+        showToast("Error deleting rule: " + result.message, 'fail');
       }
     }
   });
