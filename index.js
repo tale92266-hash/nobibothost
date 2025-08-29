@@ -55,7 +55,26 @@ let stats;
 let welcomedUsers;
 let RULES = [];
 
-// Data Sync Function
+// -------------------- Rules Functions (moved to global scope) --------------------
+async function loadAllRules() {
+    RULES = [];
+    const dataDir = path.join(__dirname, "data");
+    const dbRules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    if (dbRules.length > 0) {
+        RULES = dbRules.map(r => r.toObject());
+        const jsonRules = { rules: RULES };
+        fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
+    } else {
+        const jsonRules = JSON.parse(fs.readFileSync(path.join(dataDir, "funrules.json"), "utf8"));
+        RULES = jsonRules.rules;
+        if (RULES.length > 0) {
+            await Rule.insertMany(RULES);
+        }
+    }
+    console.log(`⚡ Loaded ${RULES.length} valid rules`);
+}
+
+// Data Sync Function (moved to global scope)
 const syncData = async () => {
   try {
     // Sync Stats
@@ -85,21 +104,8 @@ const syncData = async () => {
     }
 
     // Sync Rules
-    const dbRules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-    if (dbRules.length > 0) {
-      RULES = dbRules;
-      const jsonRules = { rules: RULES.map(r => r.toObject()) };
-      fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
-      console.log("⚡ Rules restored from MongoDB.");
-    } else {
-      const jsonRules = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "funrules.json"), "utf8"));
-      RULES = jsonRules.rules;
-      if (RULES.length > 0) {
-        await Rule.insertMany(RULES);
-        console.log("⚡ Rules uploaded to MongoDB.");
-      }
-    }
-    
+    await loadAllRules();
+
     // Check if a new day has started on server restart
     if (stats.lastResetDate !== today) {
         stats.todayUsers = [];
@@ -240,25 +246,6 @@ function processMessage(msg, sessionId = "default") {
   }
 
   return reply || null;
-}
-
-// -------------------- Rules Functions (moved to global scope) --------------------
-async function loadAllRules() {
-    RULES = [];
-    const dataDir = path.join(__dirname, "data");
-    const dbRules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-    if (dbRules.length > 0) {
-        RULES = dbRules.map(r => r.toObject());
-        const jsonRules = { rules: RULES };
-        fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
-    } else {
-        const jsonRules = JSON.parse(fs.readFileSync(path.join(dataDir, "funrules.json"), "utf8"));
-        RULES = jsonRules.rules;
-        if (RULES.length > 0) {
-            await Rule.insertMany(RULES);
-        }
-    }
-    console.log(`⚡ Loaded ${RULES.length} valid rules`);
 }
 
 // -------------------- Initial Load --------------------
