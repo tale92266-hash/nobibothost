@@ -8,6 +8,10 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
+const server = require("http").createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server, { cors: { origin: "*" } });
+
 app.use(express.json({ limit: "1mb" }));
 
 // Session contexts
@@ -19,7 +23,7 @@ const stats = {
   todayUsers: new Set(),
   totalMsgs: 0,
   todayMsgs: 0,
-  nobiPapaHideMeUsers: new Set() // unique users who said "NOBI PAPA HIDE ME"
+  nobiPapaHideMeUsers: new Set()
 };
 
 // Chat keywords and default replies
@@ -61,7 +65,7 @@ function loadDefaultReplies() {
 loadAllKeywords();
 loadDefaultReplies();
 
-// Watch data folder for live reload
+// Watch data folder
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json")) {
     console.log(`📂 ${filename} UPDATED, RELOADING...`);
@@ -75,14 +79,22 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Emit stats to all clients
+function emitStats() {
+  io.emit("statsUpdate", {
+    totalUsers: stats.totalUsers.size,
+    totalMsgs: stats.totalMsgs,
+    todayUsers: stats.todayUsers.size,
+    todayMsgs: stats.todayMsgs,
+    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.size
+  });
+}
+
 // Process message
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
-  // Init context
-  if (!chatContexts[sessionId]) {
-    chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
-  }
+  if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
 
   // Update stats
   stats.totalUsers.add(sessionId);
@@ -90,7 +102,6 @@ function processMessage(msg, sessionId = "default") {
   stats.totalMsgs++;
   stats.todayMsgs++;
 
-  // Track exact "NOBI PAPA HIDE ME"
   if (msg.includes("nobi papa hide me")) stats.nobiPapaHideMeUsers.add(sessionId);
 
   const context = chatContexts[sessionId];
@@ -98,29 +109,21 @@ function processMessage(msg, sessionId = "default") {
 
   for (let k of KEYWORDS) {
     if (k.type === "contain") {
-      for (let pattern of k.patterns) {
-        if (msg.includes(pattern.toLowerCase())) {
-          reply = pick(k.replies);
-          break;
-        }
-      }
-    } else if (k.type === "exact" && k.pattern.toLowerCase() === msg) {
-      reply = pick(k.replies);
-    } else if (k.type === "pattern" && new RegExp(k.pattern, "i").test(msg)) {
-      reply = pick(k.replies);
-    }
+      for (let pattern of k.patterns) if (msg.includes(pattern.toLowerCase())) { reply = pick(k.replies); break; }
+    } else if (k.type === "exact" && k.pattern.toLowerCase() === msg) reply = pick(k.replies);
+    else if (k.type === "pattern" && new RegExp(k.pattern, "i").test(msg)) reply = pick(k.replies);
     if (reply) break;
   }
 
   if (!reply) {
     reply = pick(DEFAULT_REPLIES);
     context.dialogueState = "waiting_for_clarification";
-  } else {
-    context.dialogueState = "normal";
-  }
+  } else context.dialogueState = "normal";
 
   context.lastIntent = reply;
   context.lastMessage = msg;
+
+  emitStats();
 
   return reply.toUpperCase();
 }
@@ -131,39 +134,32 @@ app.post("/webhook", (req, res) => {
   const msg = req.body.query?.message || "";
   const replyText = processMessage(msg, sessionId);
 
-  res.json({
-    replies: [{ message: replyText }]
-  });
+  res.json({ replies: [{ message: replyText }] });
 });
 
-// Stats endpoint
+// Serve stats
 app.get("/stats", (req, res) => {
   res.json({
     totalUsers: stats.totalUsers.size,
     totalMsgs: stats.totalMsgs,
     todayUsers: stats.todayUsers.size,
     todayMsgs: stats.todayMsgs,
-    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.size // UNIQUE USERS
+    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.size
   });
 });
 
 // Serve frontend
 app.use(express.static("public"));
 
-// Self-ping route
+// Ping route
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
-// Root
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`);
+server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-  // 5-min self-ping to prevent Render sleep
-  setInterval(() => {
-    axios.get(`${SERVER_URL}/ping`)
-      .then(() => console.log("🔁 Self-ping sent!"))
-      .catch(err => console.log("❌ Ping failed:", err.message));
-  }, 5 * 60 * 1000);
+// 5-min self-ping
+setInterval(() => {
+  axios.get(`${SERVER_URL}/ping`).then(() => console.log("🔁 Self-ping sent!")).catch(err => console.log("❌ Ping failed:", err.message));
 });
