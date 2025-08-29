@@ -1,7 +1,0 @@
-{
-  "rule_name": "i_love_pattern",
-  "rule_type": "PATTERN",
-  "keywords": "*I LOVE*//YOU*",
-  "replies_type": "RANDOM",
-  "reply_text": "LOVE FEELS AWESOME!<#>I KNOW RIGHT!<#>❤️ BHAI❤️"
-}
