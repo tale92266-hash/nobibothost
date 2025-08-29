@@ -27,11 +27,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggleFormFields(ruleType) {
     if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
       keywordsField.style.display = 'none';
-      targetUsersField.style.display = 'none';
       targetUsersToggle.closest('.mb-3').style.display = 'none';
     } else {
       keywordsField.style.display = 'block';
-      targetUsersField.style.display = 'block';
       targetUsersToggle.closest('.mb-3').style.display = 'block';
     }
   }
@@ -106,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
     } else {
       targetUsersToggle.value = 'ALL';
+      document.getElementById('targetUsers').value = '';
     }
     
     deleteRuleBtn.style.display = 'block';
