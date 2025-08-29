@@ -1,4 +1,4 @@
-rrequire("dotenv").config();
+require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -126,6 +126,7 @@ const scheduleDailyReset = () => {
   const timeUntilMidnight = midnight.getTime() - now.getTime();
   setTimeout(() => {
     resetDailyStats();
+    // Schedule for the next day
     setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
   }, timeUntilMidnight);
 };
@@ -144,6 +145,7 @@ function emitStats() {
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
+  // -------------------- Update Stats --------------------
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
@@ -155,6 +157,7 @@ async function processMessage(msg, sessionId = "default") {
   saveStats();
   emitStats();
 
+  // -------------------- Match Rules --------------------
   let reply = null;
 
   for (let rule of RULES) {
@@ -203,8 +206,9 @@ async function processMessage(msg, sessionId = "default") {
 
     if (match) {
       let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+      // Logic to limit replies to 20 for 'ALL' type
       if (rule.REPLIES_TYPE === "ALL") {
-        replies = replies.slice(0, 20);
+        replies = replies.slice(0, 20); // Limit to first 20 replies
         reply = replies.join(" ");
       } else if (rule.REPLIES_TYPE === "ONE") {
         reply = replies[0];
@@ -247,6 +251,22 @@ async function processMessage(msg, sessionId = "default") {
     });
 })();
 
+// -------------------- Watch data folder for updates --------------------
+fs.watch(path.join(__dirname, "data"), async (eventType, filename) => {
+    if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
+        console.log(`📂 ${filename} UPDATED, UPLOADING TO MONGODB...`);
+        try {
+            const jsonRules = JSON.parse(fs.readFileSync(path.join(__dirname, "data", filename), "utf8"));
+            await Rule.deleteMany({});
+            await Rule.insertMany(jsonRules.rules);
+            await loadAllRules();
+            console.log(`✅ ${filename} synchronized with MongoDB.`);
+        } catch (err) {
+            console.error(`❌ Failed to sync ${filename} with MongoDB:`, err.message);
+        }
+    }
+});
+
 // -------------------- API Endpoints for Frontend --------------------
 app.get("/api/rules", async (req, res) => {
   try {
@@ -269,9 +289,12 @@ app.post("/api/rules/update", async (req, res) => {
         );
       }
       await Rule.create({
-        ...rule,
         RULE_NUMBER: rule.ruleNumber,
         RULE_NAME: rule.ruleName,
+        RULE_TYPE: rule.ruleType,
+        KEYWORDS: rule.keywords,
+        REPLIES_TYPE: rule.repliesType,
+        REPLY_TEXT: rule.replyText,
         TARGET_USERS: rule.targetUsers
       });
     } else if (type === "edit") {
