@@ -1,0 +1,7 @@
+{
+  "rule_name": "love_declaration",
+  "rule_type": "EXACT",
+  "keywords": "I LOVE YOU//YOU ARE THE BEST",
+  "replies_type": "RANDOM",
+  "reply_text": "AWW, I LOVE YOU TOO!<#>YOU ROCK!<#>THANKS BHAI!🔥"
+}
