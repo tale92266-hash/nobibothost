@@ -3,10 +3,12 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+const mongoose = require("mongoose");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
@@ -14,47 +16,108 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
+// -------------------- MongoDB Connection & Models --------------------
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log("⚡ MongoDB connected successfully!"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
+
+const userSchema = new mongoose.Schema({
+  sessionId: { type: String, required: true, unique: true }
+});
+const User = mongoose.model("User", userSchema);
+
+const ruleSchema = new mongoose.Schema({
+  RULE_NUMBER: { type: Number, required: true, unique: true },
+  RULE_TYPE: { type: String, required: true },
+  KEYWORDS: { type: String, required: true },
+  REPLIES_TYPE: { type: String, required: true },
+  REPLY_TEXT: { type: String, required: true },
+  TARGET_USERS: { type: mongoose.Schema.Types.Mixed, default: "ALL" }
+});
+const Rule = mongoose.model("Rule", ruleSchema);
+
+const statsSchema = new mongoose.Schema({
+  totalUsers: [{ type: String }],
+  todayUsers: [{ type: String }],
+  totalMsgs: { type: Number, default: 0 },
+  todayMsgs: { type: Number, default: 0 },
+  nobiPapaHideMeUsers: [{ type: String }],
+  lastResetDate: { type: String }
+});
+const Stats = mongoose.model("Stats", statsSchema);
+
 // -------------------- Persistent Stats --------------------
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const today = new Date().toLocaleDateString();
 
-// Stats file creation
-if (!fs.existsSync(statsFilePath)) {
-  fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
-  fs.writeFileSync(
-    statsFilePath,
-    JSON.stringify({
-      totalUsers: [],
-      todayUsers: [],
-      totalMsgs: 0,
-      todayMsgs: 0,
-      nobiPapaHideMeUsers: [],
-      lastResetDate: today
-    }, null, 2)
-  );
-  console.log("⚡ stats.json created for first time!");
-}
+let stats;
+let welcomedUsers;
+let RULES = [];
 
-let stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
+// Data Sync Function
+const syncData = async () => {
+  try {
+    // Sync Stats
+    const dbStats = await Stats.findOne();
+    if (dbStats) {
+      stats = dbStats;
+      fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+      console.log("⚡ Stats restored from MongoDB.");
+    } else {
+      stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
+      await Stats.create(stats);
+      console.log("⚡ Stats uploaded to MongoDB.");
+    }
 
-// Welcomed users file creation
-if (!fs.existsSync(welcomedUsersFilePath)) {
-  fs.writeFileSync(welcomedUsersFilePath, JSON.stringify([], null, 2));
-  console.log("⚡ welcomed_users.json created for first time!");
-}
+    // Sync Welcomed Users
+    const dbWelcomedUsers = await User.find({}, 'sessionId');
+    if (dbWelcomedUsers.length > 0) {
+      welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
+      fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+      console.log("⚡ Welcomed users restored from MongoDB.");
+    } else {
+      welcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
+      if (welcomedUsers.length > 0) {
+        await User.insertMany(welcomedUsers.map(id => ({ sessionId: id })));
+        console.log("⚡ Welcomed users uploaded to MongoDB.");
+      }
+    }
 
-let welcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
+    // Sync Rules
+    const dbRules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    if (dbRules.length > 0) {
+      RULES = dbRules;
+      const jsonRules = { rules: RULES.map(r => r.toObject()) };
+      fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+      console.log("⚡ Rules restored from MongoDB.");
+    } else {
+      const jsonRules = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "funrules.json"), "utf8"));
+      RULES = jsonRules.rules;
+      if (RULES.length > 0) {
+        await Rule.insertMany(RULES);
+        console.log("⚡ Rules uploaded to MongoDB.");
+      }
+    }
+    
+    // Check if a new day has started on server restart
+    if (stats.lastResetDate !== today) {
+        stats.todayUsers = [];
+        stats.todayMsgs = 0;
+        stats.lastResetDate = today;
+        await Stats.findByIdAndUpdate(stats._id, stats);
+        saveStats();
+        console.log("📅 Daily stats reset!");
+    }
 
-// Check if a new day has started on server restart
-if (stats.lastResetDate !== today) {
-  stats.todayUsers = [];
-  stats.todayMsgs = 0;
-  stats.lastResetDate = today;
-  saveStats();
-  console.log("📅 Daily stats reset!");
-}
+    emitStats();
 
+  } catch (err) {
+    console.error("❌ Data sync error:", err);
+  }
+};
+
+// -------------------- Helpers --------------------
 function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
@@ -64,10 +127,11 @@ function saveWelcomedUsers() {
 }
 
 // Daily reset at midnight
-const resetDailyStats = () => {
+const resetDailyStats = async () => {
   stats.todayUsers = [];
   stats.todayMsgs = 0;
   stats.lastResetDate = new Date().toLocaleDateString();
+  await Stats.findByIdAndUpdate(stats._id, stats);
   saveStats();
   console.log("📅 Daily stats reset!");
 };
@@ -85,49 +149,6 @@ const scheduleDailyReset = () => {
   }, timeUntilMidnight);
 };
 
-// -------------------- RULES --------------------
-let RULES = [];
-
-function loadAllRules() {
-  RULES = [];
-  const dataDir = path.join(__dirname, "data");
-  fs.readdirSync(dataDir).forEach(file => {
-    if (file.endsWith(".json") && file !== "stats.json" && file !== "welcomed_users.json") {
-      try {
-        const ruleFile = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
-        if (!ruleFile.rules || !Array.isArray(ruleFile.rules)) {
-          console.error(`❌ ${file} INVALID: "rules" missing or not array`);
-          return;
-        }
-        for (let r of ruleFile.rules) {
-          if (!r.RULE_TYPE || !r.KEYWORDS || !r.REPLY_TEXT) {
-            console.error(`❌ ${file} INVALID rule:`, r);
-            continue;
-          }
-          RULES.push(r);
-          console.log(`✅ ${file} valid rule:`, r.RULE_TYPE);
-        }
-      } catch (err) {
-        console.error(`❌ Failed to parse ${file}:`, err.message);
-      }
-    }
-  });
-
-  // Sort rules by RULE_NUMBER
-  RULES.sort((a, b) => a.RULE_NUMBER - b.RULE_NUMBER);
-
-  console.log(`⚡ Loaded ${RULES.length} valid rules`);
-}
-
-// Watch data folder for updates
-fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
-  if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
-    console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    loadAllRules();
-  }
-});
-
-// -------------------- Helpers --------------------
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function emitStats() {
   io.emit("statsUpdate", {
@@ -148,14 +169,19 @@ function processMessage(msg, sessionId = "default") {
   stats.totalMsgs++;
   stats.todayMsgs++;
   if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
-  saveStats();
+  
+  // Save stats to MongoDB and JSON
+  Stats.findByIdAndUpdate(stats._id, stats, { new: true }).then(updatedStats => {
+      stats = updatedStats;
+      saveStats();
+      emitStats();
+  });
 
   // -------------------- Match Rules --------------------
   let reply = null;
 
   for (let rule of RULES) {
-    // Check user targeting before checking keywords
-    const targetUsers = rule.TARGET_USERS || "ALL"; // Default to ALL if not specified
+    const targetUsers = rule.TARGET_USERS || "ALL";
     let userMatch = false;
 
     if (targetUsers === "ALL") {
@@ -173,19 +199,18 @@ function processMessage(msg, sessionId = "default") {
     }
 
     if (!userMatch) {
-      continue; // Skip this rule if user doesn't match the targeting
+      continue;
     }
 
-    // Now proceed with the existing matching logic
     let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
     let match = false;
 
-    // Custom logic for welcome message
     if (rule.RULE_TYPE === "WELCOME") {
       if (!welcomedUsers.includes(sessionId)) {
         match = true;
         welcomedUsers.push(sessionId);
         saveWelcomedUsers();
+        User.create({ sessionId });
       }
     } else if (rule.RULE_TYPE === "DEFAULT") {
         match = true;
@@ -214,14 +239,34 @@ function processMessage(msg, sessionId = "default") {
     }
   }
 
-  emitStats();
-
-  return reply || null; // agar match nahi hua toh null
+  return reply || null;
 }
 
 // -------------------- Initial Load --------------------
-loadAllRules();
-scheduleDailyReset();
+(async () => {
+    // Wait for MongoDB connection before syncing data and starting server
+    await mongoose.connection.once('open', async () => {
+        if (!fs.existsSync(statsFilePath) || !fs.existsSync(welcomedUsersFilePath) || !fs.existsSync(path.join(__dirname, "data", "funrules.json"))) {
+            console.log("⚡ Creating initial JSON files...");
+            fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
+            fs.writeFileSync(statsFilePath, JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today }, null, 2));
+            fs.writeFileSync(welcomedUsersFilePath, JSON.stringify([], null, 2));
+            fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify({ rules: [] }, null, 2));
+        }
+        await syncData();
+        scheduleDailyReset();
+    });
+})();
+
+// Watch data folder for updates
+fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
+  if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
+    console.log(`📂 ${filename} UPDATED, RELOADING...`);
+    loadAllRules();
+    // Trigger sync on file change
+    syncData();
+  }
+});
 
 // -------------------- Webhook --------------------
 app.post("/webhook", (req, res) => {
