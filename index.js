@@ -65,9 +65,10 @@ async function loadAllRules() {
         const jsonRules = { rules: RULES };
         fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
     } else {
-        const jsonRules = JSON.parse(fs.readFileSync(path.join(dataDir, "funrules.json"), "utf8"));
-        RULES = jsonRules.rules;
-        if (RULES.length > 0) {
+        const jsonRulesPath = path.join(dataDir, "funrules.json");
+        const jsonRules = JSON.parse(fs.readFileSync(jsonRulesPath, "utf8"));
+        if (jsonRules.rules && jsonRules.rules.length > 0) {
+            RULES = jsonRules.rules;
             await Rule.insertMany(RULES);
         }
     }
@@ -252,13 +253,27 @@ async function processMessage(msg, sessionId = "default") {
 (async () => {
     // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
-        if (!fs.existsSync(statsFilePath) || !fs.existsSync(welcomedUsersFilePath) || !fs.existsSync(path.join(__dirname, "data", "funrules.json"))) {
-            console.log("⚡ Creating initial JSON files...");
-            fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
-            fs.writeFileSync(statsFilePath, JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today }, null, 2));
-            fs.writeFileSync(welcomedUsersFilePath, JSON.stringify([], null, 2));
-            fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify({ rules: [] }, null, 2));
+        const dataDir = path.join(__dirname, "data");
+        const funrulesPath = path.join(dataDir, "funrules.json");
+        const welcomedPath = path.join(dataDir, "welcomed_users.json");
+        const statsPath = path.join(dataDir, "stats.json");
+
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
         }
+        
+        if (!fs.existsSync(statsPath)) {
+            fs.writeFileSync(statsPath, JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today }, null, 2));
+        }
+
+        if (!fs.existsSync(welcomedPath)) {
+            fs.writeFileSync(welcomedPath, JSON.stringify([], null, 2));
+        }
+
+        if (!fs.existsSync(funrulesPath)) {
+            fs.writeFileSync(funrulesPath, JSON.stringify({ rules: [] }, null, 2));
+        }
+
         await syncData();
         scheduleDailyReset();
     });
@@ -273,7 +288,6 @@ fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
 });
 
 // -------------------- Webhook --------------------
-// Made webhook async to await the processMessage function
 app.post("/webhook", async (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
