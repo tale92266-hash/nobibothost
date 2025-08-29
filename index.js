@@ -17,26 +17,50 @@ app.use(express.json({ limit: "1mb" }));
 // Session contexts
 const chatContexts = {};
 
-// Stats
-const stats = {
-  totalUsers: new Set(),
-  todayUsers: new Set(),
+// Stats file path
+const statsFilePath = path.join(__dirname, "data", "stats.json");
+
+// Load stats from file or initialize
+let stats = {
+  totalUsers: [],
+  todayUsers: [],
   totalMsgs: 0,
   todayMsgs: 0,
-  nobiPapaHideMeUsers: new Set()
+  nobiPapaHideMeUsers: []
 };
+
+function loadStats() {
+  try {
+    if (fs.existsSync(statsFilePath)) {
+      const fileData = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
+      stats = fileData;
+    } else {
+      saveStats();
+    }
+    console.log("⚡ Stats loaded from file");
+  } catch (err) {
+    console.error("❌ Failed to load stats:", err.message);
+  }
+}
+
+function saveStats() {
+  try {
+    fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2), "utf8");
+  } catch (err) {
+    console.error("❌ Failed to save stats:", err.message);
+  }
+}
 
 // Chat keywords and default replies
 let KEYWORDS = [];
 let DEFAULT_REPLIES = [];
 
-// Load chat keywords
 function loadAllKeywords() {
   try {
     const dataDir = path.join(__dirname, "data");
     KEYWORDS = [];
     fs.readdirSync(dataDir).forEach(file => {
-      if (file.endsWith(".json") && file !== "default.json") {
+      if (file.endsWith(".json") && file !== "default.json" && file !== "stats.json") {
         const fileData = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
         KEYWORDS = KEYWORDS.concat(fileData);
       }
@@ -48,7 +72,6 @@ function loadAllKeywords() {
   }
 }
 
-// Load default replies
 function loadDefaultReplies() {
   try {
     const defaultPath = path.join(__dirname, "data", "default.json");
@@ -61,52 +84,36 @@ function loadDefaultReplies() {
   }
 }
 
-// Initial load
-loadAllKeywords();
-loadDefaultReplies();
-
-// Watch data folder
-fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
-  if (filename.endsWith(".json")) {
-    console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    loadAllKeywords();
-    loadDefaultReplies();
-  }
-});
-
 // Random picker
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-// Emit stats to all clients
+// Emit stats to clients
 function emitStats() {
   io.emit("statsUpdate", {
-    totalUsers: stats.totalUsers.size,
+    totalUsers: stats.totalUsers.length,
     totalMsgs: stats.totalMsgs,
-    todayUsers: stats.todayUsers.size,
+    todayUsers: stats.todayUsers.length,
     todayMsgs: stats.todayMsgs,
-    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.size
+    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
   });
 }
 
-// Process message
+// Process incoming message
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
   if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
 
   // Update stats
-  stats.totalUsers.add(sessionId);
-  stats.todayUsers.add(sessionId);
+  if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
+  if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
   stats.todayMsgs++;
+  if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
 
-  if (msg.includes("nobi papa hide me")) stats.nobiPapaHideMeUsers.add(sessionId);
+  saveStats();
 
-  const context = chatContexts[sessionId];
   let reply = null;
-
   for (let k of KEYWORDS) {
     if (k.type === "contain") {
       for (let pattern of k.patterns) if (msg.includes(pattern.toLowerCase())) { reply = pick(k.replies); break; }
@@ -115,20 +122,31 @@ function processMessage(msg, sessionId = "default") {
     if (reply) break;
   }
 
-  if (!reply) {
-    reply = pick(DEFAULT_REPLIES);
-    context.dialogueState = "waiting_for_clarification";
-  } else context.dialogueState = "normal";
+  if (!reply) reply = pick(DEFAULT_REPLIES);
 
-  context.lastIntent = reply;
-  context.lastMessage = msg;
+  chatContexts[sessionId].lastIntent = reply;
+  chatContexts[sessionId].lastMessage = msg;
 
   emitStats();
 
   return reply.toUpperCase();
 }
 
-// Webhook endpoint
+// Load initial data
+loadStats();
+loadAllKeywords();
+loadDefaultReplies();
+
+// Watch data folder
+fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
+  if (filename.endsWith(".json") && filename !== "stats.json") {
+    console.log(`📂 ${filename} UPDATED, RELOADING...`);
+    loadAllKeywords();
+    loadDefaultReplies();
+  }
+});
+
+// Webhook
 app.post("/webhook", (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
@@ -137,29 +155,28 @@ app.post("/webhook", (req, res) => {
   res.json({ replies: [{ message: replyText }] });
 });
 
-// Serve stats
+// Stats API
 app.get("/stats", (req, res) => {
   res.json({
-    totalUsers: stats.totalUsers.size,
+    totalUsers: stats.totalUsers.length,
     totalMsgs: stats.totalMsgs,
-    todayUsers: stats.todayUsers.size,
+    todayUsers: stats.todayUsers.length,
     todayMsgs: stats.todayMsgs,
-    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.size
+    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
   });
 });
 
 // Serve frontend
 app.use(express.static("public"));
 
-// Ping route
+// Ping
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
-
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
 // Start server
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// 5-min self-ping
+// Self-ping every 5 mins
 setInterval(() => {
   axios.get(`${SERVER_URL}/ping`).then(() => console.log("🔁 Self-ping sent!")).catch(err => console.log("❌ Ping failed:", err.message));
 });
