@@ -152,6 +152,7 @@ const scheduleDailyReset = () => {
 };
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
 function emitStats() {
   io.emit("statsUpdate", {
     totalUsers: stats.totalUsers.length,
@@ -269,28 +270,47 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
-  // Replace variables in the final reply
+  // Replace variables in the final reply with a loop for nesting
   if (reply) {
-    // 1. Replace static variables
-    for (const variable of VARIABLES) {
-      const varRegex = new RegExp(`%${variable.name}%`, 'g');
-      reply = reply.replace(varRegex, variable.value);
-    }
-    // 2. Replace random variables
-    const randomVarRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
-    reply = reply.replace(randomVarRegex, (match, type, param1, param2) => {
-      let length, customSet;
-      if (type === 'custom') {
-        length = parseInt(param1);
-        customSet = param2.split(',');
-      } else if (type === 'num') {
-        const [min, max] = param1.split('_').map(Number);
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-      } else {
-        length = parseInt(param1);
+    let hasVariables = true;
+    let iterationCount = 0;
+    const maxIterations = 10; // Safety limit to prevent infinite loops
+
+    while (hasVariables && iterationCount < maxIterations) {
+      hasVariables = false;
+      
+      // 1. Replace static variables first
+      for (const variable of VARIABLES) {
+        const varRegex = new RegExp(`%${variable.name}%`, 'g');
+        if (varRegex.test(reply)) {
+          reply = reply.replace(varRegex, variable.value);
+          hasVariables = true;
+        }
       }
-      return generateRandom(type, length, customSet);
-    });
+
+      // 2. Then replace random variables
+      const randomVarRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
+      const matchedRandom = reply.match(randomVarRegex);
+
+      if (matchedRandom) {
+        reply = reply.replace(randomVarRegex, (match, type, param1, param2) => {
+          let length, customSet;
+          if (type === 'custom') {
+            length = parseInt(param1);
+            customSet = param2.split(',');
+          } else if (type === 'num') {
+            const [min, max] = param1.split('_').map(Number);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+          } else {
+            length = parseInt(param1);
+          }
+          return generateRandom(type, length, customSet);
+        });
+        hasVariables = true;
+      }
+      
+      iterationCount++;
+    }
   }
 
   return reply || null;
