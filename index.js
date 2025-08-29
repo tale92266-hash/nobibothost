@@ -162,6 +162,36 @@ function emitStats() {
   });
 }
 
+// Random variable generation logic
+const charSets = {
+  lower: 'abcdefghijklmnopqrstuvwxyz',
+  upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  num: '0123456789',
+  grawlix: '#$%&@*!'
+};
+
+function generateRandom(type, length, customSet) {
+  let result = '';
+  let characters = '';
+
+  if (type === 'num') characters = charSets.num;
+  else if (type === 'lower') characters = charSets.lower;
+  else if (type === 'upper') characters = charSets.upper;
+  else if (type === 'abc') characters = charSets.lower + charSets.upper;
+  else if (type === 'abcnum_lower') characters = charSets.lower + charSets.num;
+  else if (type === 'abcnum_upper') characters = charSets.upper + charSets.num;
+  else if (type === 'abcnum') characters = charSets.lower + charSets.upper + charSets.num;
+  else if (type === 'grawlix') characters = charSets.grawlix;
+  else if (type === 'custom' && customSet) {
+    characters = customSet;
+  } else return '';
+  
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+}
+
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
@@ -241,10 +271,26 @@ async function processMessage(msg, sessionId = "default") {
 
   // Replace variables in the final reply
   if (reply) {
+    // 1. Replace static variables
     for (const variable of VARIABLES) {
       const varRegex = new RegExp(`%${variable.name}%`, 'g');
       reply = reply.replace(varRegex, variable.value);
     }
+    // 2. Replace random variables
+    const randomVarRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
+    reply = reply.replace(randomVarRegex, (match, type, param1, param2) => {
+      let length, customSet;
+      if (type === 'custom') {
+        length = parseInt(param1);
+        customSet = param2.split(',');
+      } else if (type === 'num') {
+        const [min, max] = param1.split('_').map(Number);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      } else {
+        length = parseInt(param1);
+      }
+      return generateRandom(type, length, customSet);
+    });
   }
 
   return reply || null;
