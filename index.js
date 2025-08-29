@@ -18,22 +18,33 @@ let DEFAULT_REPLIES = [];
 
 // Load all chat JSON files
 function loadAllKeywords() {
-  const dataDir = path.join(__dirname, "data");
-  KEYWORDS = [];
-  fs.readdirSync(dataDir).forEach(file => {
-    if (file.endsWith(".json") && file !== "default.json") {
-      const fileData = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
-      KEYWORDS = KEYWORDS.concat(fileData);
-    }
-  });
-  console.log(`⚡ LOADED ${KEYWORDS.length} KEYWORDS`);
+  try {
+    const dataDir = path.join(__dirname, "data");
+    KEYWORDS = [];
+    fs.readdirSync(dataDir).forEach(file => {
+      if (file.endsWith(".json") && file !== "default.json") {
+        const fileData = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
+        KEYWORDS = KEYWORDS.concat(fileData);
+      }
+    });
+    console.log(`⚡ LOADED ${KEYWORDS.length} KEYWORDS`);
+  } catch (err) {
+    console.error("❌ Failed to load chat keywords:", err.message);
+    KEYWORDS = [];
+  }
 }
 
 // Load default replies
 function loadDefaultReplies() {
-  const defaultPath = path.join(__dirname, "data", "default.json");
-  DEFAULT_REPLIES = JSON.parse(fs.readFileSync(defaultPath, "utf8")).defaultReplies;
-  console.log(`⚡ LOADED ${DEFAULT_REPLIES.length} DEFAULT REPLIES`);
+  try {
+    const defaultPath = path.join(__dirname, "data", "default.json");
+    const data = JSON.parse(fs.readFileSync(defaultPath, "utf8"));
+    DEFAULT_REPLIES = data.defaultReplies || [];
+    console.log(`⚡ LOADED ${DEFAULT_REPLIES.length} DEFAULT REPLIES`);
+  } catch (err) {
+    console.error("❌ Failed to load default replies:", err.message);
+    DEFAULT_REPLIES = [];
+  }
 }
 
 // Initial load
