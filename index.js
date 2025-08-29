@@ -28,6 +28,7 @@ const User = mongoose.model("User", userSchema);
 
 const ruleSchema = new mongoose.Schema({
   RULE_NUMBER: { type: Number, required: true, unique: true },
+  RULE_NAME: { type: String, required: false },
   RULE_TYPE: { type: String, required: true },
   KEYWORDS: { type: String, required: true },
   REPLIES_TYPE: { type: String, required: true },
@@ -283,8 +284,12 @@ app.post("/api/rules/update", async (req, res) => {
       }
       // Insert the new rule
       await Rule.create({
-        ...rule,
         RULE_NUMBER: rule.ruleNumber,
+        RULE_NAME: rule.ruleName,
+        RULE_TYPE: rule.ruleType,
+        KEYWORDS: rule.keywords,
+        REPLIES_TYPE: rule.repliesType,
+        REPLY_TEXT: rule.replyText,
         TARGET_USERS: rule.targetUsers
       });
     } else if (type === "edit") {
@@ -301,6 +306,7 @@ app.post("/api/rules/update", async (req, res) => {
         { RULE_NUMBER: oldRuleNumber },
         {
           RULE_NUMBER: rule.ruleNumber,
+          RULE_NAME: rule.ruleName,
           RULE_TYPE: rule.ruleType,
           KEYWORDS: rule.keywords,
           REPLIES_TYPE: rule.repliesType,
