@@ -12,10 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const replyTextField = document.getElementById('replyTextField');
   const targetUsersToggle = document.getElementById('targetUsersToggle');
   const targetUsersField = document.getElementById('targetUsersField');
+  const ruleNumberInput = document.getElementById('ruleNumber');
+  const ruleNumberError = document.getElementById('ruleNumberError');
   const toastLiveExample = document.getElementById('liveToast');
   const toastBody = document.querySelector('#liveToast .toast-body');
   const toast = new bootstrap.Toast(toastLiveExample);
   let currentRuleNumber = null;
+  let totalRules = 0;
 
   function showToast(message, type = 'success') {
     toastBody.innerText = message;
@@ -24,18 +27,26 @@ document.addEventListener("DOMContentLoaded", () => {
     toast.show();
   }
 
+  function validateRuleNumber(num) {
+      if (num > totalRules + 1) {
+          ruleNumberError.style.display = 'block';
+          ruleNumberError.innerText = `Rule number cannot be greater than ${totalRules + 1}`;
+          return false;
+      }
+      ruleNumberError.style.display = 'none';
+      return true;
+  }
+
   function toggleFormFields(ruleType) {
     if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
       keywordsField.style.display = 'none';
       repliesTypeField.style.display = 'none';
       replyTextField.style.display = 'block';
-      targetUsersToggle.closest('.mb-3').style.display = 'none';
       document.getElementById('keywords').value = "ALL";
     } else {
       keywordsField.style.display = 'block';
       repliesTypeField.style.display = 'block';
       replyTextField.style.display = 'block';
-      targetUsersToggle.closest('.mb-3').style.display = 'block';
     }
     if (!currentRuleNumber) {
       document.getElementById('repliesType').value = 'RANDOM';
@@ -56,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const res = await fetch('/api/rules');
       const data = await res.json();
+      totalRules = data.length;
       loadingMessage.style.display = 'none';
       if (data.length === 0) {
         rulesList.innerHTML = '<p class="text-center text-muted mt-5">No rules found. Add one!</p>';
@@ -91,12 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     formTitle.innerText = "Add New Rule";
     deleteRuleBtn.style.display = 'none';
     currentRuleNumber = null;
-    fetch('/api/rules')
-      .then(res => res.json())
-      .then(rules => {
-        const lastRuleNumber = rules.length > 0 ? rules[rules.length - 1].RULE_NUMBER : 0;
-        document.getElementById('ruleNumber').value = lastRuleNumber + 1;
-      });
+    document.getElementById('ruleNumber').value = totalRules + 1;
     toggleFormFields(ruleTypeSelect.value);
     toggleTargetUsersField();
     ruleModal.show();
@@ -133,16 +140,19 @@ document.addEventListener("DOMContentLoaded", () => {
   addRuleBtn.addEventListener('click', () => setupAddForm());
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
   targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
+  ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
 
   ruleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    const newRuleNumber = parseInt(ruleNumberInput.value);
+    if (!validateRuleNumber(newRuleNumber)) {
+        return;
+    }
+
     const formData = new FormData(ruleForm);
     const ruleData = Object.fromEntries(formData.entries());
     
-    // Check if a rule number change occurred
-    const newRuleNumber = parseInt(ruleData.ruleNumber);
-    const oldRuleNumberValue = currentRuleNumber;
-
     ruleData.ruleNumber = newRuleNumber;
 
     if (ruleData.repliesType !== 'ALL') {
@@ -155,13 +165,18 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       ruleData.targetUsers = "ALL";
     }
+    
+    // Set rule type for IGNORED
+    if (targetUsersToggle.value === 'IGNORED') {
+        ruleData.ruleType = 'IGNORED';
+    }
 
     const payload = {
       type: currentRuleNumber ? 'edit' : 'add',
       rule: ruleData,
-      oldRuleNumber: oldRuleNumberValue // Pass the original rule number to the backend
+      oldRuleNumber: currentRuleNumber
     };
-
+    
     const res = await fetch('/api/rules/update', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
