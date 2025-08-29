@@ -187,6 +187,8 @@ function processMessage(msg, sessionId = "default") {
         welcomedUsers.push(sessionId);
         saveWelcomedUsers();
       }
+    } else if (rule.RULE_TYPE === "DEFAULT") {
+        match = true;
     } else {
       for (let pattern of patterns) {
         if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
