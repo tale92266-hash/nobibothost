@@ -101,6 +101,10 @@ function loadAllRules() {
       }
     }
   });
+
+  // Sort rules by RULE_NUMBER
+  RULES.sort((a, b) => a.RULE_NUMBER - b.RULE_NUMBER);
+
   console.log(`⚡ Loaded ${RULES.length} valid rules`);
 }
 
