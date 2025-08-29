@@ -140,29 +140,38 @@ document.addEventListener("DOMContentLoaded", () => {
   function editRule(rule) {
     currentRuleNumber = rule.RULE_NUMBER;
     formTitle.innerText = `Edit Rule #${rule.RULE_NUMBER}`;
+
+    // Field values
     document.getElementById('ruleName').value = rule.RULE_NAME || '';
     document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
     document.getElementById('ruleType').value = rule.RULE_TYPE;
     document.getElementById('keywords').value = rule.KEYWORDS || '';
-    document.getElementById('repliesType').value = rule.REPLIES_TYPE;
-    document.getElementById('replyText').value = rule.REPLY_TEXT;
-    
+    document.getElementById('repliesType').value = rule.REPLIES_TYPE || 'RANDOM';
+    document.getElementById('replyText').value = rule.REPLY_TEXT || '';
+
+    // Target Users
     if (Array.isArray(rule.TARGET_USERS)) {
-      if (rule.RULE_TYPE === "IGNORED") {
-        targetUsersToggle.value = 'IGNORED';
-      } else {
-        targetUsersToggle.value = 'TARGET';
-      }
-      document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
+        targetUsersToggle.value = (rule.RULE_TYPE === "IGNORED") ? 'IGNORED' : 'TARGET';
+        document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
     } else {
-      targetUsersToggle.value = 'ALL';
-      document.getElementById('targetUsers').value = '';
+        targetUsersToggle.value = 'ALL';
+        document.getElementById('targetUsers').value = '';
     }
-    
-    deleteRuleBtn.style.display = 'block';
+
+    // Make sure field toggles properly
     toggleFormFields(rule.RULE_TYPE);
     toggleTargetUsersField();
+
+    // Show delete button
+    deleteRuleBtn.style.display = 'block';
+
+    // Show modal and force redraw
     ruleModal.show();
+    const modalEl = document.getElementById('ruleModal');
+    modalEl.style.display = 'block';
+    modalEl.classList.add('show');
+    modalEl.setAttribute('aria-modal', 'true');
+    modalEl.removeAttribute('aria-hidden');
   }
 
   // --- Variable Functions ---
@@ -213,6 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
     variableFormContainer.style.display = 'block';
   }
 
+  // New event listeners for buttons without data-* attributes
   addRuleBtn.addEventListener('click', () => setupAddForm());
   settingsBtn.addEventListener('click', () => settingsModal.show());
   variablesMenuBtn.addEventListener('click', () => {
@@ -224,6 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
     variableModal.hide();
     settingsModal.show();
   });
+
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
   targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
   ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
