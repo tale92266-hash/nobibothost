@@ -5,35 +5,40 @@
       "RULE_TYPE": "WELCOME",
       "KEYWORDS": "HELLO//HI//HEY",
       "REPLIES_TYPE": "ONE",
-      "REPLY_TEXT": "Welcome, bhen ke laude! Tera session start ho gaya 😈"
+      "REPLY_TEXT": "Welcome, bhen ke laude! Tera session start ho gaya 😈",
+      "TARGET_USERS": "ALL"
     },
     {
       "RULE_NUMBER": 2,
       "RULE_TYPE": "EXACT",
       "KEYWORDS": "HOW ARE YOU//WHAT'S UP",
       "REPLIES_TYPE": "RANDOM",
-      "REPLY_TEXT": "Main mast hoon laude<#>Bhai, sab set hai 😎<#>Tere jaise user ka swag alag hai"
+      "REPLY_TEXT": "Main mast hoon laude<#>Bhai, sab set hai 😎<#>Tere jaise user ka swag alag hai",
+      "TARGET_USERS": "ALL"
     },
     {
       "RULE_NUMBER": 3,
       "RULE_TYPE": "PATTERN",
       "KEYWORDS": "I LOVE*//*LOVE YOU*//*I*YOU",
       "REPLIES_TYPE": "ONE",
-      "REPLY_TEXT": "Awww 😍, teri baat sunke dil khush ho gaya"
+      "REPLY_TEXT": "Awww 😍, teri baat sunke dil khush ho gaya",
+      "TARGET_USERS": "ALL"
     },
     {
       "RULE_NUMBER": 4,
       "RULE_TYPE": "EXPERT",
       "KEYWORDS": ".*help.*|.*problem.*",
       "REPLIES_TYPE": "RANDOM",
-      "REPLY_TEXT": "Bhen ke laude, kaunsa issue hai bata<#>Tere problem ka solution yahan hai 😈"
+      "REPLY_TEXT": "Bhen ke laude, kaunsa issue hai bata<#>Tere problem ka solution yahan hai 😈",
+      "TARGET_USERS": "ALL"
     },
     {
       "RULE_NUMBER": 5,
       "RULE_TYPE": "EXACT",
       "KEYWORDS": "PING",
       "REPLIES_TYPE": "ONE",
-      "REPLY_TEXT": "🏓 Pong! Tere ping ka reply aa gaya"
+      "REPLY_TEXT": "🏓 Pong! Tere ping ka reply aa gaya",
+      "TARGET_USERS": "ALL"
     }
   ]
 }
