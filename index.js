@@ -54,7 +54,7 @@ const today = new Date().toLocaleDateString();
 let stats;
 let welcomedUsers;
 let RULES = [];
-let isWritingToFile = false; // New flag to prevent infinite loops
+let isWritingToFile = false;
 
 // -------------------- Rules Functions (moved to global scope) --------------------
 async function loadAllRules() {
@@ -64,9 +64,9 @@ async function loadAllRules() {
     if (dbRules.length > 0) {
         RULES = dbRules.map(r => r.toObject());
         const jsonRules = { rules: RULES };
-        isWritingToFile = true; // Set flag before writing
+        isWritingToFile = true;
         fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
-        isWritingToFile = false; // Reset flag after writing
+        isWritingToFile = false;
         console.log(`⚡ Rules restored from MongoDB. Loaded ${RULES.length} rules.`);
     } else {
         const jsonRulesPath = path.join(dataDir, "funrules.json");
@@ -300,8 +300,8 @@ async function processMessage(msg, sessionId = "default") {
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
     console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    if (!isWritingToFile) { // Check the flag before starting the sync
-        syncData(); // Calling syncData which in turn reloads rules
+    if (!isWritingToFile) {
+        syncData();
     }
   }
 });
