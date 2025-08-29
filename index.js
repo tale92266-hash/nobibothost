@@ -268,6 +268,79 @@ fs.watch(path.join(__dirname, "data"), async (eventType, filename) => {
     }
 });
 
+// -------------------- API Endpoints for Frontend --------------------
+app.get("/api/rules", async (req, res) => {
+  try {
+    const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    res.json(rules);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch rules" });
+  }
+});
+
+app.post("/api/rules/update", async (req, res) => {
+  const { type, rule, oldRuleNumber } = req.body;
+  try {
+    if (type === "add") {
+      // Find the rule to be pushed down
+      const existingRule = await Rule.findOne({ RULE_NUMBER: rule.ruleNumber });
+      if (existingRule) {
+        // Push down all rules with a number >= the new rule's number
+        await Rule.updateMany(
+          { RULE_NUMBER: { $gte: rule.ruleNumber } },
+          { $inc: { RULE_NUMBER: 1 } }
+        );
+      }
+      // Insert the new rule
+      await Rule.create({
+        ...rule,
+        RULE_NUMBER: rule.ruleNumber,
+        TARGET_USERS: rule.targetUsers
+      });
+    } else if (type === "edit") {
+      // If rule number changed, handle the push-down logic
+      if (rule.ruleNumber !== oldRuleNumber) {
+        // Push down all rules with a number >= the new rule's number
+        await Rule.updateMany(
+          { RULE_NUMBER: { $gte: rule.ruleNumber } },
+          { $inc: { RULE_NUMBER: 1 } }
+        );
+      }
+      // Find and update the rule
+      await Rule.findOneAndUpdate(
+        { RULE_NUMBER: oldRuleNumber },
+        {
+          RULE_NUMBER: rule.ruleNumber,
+          RULE_TYPE: rule.ruleType,
+          KEYWORDS: rule.keywords,
+          REPLIES_TYPE: rule.repliesType,
+          REPLY_TEXT: rule.replyText,
+          TARGET_USERS: rule.targetUsers
+        },
+        { new: true }
+      );
+    } else if (type === "delete") {
+      // Delete the rule and pull up all following rules
+      await Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber });
+      await Rule.updateMany(
+        { RULE_NUMBER: { $gt: rule.ruleNumber } },
+        { $inc: { RULE_NUMBER: -1 } }
+      );
+    }
+    
+    // After DB update, sync to local file and reload rules
+    const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
+    fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+    await loadAllRules();
+
+    res.json({ success: true, message: "Rule updated successfully!" });
+  } catch (err) {
+    console.error("❌ Failed to update rule:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // -------------------- Webhook --------------------
 app.post("/webhook", async (req, res) => {
   const sessionId = req.body.session_id || "default_session";
