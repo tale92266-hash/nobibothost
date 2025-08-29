@@ -17,11 +17,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const targetUsersField = document.getElementById('targetUsersField');
   const ruleNumberInput = document.getElementById('ruleNumber');
   const ruleNumberError = document.getElementById('ruleNumberError');
-  const variableFormContainer = document.getElementById('variableFormContainer');
+  const variablesList = document.getElementById('variablesList');
   const addVariableBtn = document.getElementById('addVariableBtn');
   const deleteVariableBtn = document.getElementById('deleteVariableBtn');
-  const cancelVariableBtn = document.getElementById('cancelVariableBtn');
-  const variablesList = document.getElementById('variablesList');
+  const variableFormContainer = document.getElementById('variableFormContainer');
+  const variablesMenuBtn = document.getElementById('variablesMenuBtn');
+  const backToSettingsBtn = document.getElementById('backToSettingsBtn');
+  const settingsMenu = document.getElementById('settingsMenu');
+  const variableManager = document.getElementById('variableManager');
   const toastLiveExample = document.getElementById('liveToast');
   const toastBody = document.querySelector('#liveToast .toast-body');
   const toast = new bootstrap.Toast(toastLiveExample);
@@ -188,9 +191,22 @@ document.addEventListener("DOMContentLoaded", () => {
     deleteVariableBtn.style.display = 'block';
     variableFormContainer.style.display = 'block';
   }
+  
+  function showVariablesManager() {
+    settingsMenu.style.display = 'none';
+    variableManager.style.display = 'block';
+    fetchVariables();
+  }
+
+  function showSettingsMenu() {
+    settingsMenu.style.display = 'block';
+    variableManager.style.display = 'none';
+  }
 
   addRuleBtn.addEventListener('click', () => setupAddForm());
-  settingsBtn.addEventListener('click', () => fetchVariables());
+  settingsBtn.addEventListener('click', () => showSettingsMenu());
+  variablesMenuBtn.addEventListener('click', () => showVariablesManager());
+  backToSettingsBtn.addEventListener('click', () => showSettingsMenu());
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
   targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
   ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
@@ -268,6 +284,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  addVariableBtn.addEventListener('click', setupAddVariableForm);
   variableForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(variableForm);
@@ -294,10 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  addVariableBtn.addEventListener('click', setupAddVariableForm);
-  cancelVariableBtn.addEventListener('click', () => {
-    variableFormContainer.style.display = 'none';
-  });
   deleteVariableBtn.addEventListener('click', async () => {
     const isConfirmed = confirm(`Are you sure you want to delete variable %{${currentVariableName}%}?`);
     if (isConfirmed) {
