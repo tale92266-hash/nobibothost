@@ -252,6 +252,7 @@ async function processMessage(msg, sessionId = "default") {
 
 // -------------------- Initial Load --------------------
 (async () => {
+    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
