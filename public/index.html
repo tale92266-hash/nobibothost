@@ -99,7 +99,7 @@
             </select>
           </div>
           <div id="replyTextField" class="mb-3">
-            <label for="replyText" class="form-label">Reply Text (use &lt;#&gt; to separate)</label>
+            <label for="replyText" class="form-label">Reply Text (use &lt;#&gt; to separate, use %variable_name% for variables)</label>
             <textarea class="form-control form-control-textarea" id="replyText" name="replyText" rows="3" required placeholder="E.g., Reply one<#>Reply two"></textarea>
           </div>
           <div class="mb-3">
@@ -124,7 +124,7 @@
 </div>
 
 <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
@@ -134,32 +134,43 @@
         <div id="settingsMenu">
           <button id="variablesMenuBtn" class="btn btn-secondary w-100 mb-2">Variables</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        <div id="variableManager" style="display: none;">
-          <button id="backToSettingsBtn" class="btn btn-link text-white-50 p-0 mb-3"><i class="bi bi-arrow-left"></i> Back to Settings</button>
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6>Variables</h6>
-            <button id="addVariableBtn" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Add</button>
+<div class="modal fade" id="variableModal" tabindex="-1" aria-labelledby="variableModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button id="backToSettingsBtn" class="btn btn-link text-white p-0 me-3"><i class="bi bi-arrow-left fs-4"></i></button>
+        <h5 class="modal-title" id="variableModalLabel">Variables</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="mb-0">Variables List</h6>
+          <button id="addVariableBtn" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Add Variable</button>
+        </div>
+        <div id="variablesList" class="list-group mb-3">
           </div>
-          <div id="variablesList" class="list-group mb-3">
+
+        <div id="variableFormContainer" style="display: none;">
+          <h6 id="variableFormTitle" class="mt-4">Add New Variable</h6>
+          <form id="variableForm">
+            <div class="mb-3">
+              <label for="variableName" class="form-label">Name</label>
+              <input type="text" class="form-control" id="variableName" name="name" required placeholder="E.g., name">
             </div>
-          <div id="variableFormContainer" style="display: none;">
-            <h6 id="variableFormTitle" class="mt-4">Add New Variable</h6>
-            <form id="variableForm">
-              <div class="mb-3">
-                <label for="variableName" class="form-label">Name</label>
-                <input type="text" class="form-control" id="variableName" name="name" required>
-              </div>
-              <div class="mb-3">
-                <label for="variableValue" class="form-label">Value</label>
-                <input type="text" class="form-control" id="variableValue" name="value" required>
-              </div>
-              <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-danger btn-sm" id="deleteVariableBtn" style="display:none;">Delete</button>
-                <button type="submit" class="btn btn-primary btn-sm">Save Variable</button>
-              </div>
-            </form>
-          </div>
+            <div class="mb-3">
+              <label for="variableValue" class="form-label">Value</label>
+              <input type="text" class="form-control" id="variableValue" name="value" required placeholder="E.g., Nobita">
+            </div>
+            <div class="d-flex justify-content-between">
+              <button type="button" class="btn btn-danger btn-sm" id="deleteVariableBtn" style="display:none;">Delete</button>
+              <button type="submit" class="btn btn-primary btn-sm">Save Variable</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
