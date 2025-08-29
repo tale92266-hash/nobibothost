@@ -1,8 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
   const rulesList = document.getElementById("rulesList");
   const addRuleBtn = document.getElementById("addRuleBtn");
+  const settingsBtn = document.getElementById("settingsBtn");
   const ruleModal = new bootstrap.Modal(document.getElementById("ruleModal"));
+  const settingsModal = new bootstrap.Modal(document.getElementById("settingsModal"));
   const ruleForm = document.getElementById("ruleForm");
+  const variableForm = document.getElementById("variableForm");
   const formTitle = document.getElementById("formTitle");
   const deleteRuleBtn = document.getElementById("deleteRuleBtn");
   const loadingMessage = document.getElementById("loadingMessage");
@@ -14,10 +17,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const targetUsersField = document.getElementById('targetUsersField');
   const ruleNumberInput = document.getElementById('ruleNumber');
   const ruleNumberError = document.getElementById('ruleNumberError');
+  const variableFormContainer = document.getElementById('variableFormContainer');
+  const addVariableBtn = document.getElementById('addVariableBtn');
+  const deleteVariableBtn = document.getElementById('deleteVariableBtn');
+  const cancelVariableBtn = document.getElementById('cancelVariableBtn');
+  const variablesList = document.getElementById('variablesList');
   const toastLiveExample = document.getElementById('liveToast');
   const toastBody = document.querySelector('#liveToast .toast-body');
   const toast = new bootstrap.Toast(toastLiveExample);
   let currentRuleNumber = null;
+  let currentVariableName = null;
   let totalRules = 0;
 
   function showToast(message, type = 'success') {
@@ -137,7 +146,51 @@ document.addEventListener("DOMContentLoaded", () => {
     ruleModal.show();
   }
 
+  // --- Variable Functions ---
+  async function fetchVariables() {
+    variablesList.innerHTML = '<p class="text-muted text-center">Loading variables...</p>';
+    const res = await fetch('/api/variables');
+    const data = await res.json();
+    variablesList.innerHTML = '';
+    if (data.length === 0) {
+      variablesList.innerHTML = '<p class="text-muted text-center">No variables found.</p>';
+    } else {
+      renderVariables(data);
+    }
+  }
+
+  function renderVariables(variables) {
+    variables.forEach(variable => {
+      const item = document.createElement('div');
+      item.className = 'list-group-item d-flex justify-content-between align-items-center bg-dark text-white-50';
+      item.innerHTML = `
+        <span><strong>%{${variable.name}%}</strong>: ${variable.value}</span>
+        <button class="btn btn-sm btn-outline-secondary" data-name="${variable.name}"><i class="bi bi-pencil"></i></button>
+      `;
+      item.querySelector('button').addEventListener('click', () => editVariable(variable));
+      variablesList.appendChild(item);
+    });
+  }
+
+  function setupAddVariableForm() {
+    variableForm.reset();
+    document.getElementById('variableFormTitle').innerText = 'Add New Variable';
+    deleteVariableBtn.style.display = 'none';
+    currentVariableName = null;
+    variableFormContainer.style.display = 'block';
+  }
+
+  function editVariable(variable) {
+    currentVariableName = variable.name;
+    document.getElementById('variableFormTitle').innerText = `Edit Variable: %{${variable.name}%}`;
+    document.getElementById('variableName').value = variable.name;
+    document.getElementById('variableValue').value = variable.value;
+    deleteVariableBtn.style.display = 'block';
+    variableFormContainer.style.display = 'block';
+  }
+
   addRuleBtn.addEventListener('click', () => setupAddForm());
+  settingsBtn.addEventListener('click', () => fetchVariables());
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
   targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
   ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
@@ -166,7 +219,6 @@ document.addEventListener("DOMContentLoaded", () => {
       ruleData.targetUsers = "ALL";
     }
     
-    // Set rule type for IGNORED
     if (targetUsersToggle.value === 'IGNORED') {
         ruleData.ruleType = 'IGNORED';
     }
@@ -212,6 +264,59 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchRules();
       } else {
         showToast("Error deleting rule: " + result.message, 'fail');
+      }
+    }
+  });
+
+  variableForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(variableForm);
+    const variableData = Object.fromEntries(formData.entries());
+    const payload = {
+      type: currentVariableName ? 'edit' : 'add',
+      variable: variableData,
+      oldName: currentVariableName
+    };
+
+    const res = await fetch('/api/variables/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      showToast("Variable saved successfully!");
+      variableFormContainer.style.display = 'none';
+      fetchVariables();
+    } else {
+      showToast("Error saving variable: " + result.message, 'fail');
+    }
+  });
+
+  addVariableBtn.addEventListener('click', setupAddVariableForm);
+  cancelVariableBtn.addEventListener('click', () => {
+    variableFormContainer.style.display = 'none';
+  });
+  deleteVariableBtn.addEventListener('click', async () => {
+    const isConfirmed = confirm(`Are you sure you want to delete variable %{${currentVariableName}%}?`);
+    if (isConfirmed) {
+      const payload = {
+        type: 'delete',
+        variable: { name: currentVariableName }
+      };
+      const res = await fetch('/api/variables/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast("Variable deleted successfully!");
+        variableFormContainer.style.display = 'none';
+        fetchVariables();
+      } else {
+        showToast("Error deleting variable: " + result.message, 'fail');
       }
     }
   });
