@@ -63,22 +63,23 @@ function processMessage(msg, sessionId = "default") {
   let reply = null;
 
   for (let k of KEYWORDS) {
-    if (k.type === "exact" && msg === k.pattern.toLowerCase()) {
-      reply = k.reply;
-      break;
+    if (k.type === "contain") {
+      for (let pattern of k.patterns) {
+        if (msg.includes(pattern.toLowerCase())) {
+          reply = pick(k.replies); // pick 1 random reply
+          break;
+        }
+      }
+    } else if (k.type === "exact" && k.pattern.toLowerCase() === msg) {
+      reply = pick(k.replies);
+    } else if (k.type === "pattern" && new RegExp(k.pattern, "i").test(msg)) {
+      reply = pick(k.replies);
     }
-    if (k.type === "contain" && msg.includes(k.pattern.toLowerCase())) {
-      reply = k.reply;
-      break;
-    }
-    if (k.type === "pattern" && new RegExp(k.pattern, "i").test(msg)) {
-      reply = k.reply;
-      break;
-    }
+    if (reply) break;
   }
 
   if (!reply) {
-    reply = pick(DEFAULT_REPLIES); // use friendly default
+    reply = pick(DEFAULT_REPLIES);
     context.dialogueState = "waiting_for_clarification";
   } else {
     context.dialogueState = "normal";
