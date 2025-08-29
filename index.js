@@ -37,49 +37,7 @@ function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
 
-// -------------------- Chat Context --------------------
-const chatContexts = {};
-
-// -------------------- RULES --------------------
-let RULES = [];
-
-function loadAllRules() {
-  RULES = [];
-  const dataDir = path.join(__dirname, "data");
-  fs.readdirSync(dataDir).forEach(file => {
-    if (file.endsWith(".json") && file !== "stats.json") {
-      try {
-        const ruleFile = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
-        if (!ruleFile.rules || !Array.isArray(ruleFile.rules)) {
-          console.error(`❌ ${file} INVALID: "rules" missing or not array`);
-          return;
-        }
-        for (let r of ruleFile.rules) {
-          if (!r.RULE_TYPE || !r.KEYWORDS || !r.REPLY_TEXT) {
-            console.error(`❌ ${file} INVALID rule:`, r);
-            continue;
-          }
-          RULES.push(r);
-          console.log(`✅ ${file} valid rule:`, r.RULE_TYPE);
-        }
-      } catch (err) {
-        console.error(`❌ Failed to parse ${file}:`, err.message);
-      }
-    }
-  });
-  console.log(`⚡ Loaded ${RULES.length} valid rules`);
-}
-
-// Watch data folder for updates
-fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
-  if (filename.endsWith(".json") && filename !== "stats.json") {
-    console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    loadAllRules();
-  }
-});
-
 // -------------------- Helpers --------------------
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function emitStats() {
   io.emit("statsUpdate", {
     totalUsers: stats.totalUsers.length,
@@ -90,69 +48,27 @@ function emitStats() {
   });
 }
 
-function processMessage(msg, sessionId = "default") {
-  msg = msg.toLowerCase();
-
-  if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
-
-  // -------------------- Update Stats --------------------
+function updateStats(sessionId, msg) {
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
   stats.todayMsgs++;
-  if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
-  saveStats();
-
-  // -------------------- Match Rules --------------------
-  let reply = null;
-
-  for (let rule of RULES) {
-    let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
-    let match = false;
-
-    for (let pattern of patterns) {
-      if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
-      else if (rule.RULE_TYPE === "PATTERN") {
-        let regexStr = pattern.replace(/\*/g, ".*");
-        if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
-      }
-      else if (rule.RULE_TYPE === "WELCOME" && !chatContexts[sessionId].welcomeSent) match = true;
-      else if (rule.RULE_TYPE === "EXPERT") {
-        try {
-          if (new RegExp(pattern, "i").test(msg)) match = true;
-        } catch {}
-      }
-      if (match) break;
-    }
-
-    if (match) {
-      let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-      if (rule.REPLIES_TYPE === "ALL") reply = replies.join(" ");
-      else if (rule.REPLIES_TYPE === "ONE") reply = replies[0];
-      else reply = pick(replies);
-      if (rule.RULE_TYPE === "WELCOME") chatContexts[sessionId].welcomeSent = true;
-      break;
-    }
+  if (msg.toLowerCase().includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) {
+    stats.nobiPapaHideMeUsers.push(sessionId);
   }
-
-  if (reply) chatContexts[sessionId].lastIntent = reply;
-  chatContexts[sessionId].lastMessage = msg;
-
+  saveStats();
   emitStats();
-
-  return reply || null; // agar match nahi hua toh null
 }
 
 // -------------------- Initial Load --------------------
-loadAllRules();
+emitStats();
 
 // -------------------- Webhook --------------------
 app.post("/webhook", (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
-  const replyText = processMessage(msg, sessionId);
-  if (!replyText) return res.json({ replies: [] });
-  res.json({ replies: [{ message: replyText }] });
+  updateStats(sessionId, msg);
+  res.json({ success: true, message: "Stats updated" });
 });
 
 // -------------------- Stats API --------------------
