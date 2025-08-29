@@ -1,4 +1,4 @@
-require("dotenv").config();
+rrequire("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -68,7 +68,6 @@ const syncData = async () => {
     // Restore Stats from MongoDB
     stats = await Stats.findOne();
     if (!stats) {
-        // If DB is empty, create a new stats document
         stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
     }
     fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
@@ -127,7 +126,6 @@ const scheduleDailyReset = () => {
   const timeUntilMidnight = midnight.getTime() - now.getTime();
   setTimeout(() => {
     resetDailyStats();
-    // Schedule for the next day
     setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
   }, timeUntilMidnight);
 };
@@ -146,7 +144,6 @@ function emitStats() {
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
-  // -------------------- Update Stats --------------------
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
@@ -158,25 +155,18 @@ async function processMessage(msg, sessionId = "default") {
   saveStats();
   emitStats();
 
-  // -------------------- Match Rules --------------------
   let reply = null;
 
   for (let rule of RULES) {
-    const targetUsers = rule.TARGET_USERS || "ALL";
     let userMatch = false;
+    const targetUsers = rule.TARGET_USERS || "ALL";
 
-    if (targetUsers === "ALL") {
-      userMatch = true;
-    } else if (Array.isArray(targetUsers)) {
-      if (rule.RULE_TYPE === "IGNORED") {
-        if (!targetUsers.includes(sessionId)) {
-          userMatch = true;
-        }
-      } else {
-        if (targetUsers.includes(sessionId)) {
-          userMatch = true;
-        }
+    if (rule.RULE_TYPE === "IGNORED") {
+      if (Array.isArray(targetUsers) && !targetUsers.includes(sessionId)) {
+        userMatch = true;
       }
+    } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(sessionId))) {
+      userMatch = true;
     }
 
     if (!userMatch) {
@@ -213,9 +203,8 @@ async function processMessage(msg, sessionId = "default") {
 
     if (match) {
       let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-      // Logic to limit replies to 20 for 'ALL' type
       if (rule.REPLIES_TYPE === "ALL") {
-        replies = replies.slice(0, 20); // Limit to first 20 replies
+        replies = replies.slice(0, 20);
         reply = replies.join(" ");
       } else if (rule.REPLIES_TYPE === "ONE") {
         reply = replies[0];
@@ -231,7 +220,6 @@ async function processMessage(msg, sessionId = "default") {
 
 // -------------------- Initial Load --------------------
 (async () => {
-    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
@@ -273,35 +261,26 @@ app.post("/api/rules/update", async (req, res) => {
   const { type, rule, oldRuleNumber } = req.body;
   try {
     if (type === "add") {
-      // Find the rule to be pushed down
       const existingRule = await Rule.findOne({ RULE_NUMBER: rule.ruleNumber });
       if (existingRule) {
-        // Push down all rules with a number >= the new rule's number
         await Rule.updateMany(
           { RULE_NUMBER: { $gte: rule.ruleNumber } },
           { $inc: { RULE_NUMBER: 1 } }
         );
       }
-      // Insert the new rule
       await Rule.create({
+        ...rule,
         RULE_NUMBER: rule.ruleNumber,
         RULE_NAME: rule.ruleName,
-        RULE_TYPE: rule.ruleType,
-        KEYWORDS: rule.keywords,
-        REPLIES_TYPE: rule.repliesType,
-        REPLY_TEXT: rule.replyText,
         TARGET_USERS: rule.targetUsers
       });
     } else if (type === "edit") {
-      // If rule number changed, handle the push-down logic
       if (rule.ruleNumber !== oldRuleNumber) {
-        // Push down all rules with a number >= the new rule's number
         await Rule.updateMany(
           { RULE_NUMBER: { $gte: rule.ruleNumber } },
           { $inc: { RULE_NUMBER: 1 } }
         );
       }
-      // Find and update the rule
       await Rule.findOneAndUpdate(
         { RULE_NUMBER: oldRuleNumber },
         {
@@ -316,7 +295,6 @@ app.post("/api/rules/update", async (req, res) => {
         { new: true }
       );
     } else if (type === "delete") {
-      // Delete the rule and pull up all following rules
       await Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber });
       await Rule.updateMany(
         { RULE_NUMBER: { $gt: rule.ruleNumber } },
@@ -324,7 +302,6 @@ app.post("/api/rules/update", async (req, res) => {
       );
     }
     
-    // After DB update, sync to local file and reload rules
     const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
     fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
