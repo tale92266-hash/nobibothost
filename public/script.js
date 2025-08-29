@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsBtn = document.getElementById("settingsBtn");
   const ruleModal = new bootstrap.Modal(document.getElementById("ruleModal"));
   const settingsModal = new bootstrap.Modal(document.getElementById("settingsModal"));
+  const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
   const ruleForm = document.getElementById("ruleForm");
   const variableForm = document.getElementById("variableForm");
   const formTitle = document.getElementById("formTitle");
@@ -23,8 +24,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const variableFormContainer = document.getElementById('variableFormContainer');
   const variablesMenuBtn = document.getElementById('variablesMenuBtn');
   const backToSettingsBtn = document.getElementById('backToSettingsBtn');
-  const settingsMenu = document.getElementById('settingsMenu');
-  const variableManager = document.getElementById('variableManager');
   const toastLiveExample = document.getElementById('liveToast');
   const toastBody = document.querySelector('#liveToast .toast-body');
   const toast = new bootstrap.Toast(toastLiveExample);
@@ -167,7 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const item = document.createElement('div');
       item.className = 'list-group-item d-flex justify-content-between align-items-center bg-dark text-white-50';
       item.innerHTML = `
-        <span><strong>%{${variable.name}%}</strong>: ${variable.value}</span>
+        <span><strong>%${variable.name}%</strong>: ${variable.value}</span>
         <button class="btn btn-sm btn-outline-secondary" data-name="${variable.name}"><i class="bi bi-pencil"></i></button>
       `;
       item.querySelector('button').addEventListener('click', () => editVariable(variable));
@@ -185,28 +184,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function editVariable(variable) {
     currentVariableName = variable.name;
-    document.getElementById('variableFormTitle').innerText = `Edit Variable: %{${variable.name}%}`;
+    document.getElementById('variableFormTitle').innerText = `Edit Variable: %${variable.name}%`;
     document.getElementById('variableName').value = variable.name;
     document.getElementById('variableValue').value = variable.value;
     deleteVariableBtn.style.display = 'block';
     variableFormContainer.style.display = 'block';
   }
-  
-  function showVariablesManager() {
-    settingsMenu.style.display = 'none';
-    variableManager.style.display = 'block';
-    fetchVariables();
-  }
-
-  function showSettingsMenu() {
-    settingsMenu.style.display = 'block';
-    variableManager.style.display = 'none';
-  }
 
   addRuleBtn.addEventListener('click', () => setupAddForm());
-  settingsBtn.addEventListener('click', () => showSettingsMenu());
-  variablesMenuBtn.addEventListener('click', () => showVariablesManager());
-  backToSettingsBtn.addEventListener('click', () => showSettingsMenu());
+  settingsBtn.addEventListener('click', () => settingsModal.show());
+  variablesMenuBtn.addEventListener('click', () => {
+    settingsModal.hide();
+    variableModal.show();
+    fetchVariables();
+  });
+  backToSettingsBtn.addEventListener('click', () => {
+    variableModal.hide();
+    settingsModal.show();
+  });
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
   targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
   ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
@@ -312,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   deleteVariableBtn.addEventListener('click', async () => {
-    const isConfirmed = confirm(`Are you sure you want to delete variable %{${currentVariableName}%}?`);
+    const isConfirmed = confirm(`Are you sure you want to delete variable %${currentVariableName}%?`);
     if (isConfirmed) {
       const payload = {
         type: 'delete',
