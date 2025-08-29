@@ -41,11 +41,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showSpinner(spinnerId) {
-    document.getElementById(spinnerId).style.display = 'inline-block';
+    const spinner = document.getElementById(spinnerId);
+    if (spinner) {
+        spinner.style.display = 'inline-block';
+    }
   }
 
   function hideSpinner(spinnerId) {
-    document.getElementById(spinnerId).style.display = 'none';
+    const spinner = document.getElementById(spinnerId);
+    if (spinner) {
+        spinner.style.display = 'none';
+    }
   }
 
   function validateRuleNumber(num) {
@@ -368,6 +374,12 @@ document.addEventListener("DOMContentLoaded", () => {
         hideSpinner('variableSpinner');
       }
     }
+  });
+  
+  // New event listener for the cancel button
+  const cancelVariableBtn = document.getElementById('cancelVariableBtn');
+  cancelVariableBtn.addEventListener('click', () => {
+    variableFormContainer.style.display = 'none';
   });
 
   fetchRules();
