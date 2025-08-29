@@ -47,19 +47,32 @@ const statsSchema = new mongoose.Schema({
 });
 const Stats = mongoose.model("Stats", statsSchema);
 
+const variableSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  value: { type: String, required: true }
+});
+const Variable = mongoose.model("Variable", variableSchema);
+
 // -------------------- Persistent Stats --------------------
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
+const variablesFilePath = path.join(__dirname, "data", "variables.json");
 const today = new Date().toLocaleDateString();
 
 let stats;
 let welcomedUsers;
 let RULES = [];
+let VARIABLES = [];
 
 // -------------------- Rules Functions --------------------
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
+}
+
+async function loadAllVariables() {
+    VARIABLES = await Variable.find({});
+    console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
 // Data Sync Function
@@ -81,6 +94,9 @@ const syncData = async () => {
 
     // Restore Rules from MongoDB
     await loadAllRules();
+
+    // Restore Variables from MongoDB
+    await loadAllVariables();
 
     // Check if a new day has started on server restart
     if (stats.lastResetDate !== today) {
@@ -106,6 +122,10 @@ function saveStats() {
 
 function saveWelcomedUsers() {
   fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+}
+
+function saveVariables() {
+  fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
 // Daily reset at midnight
@@ -219,17 +239,25 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
+  // Replace variables in the final reply
+  if (reply) {
+    for (const variable of VARIABLES) {
+      const varRegex = new RegExp(`%${variable.name}%`, 'g');
+      reply = reply.replace(varRegex, variable.value);
+    }
+  }
+
   return reply || null;
 }
 
 // -------------------- Initial Load --------------------
 (async () => {
-    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
         const welcomedPath = path.join(dataDir, "welcomed_users.json");
         const statsPath = path.join(dataDir, "stats.json");
+        const variablesPath = path.join(dataDir, "variables.json");
 
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
@@ -245,6 +273,10 @@ async function processMessage(msg, sessionId = "default") {
 
         if (!fs.existsSync(funrulesPath)) {
             fs.writeFileSync(funrulesPath, JSON.stringify({ rules: [] }, null, 2));
+        }
+
+        if (!fs.existsSync(variablesPath)) {
+            fs.writeFileSync(variablesPath, JSON.stringify([], null, 2));
         }
 
         await syncData();
@@ -325,6 +357,37 @@ app.post("/api/rules/update", async (req, res) => {
     res.json({ success: true, message: "Rule updated successfully!" });
   } catch (err) {
     console.error("❌ Failed to update rule:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+app.get("/api/variables", async (req, res) => {
+  try {
+    const variables = await Variable.find({});
+    res.json(variables);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch variables" });
+  }
+});
+
+app.post("/api/variables/update", async (req, res) => {
+  const { type, variable, oldName } = req.body;
+  try {
+    if (type === "add") {
+      await Variable.create(variable);
+    } else if (type === "edit") {
+      await Variable.findOneAndUpdate({ name: oldName }, variable, { new: true });
+    } else if (type === "delete") {
+      await Variable.deleteOne({ name: variable.name });
+    }
+    
+    await loadAllVariables();
+    const variablesFromDB = await Variable.find({});
+    fs.writeFileSync(variablesFilePath, JSON.stringify(variablesFromDB.map(v => v.toObject()), null, 2));
+
+    res.json({ success: true, message: "Variable updated successfully!" });
+  } catch (err) {
+    console.error("❌ Failed to update variable:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
