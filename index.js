@@ -6,9 +6,9 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 
 const app = express();
-const PORT = process.env.env.PORT || 10000;
-const SERVER_URL = process.env.env.SERVER_URL || `http://localhost:${PORT}`;
-const MONGODB_URI = process.env.env.MONGODB_URI;
+const PORT = process.env.PORT || 10000;
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
