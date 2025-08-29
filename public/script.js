@@ -42,26 +42,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showSpinner(spinnerId) {
     const spinner = document.getElementById(spinnerId);
-    if (spinner) {
-        spinner.style.display = 'inline-block';
-    }
+    if (spinner) spinner.style.display = 'inline-block';
   }
 
   function hideSpinner(spinnerId) {
     const spinner = document.getElementById(spinnerId);
-    if (spinner) {
-        spinner.style.display = 'none';
-    }
+    if (spinner) spinner.style.display = 'none';
   }
 
   function validateRuleNumber(num) {
-      if (num > totalRules + 1) {
-          ruleNumberError.style.display = 'block';
-          ruleNumberError.innerText = `Rule number cannot be greater than ${totalRules + 1}`;
-          return false;
-      }
-      ruleNumberError.style.display = 'none';
-      return true;
+    if (num > totalRules + 1) {
+      ruleNumberError.style.display = 'block';
+      ruleNumberError.innerText = `Rule number cannot be greater than ${totalRules + 1}`;
+      return false;
+    }
+    ruleNumberError.style.display = 'none';
+    return true;
   }
 
   function toggleFormFields(ruleType) {
@@ -75,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
       repliesTypeField.style.display = 'block';
       replyTextField.style.display = 'block';
     }
-    if (!currentRuleNumber) {
+    if (!document.getElementById('repliesType').value) {
       document.getElementById('repliesType').value = 'RANDOM';
     }
   }
@@ -84,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const isTargetOrIgnored = targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED';
     targetUsersField.style.display = isTargetOrIgnored ? 'block' : 'none';
     if (!isTargetOrIgnored) {
-        document.getElementById('targetUsers').value = "ALL";
+      document.getElementById('targetUsers').value = "ALL";
     }
   }
 
@@ -108,6 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderRules(rules) {
+    rulesList.innerHTML = '';
     rules.forEach(rule => {
       const item = document.createElement("div");
       item.className = "rule-item";
@@ -151,23 +148,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Target Users
     if (Array.isArray(rule.TARGET_USERS)) {
-        targetUsersToggle.value = (rule.RULE_TYPE === "IGNORED") ? 'IGNORED' : 'TARGET';
-        document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
+      targetUsersToggle.value = (rule.RULE_TYPE === "IGNORED") ? 'IGNORED' : 'TARGET';
+      document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
     } else {
-        targetUsersToggle.value = 'ALL';
-        document.getElementById('targetUsers').value = '';
+      targetUsersToggle.value = 'ALL';
+      document.getElementById('targetUsers').value = '';
     }
 
-    // Make sure field toggles properly
     toggleFormFields(rule.RULE_TYPE);
     toggleTargetUsersField();
 
-    // Show delete button & modal
     deleteRuleBtn.style.display = 'block';
     ruleModal.show();
   }
 
-  // --- Variable Functions ---
+  // Variable functions (unchanged)
   async function fetchVariables() {
     variablesList.innerHTML = '<p class="text-muted text-center">Loading variables...</p>';
     try {
@@ -186,6 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function renderVariables(variables) {
+    variablesList.innerHTML = '';
     variables.forEach(variable => {
       const item = document.createElement('div');
       item.className = 'list-group-item d-flex justify-content-between align-items-center bg-dark text-white-50';
@@ -215,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
     variableFormContainer.style.display = 'block';
   }
 
-  // New event listeners for buttons without data-* attributes
+  // Event listeners
   addRuleBtn.addEventListener('click', () => setupAddForm());
   settingsBtn.addEventListener('click', () => settingsModal.show());
   variablesMenuBtn.addEventListener('click', () => {
@@ -229,42 +225,40 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
-  targetUsersToggle.addEventListener('change', () => toggleTargetUsersField());
+  targetUsersToggle.addEventListener('change', toggleTargetUsersField);
   ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
 
   ruleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const newRuleNumber = parseInt(ruleNumberInput.value) || totalRules + 1;
-    if (!validateRuleNumber(newRuleNumber)) {
-        return;
-    }
+    if (!validateRuleNumber(newRuleNumber)) return;
 
     const formData = new FormData(ruleForm);
+    const ruleDataRaw = Object.fromEntries(formData.entries());
+
+    // Map to uppercase keys for backend
     const ruleData = {
-        RULE_NUMBER: newRuleNumber,
-        RULE_NAME: formData.get('ruleName'),
-        RULE_TYPE: formData.get('ruleType'),
-        KEYWORDS: formData.get('keywords'),
-        REPLIES_TYPE: formData.get('repliesType'),
-        REPLY_TEXT: formData.get('replyText')
+      RULE_NUMBER: newRuleNumber,
+      RULE_NAME: ruleDataRaw.ruleName,
+      RULE_TYPE: ruleDataRaw.ruleType,
+      KEYWORDS: ruleDataRaw.keywords,
+      REPLIES_TYPE: ruleDataRaw.repliesType,
+      REPLY_TEXT: ruleDataRaw.replyText
     };
-    
-    // Convert replies to a single string with <#> separator
+
     if (ruleData.REPLIES_TYPE !== 'ALL') {
-        const replies = ruleData.REPLY_TEXT.split('<#>').filter(Boolean);
-        ruleData.REPLY_TEXT = replies.join('<#>');
+      const replies = ruleData.REPLY_TEXT.split('<#>').filter(Boolean);
+      ruleData.REPLY_TEXT = replies.join('<#>');
     }
 
     if (targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED') {
-        ruleData.TARGET_USERS = formData.get('targetUsers').split(',').map(id => id.trim());
+      ruleData.TARGET_USERS = document.getElementById('targetUsers').value.split(',').map(u => u.trim());
     } else {
-        ruleData.TARGET_USERS = "ALL";
+      ruleData.TARGET_USERS = "ALL";
     }
-    
-    if (targetUsersToggle.value === 'IGNORED') {
-        ruleData.RULE_TYPE = 'IGNORED';
-    }
+
+    if (targetUsersToggle.value === 'IGNORED') ruleData.RULE_TYPE = 'IGNORED';
 
     const payload = {
       type: currentRuleNumber ? 'edit' : 'add',
@@ -296,31 +290,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
   deleteRuleBtn.addEventListener('click', async () => {
     const isConfirmed = confirm(`Are you sure you want to delete Rule #${currentRuleNumber}?`);
-    if (isConfirmed) {
-      const payload = {
-        type: 'delete',
-        rule: { ruleNumber: currentRuleNumber }
-      };
-      showSpinner('ruleSpinner');
-      try {
-        const res = await fetch('/api/rules/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (result.success) {
-          showToast("Rule deleted successfully!");
-          ruleModal.hide();
-          fetchRules();
-        } else {
-          showToast("Error deleting rule: " + result.message, 'fail');
-        }
-      } catch (error) {
-        showToast("Server error occurred.", 'fail');
-      } finally {
-        hideSpinner('ruleSpinner');
+    if (!isConfirmed) return;
+
+    const payload = {
+      type: 'delete',
+      rule: { RULE_NUMBER: currentRuleNumber }
+    };
+    showSpinner('ruleSpinner');
+    try {
+      const res = await fetch('/api/rules/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast("Rule deleted successfully!");
+        ruleModal.hide();
+        fetchRules();
+      } else {
+        showToast("Error deleting rule: " + result.message, 'fail');
       }
+    } catch (error) {
+      showToast("Server error occurred.", 'fail');
+    } finally {
+      hideSpinner('ruleSpinner');
     }
   });
 
@@ -359,37 +353,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   deleteVariableBtn.addEventListener('click', async () => {
     const isConfirmed = confirm(`Are you sure you want to delete variable %${currentVariableName}%?`);
-    if (isConfirmed) {
-      const payload = {
-        type: 'delete',
-        variable: { name: currentVariableName }
-      };
-      showSpinner('variableSpinner');
-      try {
-        const res = await fetch('/api/variables/update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (result.success) {
-          showToast("Variable deleted successfully!");
-          variableFormContainer.style.display = 'none';
-          fetchVariables();
-        } else {
-          showToast("Error deleting variable: " + result.message, 'fail');
-        }
-      } catch (error) {
-        showToast("Server error occurred.", 'fail');
-      } finally {
-        hideSpinner('variableSpinner');
+    if (!isConfirmed) return;
+
+    const payload = {
+      type: 'delete',
+      variable: { name: currentVariableName }
+    };
+    showSpinner('variableSpinner');
+    try {
+      const res = await fetch('/api/variables/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast("Variable deleted successfully!");
+        variableFormContainer.style.display = 'none';
+        fetchVariables();
+      } else {
+        showToast("Error deleting variable: " + result.message, 'fail');
       }
+    } catch (error) {
+      showToast("Server error occurred.", 'fail');
+    } finally {
+      hideSpinner('variableSpinner');
     }
   });
-  
-  // New event listener for the cancel button
-  const cancelVariableBtn = document.getElementById('cancelVariableBtn');
-  cancelVariableBtn.addEventListener('click', () => {
+
+  document.getElementById('cancelVariableBtn').addEventListener('click', () => {
     variableFormContainer.style.display = 'none';
   });
 
