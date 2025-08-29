@@ -54,6 +54,7 @@ const today = new Date().toLocaleDateString();
 let stats;
 let welcomedUsers;
 let RULES = [];
+let isWritingToFile = false; // New flag to prevent infinite loops
 
 // -------------------- Rules Functions (moved to global scope) --------------------
 async function loadAllRules() {
@@ -63,7 +64,9 @@ async function loadAllRules() {
     if (dbRules.length > 0) {
         RULES = dbRules.map(r => r.toObject());
         const jsonRules = { rules: RULES };
+        isWritingToFile = true; // Set flag before writing
         fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
+        isWritingToFile = false; // Reset flag after writing
         console.log(`⚡ Rules restored from MongoDB. Loaded ${RULES.length} rules.`);
     } else {
         const jsonRulesPath = path.join(dataDir, "funrules.json");
@@ -85,7 +88,9 @@ const syncData = async () => {
     if (dbStats) {
       // If DB has data, use it. Update local file.
       stats = dbStats;
+      isWritingToFile = true;
       fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+      isWritingToFile = false;
       console.log("⚡ Stats restored from MongoDB.");
     } else {
       // If DB is empty, use local data. Upload to DB.
@@ -99,7 +104,9 @@ const syncData = async () => {
     const localWelcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
     if (dbWelcomedUsers.length > 0) {
       welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
+      isWritingToFile = true;
       fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+      isWritingToFile = false;
       console.log("⚡ Welcomed users restored from MongoDB.");
     } else {
       welcomedUsers = localWelcomedUsers;
@@ -118,7 +125,9 @@ const syncData = async () => {
         stats.todayMsgs = 0;
         stats.lastResetDate = today;
         await Stats.findByIdAndUpdate(stats._id, stats);
+        isWritingToFile = true;
         saveStats();
+        isWritingToFile = false;
         console.log("📅 Daily stats reset!");
     }
 
@@ -131,11 +140,15 @@ const syncData = async () => {
 
 // -------------------- Helpers --------------------
 function saveStats() {
+  isWritingToFile = true;
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+  isWritingToFile = false;
 }
 
 function saveWelcomedUsers() {
+  isWritingToFile = true;
   fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+  isWritingToFile = false;
 }
 
 // Daily reset at midnight
@@ -287,7 +300,9 @@ async function processMessage(msg, sessionId = "default") {
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
     console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    syncData(); // Calling syncData which in turn reloads rules
+    if (!isWritingToFile) { // Check the flag before starting the sync
+        syncData(); // Calling syncData which in turn reloads rules
+    }
   }
 });
 
