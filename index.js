@@ -242,6 +242,25 @@ function processMessage(msg, sessionId = "default") {
   return reply || null;
 }
 
+// -------------------- Rules Functions (moved to global scope) --------------------
+async function loadAllRules() {
+    RULES = [];
+    const dataDir = path.join(__dirname, "data");
+    const dbRules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    if (dbRules.length > 0) {
+        RULES = dbRules.map(r => r.toObject());
+        const jsonRules = { rules: RULES };
+        fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
+    } else {
+        const jsonRules = JSON.parse(fs.readFileSync(path.join(dataDir, "funrules.json"), "utf8"));
+        RULES = jsonRules.rules;
+        if (RULES.length > 0) {
+            await Rule.insertMany(RULES);
+        }
+    }
+    console.log(`⚡ Loaded ${RULES.length} valid rules`);
+}
+
 // -------------------- Initial Load --------------------
 (async () => {
     // Wait for MongoDB connection before syncing data and starting server
@@ -258,13 +277,11 @@ function processMessage(msg, sessionId = "default") {
     });
 })();
 
-// Watch data folder for updates
+// -------------------- Watch data folder for updates --------------------
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
     console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    loadAllRules();
-    // Trigger sync on file change
-    syncData();
+    syncData(); // Calling syncData which in turn reloads rules
   }
 });
 
