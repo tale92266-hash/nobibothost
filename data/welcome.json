@@ -1,7 +1,0 @@
-{
-  "rule_name": "greet_user",
-  "rule_type": "WELCOME",
-  "keywords": "HELLO//HI//HEY",
-  "replies_type": "ONE",
-  "reply_text": "WELCOME BHAI!<#>HELLO, NICE TO SEE YOU!<#>NAMASTE!😎"
-}
