@@ -1,8 +1,11 @@
+require("dotenv").config(); // .env se variables load
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
 const app = express();
 const PORT = process.env.PORT || 10000;
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
 app.use(express.json({ limit: "1mb" }));
 
@@ -66,7 +69,7 @@ function processMessage(msg, sessionId = "default") {
     if (k.type === "contain") {
       for (let pattern of k.patterns) {
         if (msg.includes(pattern.toLowerCase())) {
-          reply = pick(k.replies); // pick 1 random reply
+          reply = pick(k.replies);
           break;
         }
       }
@@ -102,6 +105,20 @@ app.post("/webhook", (req, res) => {
   });
 });
 
+// Self-ping route to prevent sleep
+app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
+
+// Root
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-app.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
+// Start server
+app.listen(PORT, () => {
+  console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`);
+
+  // 5-min self-ping interval
+  setInterval(() => {
+    axios.get(`${SERVER_URL}/ping`)
+      .then(() => console.log("🔁 Self-ping sent!"))
+      .catch(err => console.log("❌ Ping failed:", err.message));
+  }, 5 * 60 * 1000);
+});
