@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function editRule(rule) {
     currentRuleNumber = rule.RULE_NUMBER;
     formTitle.innerText = `Edit Rule #${rule.RULE_NUMBER}`;
-    
+
     // Field values
     document.getElementById('ruleName').value = rule.RULE_NAME || '';
     document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
@@ -165,13 +165,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Show delete button & modal
     deleteRuleBtn.style.display = 'block';
     ruleModal.show();
-
-    // Force modal redraw (bootstrap sometimes fucks up if height 0)
-    const modalEl = document.getElementById('ruleModal');
-    modalEl.style.display = 'block';
-    modalEl.classList.add('show');
-    modalEl.setAttribute('aria-modal', 'true');
-    modalEl.removeAttribute('aria-hidden');
   }
 
   // --- Variable Functions ---
@@ -242,29 +235,35 @@ document.addEventListener("DOMContentLoaded", () => {
   ruleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const newRuleNumber = parseInt(ruleNumberInput.value);
+    const newRuleNumber = parseInt(ruleNumberInput.value) || totalRules + 1;
     if (!validateRuleNumber(newRuleNumber)) {
         return;
     }
 
     const formData = new FormData(ruleForm);
-    const ruleData = Object.fromEntries(formData.entries());
+    const ruleData = {
+        RULE_NUMBER: newRuleNumber,
+        RULE_NAME: formData.get('ruleName'),
+        RULE_TYPE: formData.get('ruleType'),
+        KEYWORDS: formData.get('keywords'),
+        REPLIES_TYPE: formData.get('repliesType'),
+        REPLY_TEXT: formData.get('replyText')
+    };
     
-    ruleData.ruleNumber = newRuleNumber;
-
-    if (ruleData.repliesType !== 'ALL') {
-        const replies = ruleData.replyText.split('<#>').filter(Boolean);
-        ruleData.replyText = replies.join('<#>');
+    // Convert replies to a single string with <#> separator
+    if (ruleData.REPLIES_TYPE !== 'ALL') {
+        const replies = ruleData.REPLY_TEXT.split('<#>').filter(Boolean);
+        ruleData.REPLY_TEXT = replies.join('<#>');
     }
 
     if (targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED') {
-      ruleData.targetUsers = ruleData.targetUsers.split(',').map(id => id.trim());
+        ruleData.TARGET_USERS = formData.get('targetUsers').split(',').map(id => id.trim());
     } else {
-      ruleData.targetUsers = "ALL";
+        ruleData.TARGET_USERS = "ALL";
     }
     
     if (targetUsersToggle.value === 'IGNORED') {
-        ruleData.ruleType = 'IGNORED';
+        ruleData.RULE_TYPE = 'IGNORED';
     }
 
     const payload = {
