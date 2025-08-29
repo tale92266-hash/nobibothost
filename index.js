@@ -1,8 +1,9 @@
-require("dotenv").config(); // .env se variables load
+require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
@@ -116,7 +117,7 @@ app.post("/webhook", (req, res) => {
   });
 });
 
-// Self-ping route to prevent sleep
+// Self-ping route
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
 // Root
