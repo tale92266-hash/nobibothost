@@ -27,10 +27,19 @@ document.addEventListener("DOMContentLoaded", () => {
   function toggleFormFields(ruleType) {
     if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
       keywordsField.style.display = 'none';
+      repliesTypeField.style.display = 'none';
+      replyTextField.style.display = 'block';
       targetUsersToggle.closest('.mb-3').style.display = 'none';
+      document.getElementById('keywords').value = "ALL";
     } else {
       keywordsField.style.display = 'block';
+      repliesTypeField.style.display = 'block';
+      replyTextField.style.display = 'block';
       targetUsersToggle.closest('.mb-3').style.display = 'block';
+    }
+    // Set default replies type to RANDOM for new rules
+    if (!currentRuleNumber) {
+      document.getElementById('repliesType').value = 'RANDOM';
     }
   }
 
@@ -39,19 +48,25 @@ document.addEventListener("DOMContentLoaded", () => {
       targetUsersField.style.display = 'block';
     } else {
       targetUsersField.style.display = 'none';
+      document.getElementById('targetUsers').value = "ALL";
     }
   }
 
   async function fetchRules() {
     loadingMessage.style.display = 'block';
     rulesList.innerHTML = '';
-    const res = await fetch('/api/rules');
-    const data = await res.json();
-    loadingMessage.style.display = 'none';
-    if (data.length === 0) {
-      rulesList.innerHTML = '<p class="text-center text-muted mt-5">No rules found. Add one!</p>';
-    } else {
-      renderRules(data);
+    try {
+      const res = await fetch('/api/rules');
+      const data = await res.json();
+      loadingMessage.style.display = 'none';
+      if (data.length === 0) {
+        rulesList.innerHTML = '<p class="text-center text-muted mt-5">No rules found. Add one!</p>';
+      } else {
+        renderRules(data);
+      }
+    } catch (error) {
+      loadingMessage.innerText = 'Failed to load rules.';
+      showToast("Failed to fetch rules.", "fail");
     }
   }
 
@@ -61,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
       item.className = "rule-item";
       item.innerHTML = `
         <div class="rule-item-header">
-          <h5>Rule #${rule.RULE_NUMBER} - ${rule.RULE_TYPE}</h5>
+          <h5>Rule #${rule.RULE_NUMBER} - ${rule.RULE_NAME || 'Unnamed Rule'}</h5>
         </div>
         <div class="rule-preview">
           <p class="mb-1 preview-text">Keywords: ${rule.KEYWORDS === 'ALL' ? '*' : (rule.KEYWORDS || '').split('//').slice(0, 3).join(', ')}</p>
@@ -92,6 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function editRule(rule) {
     currentRuleNumber = rule.RULE_NUMBER;
     formTitle.innerText = `Edit Rule #${rule.RULE_NUMBER}`;
+    document.getElementById('ruleName').value = rule.RULE_NAME || '';
     document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
     document.getElementById('ruleType').value = rule.RULE_TYPE;
     document.getElementById('keywords').value = rule.KEYWORDS || '';
