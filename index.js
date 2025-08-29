@@ -16,8 +16,10 @@ app.use(express.json({ limit: "1mb" }));
 
 // -------------------- Persistent Stats --------------------
 const statsFilePath = path.join(__dirname, "data", "stats.json");
+const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const today = new Date().toLocaleDateString();
 
+// Stats file creation
 if (!fs.existsSync(statsFilePath)) {
   fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
   fs.writeFileSync(
@@ -36,6 +38,14 @@ if (!fs.existsSync(statsFilePath)) {
 
 let stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
 
+// Welcomed users file creation
+if (!fs.existsSync(welcomedUsersFilePath)) {
+  fs.writeFileSync(welcomedUsersFilePath, JSON.stringify([], null, 2));
+  console.log("⚡ welcomed_users.json created for first time!");
+}
+
+let welcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
+
 // Check if a new day has started on server restart
 if (stats.lastResetDate !== today) {
   stats.todayUsers = [];
@@ -47,6 +57,10 @@ if (stats.lastResetDate !== today) {
 
 function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+}
+
+function saveWelcomedUsers() {
+  fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 }
 
 // Daily reset at midnight
@@ -72,6 +86,7 @@ const scheduleDailyReset = () => {
 };
 
 // -------------------- Chat Context --------------------
+// Removed as we are now using a persistent file for welcome status
 const chatContexts = {};
 
 // -------------------- RULES --------------------
@@ -81,7 +96,7 @@ function loadAllRules() {
   RULES = [];
   const dataDir = path.join(__dirname, "data");
   fs.readdirSync(dataDir).forEach(file => {
-    if (file.endsWith(".json") && file !== "stats.json") {
+    if (file.endsWith(".json") && file !== "stats.json" && file !== "welcomed_users.json") {
       try {
         const ruleFile = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
         if (!ruleFile.rules || !Array.isArray(ruleFile.rules)) {
@@ -110,7 +125,7 @@ function loadAllRules() {
 
 // Watch data folder for updates
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
-  if (filename.endsWith(".json") && filename !== "stats.json") {
+  if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
     console.log(`📂 ${filename} UPDATED, RELOADING...`);
     loadAllRules();
   }
@@ -131,8 +146,6 @@ function emitStats() {
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
-  if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
-
   // -------------------- Update Stats --------------------
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
@@ -148,19 +161,27 @@ function processMessage(msg, sessionId = "default") {
     let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
     let match = false;
 
-    for (let pattern of patterns) {
-      if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
-      else if (rule.RULE_TYPE === "PATTERN") {
-        let regexStr = pattern.replace(/\*/g, ".*");
-        if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+    // Custom logic for welcome message
+    if (rule.RULE_TYPE === "WELCOME") {
+      if (!welcomedUsers.includes(sessionId)) {
+        match = true;
+        welcomedUsers.push(sessionId);
+        saveWelcomedUsers();
       }
-      else if (rule.RULE_TYPE === "WELCOME" && !chatContexts[sessionId].welcomeSent) match = true;
-      else if (rule.RULE_TYPE === "EXPERT") {
-        try {
-          if (new RegExp(pattern, "i").test(msg)) match = true;
-        } catch {}
+    } else {
+      for (let pattern of patterns) {
+        if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
+        else if (rule.RULE_TYPE === "PATTERN") {
+          let regexStr = pattern.replace(/\*/g, ".*");
+          if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+        }
+        else if (rule.RULE_TYPE === "EXPERT") {
+          try {
+            if (new RegExp(pattern, "i").test(msg)) match = true;
+          } catch {}
+        }
+        if (match) break;
       }
-      if (match) break;
     }
 
     if (match) {
@@ -168,13 +189,9 @@ function processMessage(msg, sessionId = "default") {
       if (rule.REPLIES_TYPE === "ALL") reply = replies.join(" ");
       else if (rule.REPLIES_TYPE === "ONE") reply = replies[0];
       else reply = pick(replies);
-      if (rule.RULE_TYPE === "WELCOME") chatContexts[sessionId].welcomeSent = true;
       break;
     }
   }
-
-  if (reply) chatContexts[sessionId].lastIntent = reply;
-  chatContexts[sessionId].lastMessage = msg;
 
   emitStats();
 
