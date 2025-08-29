@@ -27,6 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const toastLiveExample = document.getElementById('liveToast');
   const toastBody = document.querySelector('#liveToast .toast-body');
   const toast = new bootstrap.Toast(toastLiveExample);
+  const saveRuleBtn = document.getElementById('saveRuleBtn');
+  const saveVariableBtn = document.getElementById('saveVariableBtn');
   let currentRuleNumber = null;
   let currentVariableName = null;
   let totalRules = 0;
@@ -36,6 +38,14 @@ document.addEventListener("DOMContentLoaded", () => {
     toastLiveExample.classList.remove('success', 'fail');
     toastLiveExample.classList.add(type);
     toast.show();
+  }
+
+  function showSpinner(spinnerId) {
+    document.getElementById(spinnerId).style.display = 'inline-block';
+  }
+
+  function hideSpinner(spinnerId) {
+    document.getElementById(spinnerId).style.display = 'none';
   }
 
   function validateRuleNumber(num) {
@@ -151,13 +161,18 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Variable Functions ---
   async function fetchVariables() {
     variablesList.innerHTML = '<p class="text-muted text-center">Loading variables...</p>';
-    const res = await fetch('/api/variables');
-    const data = await res.json();
-    variablesList.innerHTML = '';
-    if (data.length === 0) {
-      variablesList.innerHTML = '<p class="text-muted text-center">No variables found.</p>';
-    } else {
-      renderVariables(data);
+    try {
+      const res = await fetch('/api/variables');
+      const data = await res.json();
+      variablesList.innerHTML = '';
+      if (data.length === 0) {
+        variablesList.innerHTML = '<p class="text-muted text-center">No variables found.</p>';
+      } else {
+        renderVariables(data);
+      }
+    } catch (error) {
+      variablesList.innerHTML = '<p class="text-danger text-center">Failed to load variables.</p>';
+      showToast("Failed to fetch variables.", "fail");
     }
   }
 
@@ -239,20 +254,26 @@ document.addEventListener("DOMContentLoaded", () => {
       rule: ruleData,
       oldRuleNumber: currentRuleNumber
     };
-    
-    const res = await fetch('/api/rules/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
 
-    const result = await res.json();
-    if (result.success) {
-      showToast("Rule saved successfully!");
-      ruleModal.hide();
-      fetchRules();
-    } else {
-      showToast("Error saving rule: " + result.message, 'fail');
+    showSpinner('ruleSpinner');
+    try {
+      const res = await fetch('/api/rules/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast("Rule saved successfully!");
+        ruleModal.hide();
+        fetchRules();
+      } else {
+        showToast("Error saving rule: " + result.message, 'fail');
+      }
+    } catch (error) {
+      showToast("Server error occurred.", 'fail');
+    } finally {
+      hideSpinner('ruleSpinner');
     }
   });
 
@@ -263,18 +284,25 @@ document.addEventListener("DOMContentLoaded", () => {
         type: 'delete',
         rule: { ruleNumber: currentRuleNumber }
       };
-      const res = await fetch('/api/rules/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const result = await res.json();
-      if (result.success) {
-        showToast("Rule deleted successfully!");
-        ruleModal.hide();
-        fetchRules();
-      } else {
-        showToast("Error deleting rule: " + result.message, 'fail');
+      showSpinner('ruleSpinner');
+      try {
+        const res = await fetch('/api/rules/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast("Rule deleted successfully!");
+          ruleModal.hide();
+          fetchRules();
+        } else {
+          showToast("Error deleting rule: " + result.message, 'fail');
+        }
+      } catch (error) {
+        showToast("Server error occurred.", 'fail');
+      } finally {
+        hideSpinner('ruleSpinner');
       }
     }
   });
@@ -290,19 +318,25 @@ document.addEventListener("DOMContentLoaded", () => {
       oldName: currentVariableName
     };
 
-    const res = await fetch('/api/variables/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    const result = await res.json();
-    if (result.success) {
-      showToast("Variable saved successfully!");
-      variableFormContainer.style.display = 'none';
-      fetchVariables();
-    } else {
-      showToast("Error saving variable: " + result.message, 'fail');
+    showSpinner('variableSpinner');
+    try {
+      const res = await fetch('/api/variables/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await res.json();
+      if (result.success) {
+        showToast("Variable saved successfully!");
+        variableFormContainer.style.display = 'none';
+        fetchVariables();
+      } else {
+        showToast("Error saving variable: " + result.message, 'fail');
+      }
+    } catch (error) {
+      showToast("Server error occurred.", 'fail');
+    } finally {
+      hideSpinner('variableSpinner');
     }
   });
 
@@ -313,18 +347,25 @@ document.addEventListener("DOMContentLoaded", () => {
         type: 'delete',
         variable: { name: currentVariableName }
       };
-      const res = await fetch('/api/variables/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const result = await res.json();
-      if (result.success) {
-        showToast("Variable deleted successfully!");
-        variableFormContainer.style.display = 'none';
-        fetchVariables();
-      } else {
-        showToast("Error deleting variable: " + result.message, 'fail');
+      showSpinner('variableSpinner');
+      try {
+        const res = await fetch('/api/variables/update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+          showToast("Variable deleted successfully!");
+          variableFormContainer.style.display = 'none';
+          fetchVariables();
+        } else {
+          showToast("Error deleting variable: " + result.message, 'fail');
+        }
+      } catch (error) {
+        showToast("Server error occurred.", 'fail');
+      } finally {
+        hideSpinner('variableSpinner');
       }
     }
   });
