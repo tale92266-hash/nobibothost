@@ -166,7 +166,8 @@ function emitStats() {
   });
 }
 
-function processMessage(msg, sessionId = "default") {
+// Made processMessage async
+async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
   // -------------------- Update Stats --------------------
@@ -176,12 +177,11 @@ function processMessage(msg, sessionId = "default") {
   stats.todayMsgs++;
   if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
   
-  // Save stats to MongoDB and JSON
-  Stats.findByIdAndUpdate(stats._id, stats, { new: true }).then(updatedStats => {
-      stats = updatedStats;
-      saveStats();
-      emitStats();
-  });
+  // Await the stats update to ensure it's complete before moving on
+  const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
+  stats = updatedStats;
+  saveStats();
+  emitStats();
 
   // -------------------- Match Rules --------------------
   let reply = null;
@@ -216,7 +216,7 @@ function processMessage(msg, sessionId = "default") {
         match = true;
         welcomedUsers.push(sessionId);
         saveWelcomedUsers();
-        User.create({ sessionId });
+        await User.create({ sessionId });
       }
     } else if (rule.RULE_TYPE === "DEFAULT") {
         match = true;
@@ -273,10 +273,11 @@ fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
 });
 
 // -------------------- Webhook --------------------
-app.post("/webhook", (req, res) => {
+// Made webhook async to await the processMessage function
+app.post("/webhook", async (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
-  const replyText = processMessage(msg, sessionId);
+  const replyText = await processMessage(msg, sessionId);
   if (!replyText) return res.json({ replies: [] });
   res.json({ replies: [{ message: replyText }] });
 });
