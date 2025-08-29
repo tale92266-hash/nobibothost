@@ -113,7 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('replyText').value = rule.REPLY_TEXT;
     
     if (Array.isArray(rule.TARGET_USERS)) {
-      // Check if it's an IGNORED rule
       if (rule.RULE_TYPE === "IGNORED") {
         targetUsersToggle.value = 'IGNORED';
       } else {
@@ -141,7 +140,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const ruleData = Object.fromEntries(formData.entries());
     
     ruleData.ruleNumber = parseInt(ruleData.ruleNumber);
-    ruleData.oldRuleNumber = currentRuleNumber;
 
     if (ruleData.repliesType !== 'ALL') {
         const replies = ruleData.replyText.split('<#>').filter(Boolean);
