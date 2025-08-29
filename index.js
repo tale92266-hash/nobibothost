@@ -1,47 +1,21 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-app.use(express.json({ limit: "1mb" }));
-
-// Context memory per session
-const chatContexts = {};
-
-// KEYWORDS storage
-let KEYWORDS = [];
-
-// Load all JSON files in data folder
-function loadAllKeywords() {
-  const dataDir = path.join(__dirname, "data");
-  KEYWORDS = [];
-  fs.readdirSync(dataDir).forEach(file => {
-    if (file.endsWith(".json")) {
-      const fileData = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
-      KEYWORDS = KEYWORDS.concat(fileData);
-    }
-  });
-  console.log(`⚡ LOADED ${KEYWORDS.length} KEYWORDS FROM JSON FILES`);
+// load default replies
+let DEFAULT_REPLIES = [];
+function loadDefault() {
+  const defaultPath = path.join(__dirname, "data", "default.json");
+  DEFAULT_REPLIES = JSON.parse(fs.readFileSync(defaultPath, "utf8")).defaultReplies;
 }
+loadDefault();
 
-// Initial load
-loadAllKeywords();
-
-// Live reload on JSON changes
+// watch for live reload
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json")) {
-    console.log(`📂 ${filename} UPDATED, RELOADING KEYWORDS...`);
-    loadAllKeywords();
+    console.log(`📂 ${filename} UPDATED, RELOADING...`);
+    loadAllKeywords();   // chat rules
+    loadDefault();       // default reply
   }
 });
 
-// Random picker
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// Message processor
+// modify processMessage
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
@@ -68,7 +42,7 @@ function processMessage(msg, sessionId = "default") {
   }
 
   if (!reply) {
-    reply = "SAMAJH NHI AAYA, THODA AUR CLEAR BOL. 🤔";
+    reply = pick(DEFAULT_REPLIES);      // <- NEW: pick from default.json
     context.dialogueState = "waiting_for_clarification";
   } else {
     context.dialogueState = "normal";
@@ -80,17 +54,7 @@ function processMessage(msg, sessionId = "default") {
   return reply.toUpperCase();
 }
 
-// Webhook endpoint
-app.post("/webhook", (req, res) => {
-  const sessionId = req.body.session_id || "default_session";
-  const msg = req.body.query?.message || "";
-  const replyText = processMessage(msg, sessionId);
-
-  res.json({
-    replies: [{ message: replyText }]
-  });
-});
-
-app.get("/", (req, res) => res.send("🤖 ADVANCED HUMAN-LIKE CHAT BOT IS LIVE!"));
-
-app.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
+// helper pick function
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
