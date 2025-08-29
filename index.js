@@ -14,24 +14,35 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
-// ---------------- Persistent Stats ----------------
+// -------------------- Persistent Stats --------------------
 const statsFilePath = path.join(__dirname, "data", "stats.json");
+
 if (!fs.existsSync(statsFilePath)) {
   fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
   fs.writeFileSync(
     statsFilePath,
-    JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [] }, null, 2)
+    JSON.stringify({
+      totalUsers: [],
+      todayUsers: [],
+      totalMsgs: 0,
+      todayMsgs: 0,
+      nobiPapaHideMeUsers: []
+    }, null, 2)
   );
-  console.log("⚡ stats.json created!");
+  console.log("⚡ stats.json created for first time!");
 }
-let stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
-function saveStats() { fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2)); }
 
-// ---------------- Chat Context ----------------
+let stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
+function saveStats() {
+  fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+}
+
+// -------------------- Chat Context --------------------
 const chatContexts = {};
 
-// ---------------- Load Rules ----------------
+// -------------------- RULES --------------------
 let RULES = [];
+
 function loadAllRules() {
   RULES = [];
   const dataDir = path.join(__dirname, "data");
@@ -40,53 +51,51 @@ function loadAllRules() {
       try {
         const ruleFile = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
         if (!ruleFile.rules || !Array.isArray(ruleFile.rules)) {
-          console.error(`❌ ${file} has no valid "rules" array`);
+          console.error(`❌ ${file} INVALID: "rules" missing or not array`);
           return;
         }
-        RULES = RULES.concat(ruleFile.rules);
+        for (let r of ruleFile.rules) {
+          if (!r.RULE_TYPE || !r.KEYWORDS || !r.REPLY_TEXT) {
+            console.error(`❌ ${file} INVALID rule:`, r);
+            continue;
+          }
+          RULES.push(r);
+          console.log(`✅ ${file} valid rule:`, r.RULE_TYPE);
+        }
       } catch (err) {
-        console.error(`❌ Failed to load ${file}:`, err.message);
+        console.error(`❌ Failed to parse ${file}:`, err.message);
       }
     }
   });
-  console.log(`⚡ Loaded ${RULES.length} rules`);
+  console.log(`⚡ Loaded ${RULES.length} valid rules`);
 }
-loadAllRules();
 
-// Watch data folder for changes
+// Watch data folder for updates
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json") && filename !== "stats.json") {
-    console.log(`📂 ${filename} updated, reloading rules...`);
+    console.log(`📂 ${filename} UPDATED, RELOADING...`);
     loadAllRules();
   }
 });
 
-// ---------------- Helpers ----------------
+// -------------------- Helpers --------------------
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-function matchPattern(keyword, msg) {
-  // Convert *abc* style into regex
-  const pattern = "^" + keyword.split("*").map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(".*") + "$";
-  return new RegExp(pattern, "i").test(msg);
-}
-
-// Emit stats to clients
 function emitStats() {
   io.emit("statsUpdate", {
     totalUsers: stats.totalUsers.length,
     totalMsgs: stats.totalMsgs,
     todayUsers: stats.todayUsers.length,
-    todayMsgs: stats.todayMsgs.length,
+    todayMsgs: stats.todayMsgs,
     nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
   });
 }
 
-// ---------------- Process Message ----------------
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
+
   if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
 
-  // Update stats
+  // -------------------- Update Stats --------------------
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
@@ -94,76 +103,89 @@ function processMessage(msg, sessionId = "default") {
   if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
   saveStats();
 
-  // ---------------- Match Rules ----------------
+  // -------------------- Match Rules --------------------
   let reply = null;
+
   for (let rule of RULES) {
-    let keywords = (rule.KEYWORDS || "").split("//").map(k => k.trim()).filter(Boolean);
-    if (!keywords.length) continue;
+    let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+    let match = false;
 
-    if (rule.RULE_TYPE === "WELCOME" && !chatContexts[sessionId].welcomed) {
-      reply = pick(rule.REPLY_TEXT.split("<#>"));
-      chatContexts[sessionId].welcomed = true;
+    for (let pattern of patterns) {
+      if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
+      else if (rule.RULE_TYPE === "PATTERN") {
+        let regexStr = pattern.replace(/\*/g, ".*");
+        if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+      }
+      else if (rule.RULE_TYPE === "WELCOME" && !chatContexts[sessionId].welcomeSent) match = true;
+      else if (rule.RULE_TYPE === "EXPERT") {
+        try {
+          if (new RegExp(pattern, "i").test(msg)) match = true;
+        } catch {}
+      }
+      if (match) break;
+    }
+
+    if (match) {
+      let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+      if (rule.REPLIES_TYPE === "ALL") reply = replies.join(" ");
+      else if (rule.REPLIES_TYPE === "ONE") reply = replies[0];
+      else reply = pick(replies);
+      if (rule.RULE_TYPE === "WELCOME") chatContexts[sessionId].welcomeSent = true;
       break;
-    }
-
-    if (rule.RULE_TYPE === "EXACT") {
-      if (keywords.includes(msg)) { reply = pick(rule.REPLY_TEXT.split("<#>")); break; }
-    }
-
-    if (rule.RULE_TYPE === "PATTERN") {
-      for (let kw of keywords) if (matchPattern(kw, msg)) { reply = pick(rule.REPLY_TEXT.split("<#>")); break; }
-      if (reply) break;
-    }
-
-    if (rule.RULE_TYPE === "EXPERT") {
-      for (let kw of keywords) if (new RegExp(kw, "i").test(msg)) { reply = pick(rule.REPLY_TEXT.split("<#>")); break; }
-      if (reply) break;
     }
   }
 
-  chatContexts[sessionId].lastIntent = reply;
+  if (reply) chatContexts[sessionId].lastIntent = reply;
   chatContexts[sessionId].lastMessage = msg;
 
   emitStats();
-  return reply ? reply.toUpperCase() : null;
+
+  return reply || null; // agar match nahi hua toh null
 }
 
-// ---------------- Webhook ----------------
+// -------------------- Initial Load --------------------
+loadAllRules();
+
+// -------------------- Webhook --------------------
 app.post("/webhook", (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
   const replyText = processMessage(msg, sessionId);
-  if (replyText) res.json({ replies: [{ message: replyText }] });
-  else res.json({ replies: [] });
+  if (!replyText) return res.json({ replies: [] });
+  res.json({ replies: [{ message: replyText }] });
 });
 
-// ---------------- Stats API ----------------
+// -------------------- Stats API --------------------
 app.get("/stats", (req, res) => {
   res.json({
     totalUsers: stats.totalUsers.length,
     totalMsgs: stats.totalMsgs,
     todayUsers: stats.todayUsers.length,
-    todayMsgs: stats.todayMsgs.length,
+    todayMsgs: stats.todayMsgs,
     nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
   });
 });
 
-// ---------------- Frontend ----------------
+// -------------------- Frontend --------------------
 app.use(express.static("public"));
 
-// ---------------- Ping ----------------
+// -------------------- Ping --------------------
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-// ---------------- Start server ----------------
+// -------------------- Start server --------------------
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// ---------------- Self-ping every 5 mins (fixed single interval) ----------------
-let lastPing = 0;
-setInterval(() => {
-  const now = Date.now();
-  if (now - lastPing >= 5 * 60 * 1000) {
-    lastPing = now;
-    axios.get(`${SERVER_URL}/ping`).then(() => console.log("🔁 Self-ping sent!")).catch(err => console.log("❌ Ping failed:", err.message));
+// -------------------- Self-ping every 5 mins (only once at a time) --------------------
+let pinging = false;
+setInterval(async () => {
+  if (pinging) return;
+  pinging = true;
+  try {
+    await axios.get(`${SERVER_URL}/ping`);
+    console.log("🔁 Self-ping sent!");
+  } catch (err) {
+    console.log("❌ Ping failed:", err.message);
   }
-}, 1000);
+  pinging = false;
+}, 5 * 60 * 1000);
