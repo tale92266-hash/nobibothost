@@ -10,14 +10,23 @@ const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 
 app.use(express.json({ limit: "1mb" }));
 
-// Session context
+// Session contexts
 const chatContexts = {};
 
-// Keywords storage
+// Stats
+const stats = {
+  totalUsers: new Set(),
+  todayUsers: new Set(),
+  totalMsgs: 0,
+  todayMsgs: 0,
+  nobiPapaHideMeUsers: new Set() // unique users who said "NOBI PAPA HIDE ME"
+};
+
+// Chat keywords and default replies
 let KEYWORDS = [];
 let DEFAULT_REPLIES = [];
 
-// Load all chat JSON files
+// Load chat keywords
 function loadAllKeywords() {
   try {
     const dataDir = path.join(__dirname, "data");
@@ -66,15 +75,25 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Message processor
+// Process message
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
+  // Init context
   if (!chatContexts[sessionId]) {
     chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
   }
-  const context = chatContexts[sessionId];
 
+  // Update stats
+  stats.totalUsers.add(sessionId);
+  stats.todayUsers.add(sessionId);
+  stats.totalMsgs++;
+  stats.todayMsgs++;
+
+  // Track exact "NOBI PAPA HIDE ME"
+  if (msg.includes("nobi papa hide me")) stats.nobiPapaHideMeUsers.add(sessionId);
+
+  const context = chatContexts[sessionId];
   let reply = null;
 
   for (let k of KEYWORDS) {
@@ -117,6 +136,20 @@ app.post("/webhook", (req, res) => {
   });
 });
 
+// Stats endpoint
+app.get("/stats", (req, res) => {
+  res.json({
+    totalUsers: stats.totalUsers.size,
+    totalMsgs: stats.totalMsgs,
+    todayUsers: stats.todayUsers.size,
+    todayMsgs: stats.todayMsgs,
+    nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.size // UNIQUE USERS
+  });
+});
+
+// Serve frontend
+app.use(express.static("public"));
+
 // Self-ping route
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
@@ -127,7 +160,7 @@ app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 app.listen(PORT, () => {
   console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`);
 
-  // 5-min self-ping interval
+  // 5-min self-ping to prevent Render sleep
   setInterval(() => {
     axios.get(`${SERVER_URL}/ping`)
       .then(() => console.log("🔁 Self-ping sent!"))
