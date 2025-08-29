@@ -64,40 +64,45 @@ async function loadAllRules() {
         RULES = dbRules.map(r => r.toObject());
         const jsonRules = { rules: RULES };
         fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
+        console.log(`⚡ Rules restored from MongoDB. Loaded ${RULES.length} rules.`);
     } else {
         const jsonRulesPath = path.join(dataDir, "funrules.json");
         const jsonRules = JSON.parse(fs.readFileSync(jsonRulesPath, "utf8"));
         if (jsonRules.rules && jsonRules.rules.length > 0) {
             RULES = jsonRules.rules;
             await Rule.insertMany(RULES);
+            console.log(`⚡ Rules uploaded to MongoDB. Loaded ${RULES.length} rules.`);
         }
     }
-    console.log(`⚡ Loaded ${RULES.length} valid rules`);
 }
 
 // Data Sync Function (moved to global scope)
 const syncData = async () => {
   try {
     // Sync Stats
-    const dbStats = await Stats.findOne();
+    let dbStats = await Stats.findOne();
+    const localStats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
     if (dbStats) {
+      // If DB has data, use it. Update local file.
       stats = dbStats;
       fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
       console.log("⚡ Stats restored from MongoDB.");
     } else {
-      stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
+      // If DB is empty, use local data. Upload to DB.
+      stats = localStats;
       await Stats.create(stats);
       console.log("⚡ Stats uploaded to MongoDB.");
     }
 
     // Sync Welcomed Users
-    const dbWelcomedUsers = await User.find({}, 'sessionId');
+    let dbWelcomedUsers = await User.find({});
+    const localWelcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
     if (dbWelcomedUsers.length > 0) {
       welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
       fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
       console.log("⚡ Welcomed users restored from MongoDB.");
     } else {
-      welcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
+      welcomedUsers = localWelcomedUsers;
       if (welcomedUsers.length > 0) {
         await User.insertMany(welcomedUsers.map(id => ({ sessionId: id })));
         console.log("⚡ Welcomed users uploaded to MongoDB.");
@@ -167,7 +172,6 @@ function emitStats() {
   });
 }
 
-// Made processMessage async
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
