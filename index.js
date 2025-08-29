@@ -16,6 +16,7 @@ app.use(express.json({ limit: "1mb" }));
 
 // -------------------- Persistent Stats --------------------
 const statsFilePath = path.join(__dirname, "data", "stats.json");
+const today = new Date().toLocaleDateString();
 
 if (!fs.existsSync(statsFilePath)) {
   fs.mkdirSync(path.join(__dirname, "data"), { recursive: true });
@@ -26,16 +27,49 @@ if (!fs.existsSync(statsFilePath)) {
       todayUsers: [],
       totalMsgs: 0,
       todayMsgs: 0,
-      nobiPapaHideMeUsers: []
+      nobiPapaHideMeUsers: [],
+      lastResetDate: today
     }, null, 2)
   );
   console.log("⚡ stats.json created for first time!");
 }
 
 let stats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
+
+// Check if a new day has started on server restart
+if (stats.lastResetDate !== today) {
+  stats.todayUsers = [];
+  stats.todayMsgs = 0;
+  stats.lastResetDate = today;
+  saveStats();
+  console.log("📅 Daily stats reset!");
+}
+
 function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
+
+// Daily reset at midnight
+const resetDailyStats = () => {
+  stats.todayUsers = [];
+  stats.todayMsgs = 0;
+  stats.lastResetDate = new Date().toLocaleDateString();
+  saveStats();
+  console.log("📅 Daily stats reset!");
+};
+
+const scheduleDailyReset = () => {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setDate(now.getDate() + 1);
+  midnight.setHours(0, 0, 0, 0);
+  const timeUntilMidnight = midnight.getTime() - now.getTime();
+  setTimeout(() => {
+    resetDailyStats();
+    // Schedule for the next day
+    setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
+  }, timeUntilMidnight);
+};
 
 // -------------------- Chat Context --------------------
 const chatContexts = {};
@@ -145,6 +179,7 @@ function processMessage(msg, sessionId = "default") {
 
 // -------------------- Initial Load --------------------
 loadAllRules();
+scheduleDailyReset();
 
 // -------------------- Webhook --------------------
 app.post("/webhook", (req, res) => {
