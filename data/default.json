@@ -1,12 +1,31 @@
-{
-  "defaultReplies": [
-    "HMM 🤔 MAZAA AAYA! THODA AUR BATAO?",
-    "LOL 😅 YE THODA CONFUSING HAI, DOBARA BOL BHAI!",
-    "ARRE 🤷‍♂️ MAIN SAMAJH NHI PAYA, THODA CLEAR KARO!",
-    "HAHA 😆 TU TO MAZA AAYA, AUR DETAIL ME BATAO!",
-    "OH! 😎 YE INTERESTING HAI, AUR KYA BATAO?",
-    "BHAI 😅 YE THODA JALDI ME HOGA, DOBARA TRY KARO",
-    "🤔 YE THODA TRICKY HAI, AUR CONTEXT DE BHARPOOR",
-    "ACCHA 😏 MAIN TRY KAR RAHA HU, AUR EXPLAIN KARO THODA"
-  ]
-}
+[
+  {
+    "type": "contain",
+    "patterns": ["hi", "hello", "hey", "namaste"], 
+    "replies": [
+      "HEY! 👋 KAISA HAI?",
+      "HELLO BHAI! 😎 KYA CHAL RAHA HAI?",
+      "HI THERE! 🙌 KYA SCENE HAI?",
+      "NAMASTE! 😁 KAISA SCENE HAI?",
+      "YO BRO! 😏 KYA CHAL RAHA HAI?"
+    ]
+  },
+  {
+    "type": "contain",
+    "patterns": ["ky krre ho", "kya kar rahe ho", "kya scene hai"], 
+    "replies": [
+      "CHILLING BRO! 😎 AUR TU?",
+      "BAS CHILL KAR RAHA HU 😏 TU?",
+      "WORKING THODA 😅 AUR TU?"
+    ]
+  },
+  {
+    "type": "contain",
+    "patterns": ["kaise ho", "kaisa hai", "kya haal"], 
+    "replies": [
+      "MAIN BADHIYA HU! 😁 AUR TU?",
+      "SAB MAST! 😉 TERA KYA SCENE HAI?",
+      "CHILL BRO! 😎"
+    ]
+  }
+]
