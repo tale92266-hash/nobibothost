@@ -1,25 +1,39 @@
 [
-  { "type": "contain", "pattern": "hi", "reply": "HEY! 👋 KAISA HAIN?" },
-  { "type": "contain", "pattern": "hlo", "reply": "HELLO JI! 😎 KYA CHAL RAHA HAI?" },
-  { "type": "contain", "pattern": "hello", "reply": "HELLO BHAI! 🙌 KAISA SCENE HAI?" },
-  { "type": "contain", "pattern": "hey", "reply": "HEY HEY! 😁 KYA HAL HAIN?" },
-  { "type": "contain", "pattern": "ky krre ho", "reply": "MAIN BAS CHILL KAR RAHA HU 😎 AUR TU?" },
-  { "type": "contain", "pattern": "ky krra h", "reply": "CHILLING BRO! 😏 TU?" },
-  { "type": "contain", "pattern": "kaise ho", "reply": "MAIN BADHIYA HU! 😁 AUR TU KAISA HAI?" },
-  { "type": "contain", "pattern": "kaisa h", "reply": "SAB MAST! 😉 TERA KYA SCENE HAI?" },
-  { "type": "contain", "pattern": "kaisi ho", "reply": "BADHIYA HU DOST! 😎" },
-  { "type": "contain", "pattern": "kya haal", "reply": "SAB BADIYA! 😁 AUR TERE KYA HAIN?" },
-  { "type": "contain", "pattern": "chill", "reply": "CHILLING BRO! 😎" },
-  { "type": "contain", "pattern": "sup", "reply": "SUP BHAI! 👋 KAISA SCENE HAI?" },
-  { "type": "contain", "pattern": "wassup", "reply": "WASSUP BRO! 😁 KYA CHAL RAHA HAIN?" },
-  { "type": "contain", "pattern": "good morning", "reply": "GOOD MORNING 🌞 DOST! KAISA HAIN?" },
-  { "type": "contain", "pattern": "good night", "reply": "GOOD NIGHT 😴 SLEEP WELL!" },
-  { "type": "contain", "pattern": "bye", "reply": "BYE 🙋‍♂️ PHIR MILENGE!" },
-  { "type": "contain", "pattern": "see you", "reply": "SEE YOU! 👋 TAKE CARE!" },
-  { "type": "contain", "pattern": "lol", "reply": "😂 HAHA, MAZA AAYA!" },
-  { "type": "contain", "pattern": "haha", "reply": "😆 HAHAA, FUNNYYYY!" },
-  { "type": "contain", "pattern": "thank", "reply": "KOI BAAT NAHI, ANYTIME! 🤝" },
-  { "type": "contain", "pattern": "shukriya", "reply": "WELCOME DOST 🙏" },
-  { "type": "contain", "pattern": "sry", "reply": "KOI BAAT NAHI 😅 SAB CHALTA HAI!" },
-  { "type": "contain", "pattern": "sorry", "reply": "ITS OK! 😌 NO WORRIES" }
+  {
+    "type": "contain",
+    "patterns": ["hi", "hello", "hey", "hlo", "namaste", "ram ram"],
+    "replies": [
+      "HEY! KYA HAAL HAIN? 👋",
+      "HELLO JI, AAO BAAT KAREN 🙂",
+      "HI THERE! KYA CHAL RAHA HAI? 😎",
+      "NAMASKAR! KAHAAN SE AAYE HAI? 🙌"
+    ]
+  },
+  {
+    "type": "contain",
+    "patterns": ["kaise ho", "kaisa hai", "kya haal", "kaisi hai", "ky kr rahe ho", "ky krre ho"],
+    "replies": [
+      "MAIN BADHIYA, TU BATA? 😁",
+      "SAB MAST! AUR TERE KYA SCENE HAI? 😉",
+      "CHILL CHAL RAHA HAI BRO, AUR TU? ✨"
+    ]
+  },
+  {
+    "type": "contain",
+    "patterns": ["thanks", "shukriya", "dhanyawad"],
+    "replies": [
+      "KOI BAAT NAHI. ANYTIME! 🤝",
+      "WELCOME DOST 🙏",
+      "ARRE MENTION NOT YAAR 😌"
+    ]
+  },
+  {
+    "type": "contain",
+    "patterns": ["kuch kar rahe ho", "kya kar rahe ho", "batao kya ho raha hai"],
+    "replies": [
+      "BAS CHILL KAR RAHA HOON 😎, TU SUNAO?",
+      "KUCH NAHI, RELAXING MODE ME HAI 😌",
+      "ABHI THODA BUS, AUR TU KYA KAR RAHA HAI?"
+    ]
+  }
 ]
