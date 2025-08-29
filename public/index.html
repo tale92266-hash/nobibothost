@@ -29,6 +29,13 @@
     
     /* Responsive Text Area */
     .form-control-textarea { min-height: 100px; resize: vertical; }
+
+    /* Toast styles */
+    .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1080; }
+    .toast { background-color: #333; color: #fff; border: none; }
+    .toast-header { background-color: #2a2a2a; color: #fff; border-bottom: 1px solid #444; }
+    .toast.success { background-color: #1a7e1a; }
+    .toast.fail { background-color: #a72323; }
   </style>
 </head>
 <body>
@@ -67,28 +74,33 @@
               <option value="EXPERT">EXPERT</option>
               <option value="WELCOME">WELCOME</option>
               <option value="DEFAULT">DEFAULT</option>
-              <option value="IGNORED">IGNORED</option>
             </select>
           </div>
           <div id="keywordsField" class="mb-3">
             <label for="keywords" class="form-label">Keywords (use // to separate, or ALL)</label>
-            <input type="text" class="form-control" id="keywords" name="keywords">
+            <input type="text" class="form-control" id="keywords" name="keywords" placeholder="E.g., hello//hi//hey">
           </div>
           <div id="repliesTypeField" class="mb-3">
             <label for="repliesType" class="form-label">Replies Type</label>
             <select class="form-select" id="repliesType" name="repliesType" required>
-              <option value="ONE">ONE</option>
               <option value="RANDOM">RANDOM</option>
+              <option value="ONE">ONE</option>
               <option value="ALL">ALL</option>
             </select>
           </div>
           <div id="replyTextField" class="mb-3">
             <label for="replyText" class="form-label">Reply Text (use &lt;#&gt; to separate)</label>
-            <textarea class="form-control form-control-textarea" id="replyText" name="replyText" rows="3" required></textarea>
+            <textarea class="form-control form-control-textarea" id="replyText" name="replyText" rows="3" required placeholder="E.g., Reply one<#>Reply two"></textarea>
           </div>
-          <div id="targetUsersField" class="mb-3">
-            <label for="targetUsers" class="form-label">Target Users (user1//user2//... or ALL)</label>
-            <input type="text" class="form-control" id="targetUsers" name="targetUsers">
+          <div class="mb-3">
+            <label for="targetUsersToggle" class="form-label">Target Users</label>
+            <select class="form-select mb-2" id="targetUsersToggle">
+              <option value="ALL">ALL</option>
+              <option value="TARGET">Target</option>
+            </select>
+            <div id="targetUsersField" style="display: none;">
+              <input type="text" class="form-control" id="targetUsers" name="targetUsers" placeholder="E.g., user1,user2,user3">
+            </div>
           </div>
         </form>
       </div>
@@ -96,6 +108,18 @@
         <button type="button" class="btn btn-danger" id="deleteRuleBtn" style="display: none;">Delete</button>
         <button type="submit" form="ruleForm" class="btn btn-primary" id="saveRuleBtn">Save Rule</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container">
+  <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" id="liveToast">
+    <div class="toast-header">
+      <strong class="me-auto">Nobi Bot</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+    <div class="toast-body">
+      Rule saved successfully!
     </div>
   </div>
 </div>
