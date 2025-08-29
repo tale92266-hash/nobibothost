@@ -4,6 +4,7 @@
   "description": "Friendly Nobi Chat Bot with live stats",
   "main": "index.js",
   "scripts": {
+    "prestart": "npm install",
     "start": "node index.js"
   },
   "dependencies": {
