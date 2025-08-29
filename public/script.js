@@ -139,7 +139,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData(ruleForm);
     const ruleData = Object.fromEntries(formData.entries());
     
-    ruleData.ruleNumber = parseInt(ruleData.ruleNumber);
+    // Check if a rule number change occurred
+    const newRuleNumber = parseInt(ruleData.ruleNumber);
+    const oldRuleNumberValue = currentRuleNumber;
+
+    ruleData.ruleNumber = newRuleNumber;
 
     if (ruleData.repliesType !== 'ALL') {
         const replies = ruleData.replyText.split('<#>').filter(Boolean);
@@ -155,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const payload = {
       type: currentRuleNumber ? 'edit' : 'add',
       rule: ruleData,
-      oldRuleNumber: currentRuleNumber
+      oldRuleNumber: oldRuleNumberValue // Pass the original rule number to the backend
     };
 
     const res = await fetch('/api/rules/update', {
