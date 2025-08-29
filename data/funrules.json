@@ -2,27 +2,33 @@
   "rules": [
     {
       "RULE_TYPE": "WELCOME",
-      "KEYWORDS": "",
+      "KEYWORDS": "HELLO//HI//HEY",
       "REPLIES_TYPE": "ONE",
-      "REPLY_TEXT": "HELLO BSDK, WELCOME TO NOBI WORLD!"
+      "REPLY_TEXT": "Welcome, bhen ke laude! Tera session start ho gaya 😈"
     },
     {
       "RULE_TYPE": "EXACT",
-      "KEYWORDS": "HI//HELLO//HEY",
+      "KEYWORDS": "HOW ARE YOU//WHAT'S UP",
       "REPLIES_TYPE": "RANDOM",
-      "REPLY_TEXT": "HI LAUDE!<#>HELLO BHAI!<#>HEY BSDK!"
+      "REPLY_TEXT": "Main mast hoon laude<#>Bhai, sab set hai 😎<#>Tere jaise user ka swag alag hai"
     },
     {
       "RULE_TYPE": "PATTERN",
-      "KEYWORDS": "I LOVE*//*LOVE YOU//*YOU",
+      "KEYWORDS": "I LOVE*//*LOVE YOU*//*I*YOU",
       "REPLIES_TYPE": "ONE",
-      "REPLY_TEXT": "AWW BSDK, LOVE DETECTED!"
+      "REPLY_TEXT": "Awww 😍, teri baat sunke dil khush ho gaya"
     },
     {
       "RULE_TYPE": "EXPERT",
-      "KEYWORDS": "how.*you//what.*doing",
+      "KEYWORDS": ".*help.*|.*problem.*",
       "REPLIES_TYPE": "RANDOM",
-      "REPLY_TEXT": "CHILL BHAI, SAB THIK!<#>BUS CODING KAR RAHA HU"
+      "REPLY_TEXT": "Bhen ke laude, kaunsa issue hai bata<#>Tere problem ka solution yahan hai 😈"
+    },
+    {
+      "RULE_TYPE": "EXACT",
+      "KEYWORDS": "PING",
+      "REPLIES_TYPE": "ONE",
+      "REPLY_TEXT": "🏓 Pong! Tere ping ka reply aa gaya"
     }
   ]
 }
