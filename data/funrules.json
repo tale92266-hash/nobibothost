@@ -1,0 +1,28 @@
+{
+  "rules": [
+    {
+      "RULE_TYPE": "WELCOME",
+      "KEYWORDS": "",
+      "REPLIES_TYPE": "ONE",
+      "REPLY_TEXT": "HELLO BSDK, WELCOME TO NOBI WORLD!"
+    },
+    {
+      "RULE_TYPE": "EXACT",
+      "KEYWORDS": "HI//HELLO//HEY",
+      "REPLIES_TYPE": "RANDOM",
+      "REPLY_TEXT": "HI LAUDE!<#>HELLO BHAI!<#>HEY BSDK!"
+    },
+    {
+      "RULE_TYPE": "PATTERN",
+      "KEYWORDS": "I LOVE*//*LOVE YOU//*YOU",
+      "REPLIES_TYPE": "ONE",
+      "REPLY_TEXT": "AWW BSDK, LOVE DETECTED!"
+    },
+    {
+      "RULE_TYPE": "EXPERT",
+      "KEYWORDS": "how.*you//what.*doing",
+      "REPLIES_TYPE": "RANDOM",
+      "REPLY_TEXT": "CHILL BHAI, SAB THIK!<#>BUS CODING KAR RAHA HU"
+    }
+  ]
+}
