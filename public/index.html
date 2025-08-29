@@ -69,6 +69,7 @@
           <div class="mb-3">
             <label for="ruleNumber" class="form-label">Rule Number</label>
             <input type="number" class="form-control" id="ruleNumber" name="ruleNumber" required>
+            <div id="ruleNumberError" class="text-danger mt-1" style="display: none;"></div>
           </div>
           <div class="mb-3">
             <label for="ruleType" class="form-label">Rule Type</label>
@@ -81,7 +82,7 @@
             </select>
           </div>
           <div id="keywordsField" class="mb-3">
-            <label for="keywords" class="form-label">Keywords (use // to separate, or ALL)</label>
+            <label for="keywords" class="form-label">Keywords (use // to separate)</label>
             <input type="text" class="form-control" id="keywords" name="keywords" placeholder="E.g., hello//hi//hey">
           </div>
           <div id="repliesTypeField" class="mb-3">
@@ -103,7 +104,7 @@
               <option value="TARGET">Target</option>
               <option value="IGNORED">Ignored</option>
             </select>
-            <div id="targetUsersField" style="display: none;">
+            <div id="targetUsersField">
               <input type="text" class="form-control" id="targetUsers" name="targetUsers" placeholder="E.g., user1,user2,user3">
             </div>
           </div>
