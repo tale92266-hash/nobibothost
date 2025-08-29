@@ -85,10 +85,6 @@ const scheduleDailyReset = () => {
   }, timeUntilMidnight);
 };
 
-// -------------------- Chat Context --------------------
-// Removed as we are now using a persistent file for welcome status
-const chatContexts = {};
-
 // -------------------- RULES --------------------
 let RULES = [];
 
@@ -158,6 +154,29 @@ function processMessage(msg, sessionId = "default") {
   let reply = null;
 
   for (let rule of RULES) {
+    // Check user targeting before checking keywords
+    const targetUsers = rule.TARGET_USERS || "ALL"; // Default to ALL if not specified
+    let userMatch = false;
+
+    if (targetUsers === "ALL") {
+      userMatch = true;
+    } else if (Array.isArray(targetUsers)) {
+      if (rule.RULE_TYPE === "IGNORED") {
+        if (!targetUsers.includes(sessionId)) {
+          userMatch = true;
+        }
+      } else {
+        if (targetUsers.includes(sessionId)) {
+          userMatch = true;
+        }
+      }
+    }
+
+    if (!userMatch) {
+      continue; // Skip this rule if user doesn't match the targeting
+    }
+
+    // Now proceed with the existing matching logic
     let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
     let match = false;
 
