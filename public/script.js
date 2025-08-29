@@ -114,13 +114,14 @@ document.addEventListener("DOMContentLoaded", () => {
       item.innerHTML = `
         <div class="rule-item-header">
           <h5>Rule #${rule.RULE_NUMBER} - ${rule.RULE_NAME || 'Unnamed Rule'}</h5>
+          <button class="btn btn-sm btn-outline-secondary edit-rule-btn" data-rule-number="${rule.RULE_NUMBER}"><i class="bi bi-pencil"></i></button>
         </div>
         <div class="rule-preview">
           <p class="mb-1 preview-text">Keywords: ${rule.KEYWORDS === 'ALL' ? '*' : (rule.KEYWORDS || '').split('//').slice(0, 3).join(', ')}</p>
           <p class="mb-0 preview-text">Reply: ${rule.REPLY_TEXT.split('<#>').slice(0, 1)}</p>
         </div>
       `;
-      item.addEventListener('click', () => editRule(rule));
+      item.querySelector('.edit-rule-btn').addEventListener('click', () => editRule(rule));
       rulesList.appendChild(item);
     });
   }
