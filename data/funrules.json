@@ -39,6 +39,14 @@
       "REPLIES_TYPE": "ONE",
       "REPLY_TEXT": "🏓 Pong! Tere ping ka reply aa gaya",
       "TARGET_USERS": "ALL"
+    },
+    {
+      "RULE_NUMBER": 99,
+      "RULE_TYPE": "DEFAULT",
+      "KEYWORDS": "ALL",
+      "REPLIES_TYPE": "RANDOM",
+      "REPLY_TEXT": "Sorry, mai samjh nahi paaya bhai.<#>Kya bola bhen ke lode? Thik se bol.<#>Samjh nahi aaya.<#>Tere jaisa user maine pehle nahi dekha.",
+      "TARGET_USERS": "ALL"
     }
   ]
 }
