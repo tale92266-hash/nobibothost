@@ -212,9 +212,15 @@ async function processMessage(msg, sessionId = "default") {
 
     if (match) {
       let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-      if (rule.REPLIES_TYPE === "ALL") reply = replies.join(" ");
-      else if (rule.REPLIES_TYPE === "ONE") reply = replies[0];
-      else reply = pick(replies);
+      // Logic to limit replies to 20 for 'ALL' type
+      if (rule.REPLIES_TYPE === "ALL") {
+        replies = replies.slice(0, 20); // Limit to first 20 replies
+        reply = replies.join(" ");
+      } else if (rule.REPLIES_TYPE === "ONE") {
+        reply = replies[0];
+      } else {
+        reply = pick(replies);
+      }
       break;
     }
   }
@@ -224,7 +230,6 @@ async function processMessage(msg, sessionId = "default") {
 
 // -------------------- Initial Load --------------------
 (async () => {
-    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
@@ -251,22 +256,6 @@ async function processMessage(msg, sessionId = "default") {
         scheduleDailyReset();
     });
 })();
-
-// -------------------- Watch data folder for updates --------------------
-fs.watch(path.join(__dirname, "data"), async (eventType, filename) => {
-    if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
-        console.log(`📂 ${filename} UPDATED, UPLOADING TO MONGODB...`);
-        try {
-            const jsonRules = JSON.parse(fs.readFileSync(path.join(__dirname, "data", filename), "utf8"));
-            await Rule.deleteMany({});
-            await Rule.insertMany(jsonRules.rules);
-            await loadAllRules();
-            console.log(`✅ ${filename} synchronized with MongoDB.`);
-        } catch (err) {
-            console.error(`❌ Failed to sync ${filename} with MongoDB:`, err.message);
-        }
-    }
-});
 
 // -------------------- API Endpoints for Frontend --------------------
 app.get("/api/rules", async (req, res) => {
