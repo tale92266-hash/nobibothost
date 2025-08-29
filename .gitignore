@@ -1,2 +1,11 @@
+# Node modules
 node_modules/
+
+# Environment variables
 .env
+
+# Persistent stats
+/data/stats.json
+
+# Optional: logs
+*.log
