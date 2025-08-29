@@ -3,27 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nobi Stats</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-bootstrap-icons.css" rel="stylesheet">
+  <title>Nobi Rules Manager</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin:0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-    .stats-container { max-width: 480px; padding: 20px; background: #1e1e1e; border-radius: 12px; text-align: center; }
-    .stats-item { font-size: 18px; margin: 10px 0; padding: 10px; background: #2a2a2a; border-radius: 8px; }
-    .stats-item strong { color: #0d6efd; }
+    body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; }
+    .container { max-width: 600px; padding: 15px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header h2 { margin: 0; }
+    .rule-item { background: #1e1e1e; border-radius: 8px; margin-bottom: 10px; padding: 15px; cursor: pointer; transition: transform 0.2s; }
+    .rule-item:hover { transform: scale(1.02); }
+    .rule-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .rule-item-header h5 { margin: 0; }
+    .rule-preview { font-size: 14px; color: #aaa; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; }
+    .preview-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .form-container { background: #1e1e1e; border-radius: 8px; padding: 20px; margin-top: 20px; }
+    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .form-header h4 { margin: 0; }
+    .form-header button { border: none; background: transparent; color: #fff; font-size: 24px; }
   </style>
 </head>
 <body>
-  <div class="stats-container">
-    <h2>📊 Real-Time Nobi Stats</h2>
-    <div class="stats-item">Total Users: <strong id="totalUsers">0</strong></div>
-    <div class="stats-item">Total Messages: <strong id="totalMsgs">0</strong></div>
-    <div class="stats-item">Today's Users: <strong id="todayUsers">0</strong></div>
-    <div class="stats-item">Today's Messages: <strong id="todayMsgs">0</strong></div>
-    <div class="stats-item">Nobi Papa HideMe Count: <strong id="nobiPapaHideMeCount">0</strong></div>
+
+<div class="container">
+  <div class="header">
+    <h2>Rules Manager</h2>
+    <button id="addRuleBtn" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Rule</button>
   </div>
 
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="script.js"></script>
+  <div id="rulesList">
+    <p class="text-center text-muted mt-5" id="loadingMessage">Loading rules...</p>
+  </div>
+
+  <div id="ruleFormContainer" class="form-container" style="display: none;">
+    <div class="form-header">
+      <h4 id="formTitle">Add New Rule</h4>
+      <button id="closeFormBtn"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form id="ruleForm">
+      <div class="mb-3">
+        <label for="ruleNumber" class="form-label">Rule Number</label>
+        <input type="number" class="form-control" id="ruleNumber" name="ruleNumber" required>
+      </div>
+      <div class="mb-3">
+        <label for="ruleType" class="form-label">Rule Type</label>
+        <select class="form-select" id="ruleType" name="ruleType" required>
+          <option value="EXACT">EXACT</option>
+          <option value="PATTERN">PATTERN</option>
+          <option value="EXPERT">EXPERT</option>
+          <option value="WELCOME">WELCOME</option>
+          <option value="DEFAULT">DEFAULT</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="keywords" class="form-label">Keywords (use // to separate)</label>
+        <input type="text" class="form-control" id="keywords" name="keywords">
+      </div>
+      <div class="mb-3">
+        <label for="repliesType" class="form-label">Replies Type</label>
+        <select class="form-select" id="repliesType" name="repliesType" required>
+          <option value="ONE">ONE</option>
+          <option value="RANDOM">RANDOM</option>
+          <option value="ALL">ALL</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="replyText" class="form-label">Reply Text (use <#> to separate)</label>
+        <textarea class="form-control" id="replyText" name="replyText" rows="3" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="targetUsers" class="form-label">Target Users (user1//user2//... or ALL)</label>
+        <input type="text" class="form-control" id="targetUsers" name="targetUsers">
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Save Rule</button>
+      <button type="button" class="btn btn-danger w-100 mt-2" id="deleteRuleBtn" style="display: none;">Delete Rule</button>
+    </form>
+  </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
