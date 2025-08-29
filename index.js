@@ -42,42 +42,37 @@ function saveStats() {
 // -------------------- Chat Context --------------------
 const chatContexts = {};
 
-// -------------------- RULES LOADING --------------------
+// -------------------- Keywords & Replies --------------------
 let RULES = [];
-function loadRules() {
-  const dataDir = path.join(__dirname, "data");
-  RULES = [];
-  fs.readdirSync(dataDir).forEach(file => {
-    if (file.endsWith(".json") && file !== "stats.json") {
-      try {
-        const data = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
-        RULES.push(data);
-      } catch (err) {
-        console.error(`❌ Failed to load ${file}:`, err.message);
+
+function loadAllRules() {
+  try {
+    const dataDir = path.join(__dirname, "data");
+    RULES = [];
+    fs.readdirSync(dataDir).forEach(file => {
+      if (file.endsWith(".json") && file !== "stats.json") {
+        const fileData = JSON.parse(fs.readFileSync(path.join(dataDir, file), "utf8"));
+        RULES.push(fileData);
       }
-    }
-  });
-  console.log(`⚡ LOADED ${RULES.length} RULES`);
+    });
+    console.log(`⚡ LOADED ${RULES.length} RULE FILES`);
+  } catch (err) {
+    console.error("❌ Failed to load rules:", err.message);
+    RULES = [];
+  }
 }
 
-// -------------------- Watch data folder --------------------
+// Watch data folder for updates
 fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
   if (filename.endsWith(".json") && filename !== "stats.json") {
     console.log(`📂 ${filename} UPDATED, RELOADING RULES...`);
-    loadRules();
+    loadAllRules();
   }
 });
 
 // -------------------- Helpers --------------------
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function splitKeywords(str) { return str.split("//").map(k => k.trim()).filter(Boolean); }
-function splitReplies(str) { return str.split("<#>").map(r => r.trim()).filter(Boolean); }
-function matchPattern(msg, pattern) {
-  // Convert *abc* style into regex
-  const regexStr = pattern.split("*").map(s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*");
-  const regex = new RegExp(`^${regexStr}$`, "i");
-  return regex.test(msg);
-}
+function escapeRegex(str) { return str.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&'); }
 
 // Emit stats to clients via Socket.io
 function emitStats() {
@@ -90,9 +85,10 @@ function emitStats() {
   });
 }
 
-// -------------------- Process incoming message --------------------
+// Process incoming message
 function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
+
   if (!chatContexts[sessionId]) chatContexts[sessionId] = { lastIntent: null, dialogueState: "normal" };
 
   // -------------------- Update Stats --------------------
@@ -105,25 +101,44 @@ function processMessage(msg, sessionId = "default") {
 
   // -------------------- Match Rules --------------------
   let reply = null;
-  for (let rule of RULES) {
-    const keywords = splitKeywords(rule.keywords);
-    for (let kw of keywords) {
-      if (rule.rule_type === "WELCOME" && chatContexts[sessionId].dialogueState === "normal") {
-        reply = pick(splitReplies(rule.reply_text));
-        chatContexts[sessionId].dialogueState = "welcomed";
-        break;
-      } else if (rule.rule_type === "EXACT" && kw.toLowerCase() === msg) {
-        reply = pick(splitReplies(rule.reply_text));
-        break;
-      } else if ((rule.rule_type === "PATTERN" || rule.rule_type === "EXPERT") && matchPattern(msg, kw.toLowerCase())) {
-        reply = pick(splitReplies(rule.reply_text));
+  for (let ruleFile of RULES) {
+    for (let rule of ruleFile.rules) {
+      const { RULE_TYPE, KEYWORDS, REPLIES_TYPE, REPLY_TEXT } = rule;
+      const keywordArr = KEYWORDS.split("//").map(k => k.trim());
+      const replyArr = REPLY_TEXT.split("<#>").map(r => r.trim());
+      const lowerMsg = msg.toLowerCase();
+
+      let matched = false;
+
+      if (RULE_TYPE === "WELCOME") {
+        if (!chatContexts[sessionId].welcomed) {
+          reply = pick(replyArr);
+          chatContexts[sessionId].welcomed = true;
+          matched = true;
+        }
+      } else if (RULE_TYPE === "EXACT") {
+        matched = keywordArr.some(k => lowerMsg === k.toLowerCase());
+      } else if (RULE_TYPE === "PATTERN") {
+        matched = keywordArr.some(k => {
+          // convert *abc* style to regex
+          const pattern = "^" + escapeRegex(k).replace(/\\\*/g, ".*") + "$";
+          return new RegExp(pattern, "i").test(msg);
+        });
+      } else if (RULE_TYPE === "EXPERT") {
+        matched = keywordArr.some(k => new RegExp(k, "i").test(msg));
+      }
+
+      if (matched) {
+        if (REPLIES_TYPE === "ALL") reply = replyArr.join(" ");
+        else if (REPLIES_TYPE === "ONE") reply = replyArr[0];
+        else if (REPLIES_TYPE === "RANDOM") reply = pick(replyArr);
         break;
       }
     }
     if (reply) break;
   }
 
-  if (!reply) return null; // No default reply now
+  if (!reply) return null; // no default reply
 
   chatContexts[sessionId].lastIntent = reply;
   chatContexts[sessionId].lastMessage = msg;
@@ -132,8 +147,8 @@ function processMessage(msg, sessionId = "default") {
   return reply.toUpperCase();
 }
 
-// -------------------- Load initial rules --------------------
-loadRules();
+// -------------------- Load initial data --------------------
+loadAllRules();
 
 // -------------------- Webhook --------------------
 app.post("/webhook", (req, res) => {
@@ -141,7 +156,7 @@ app.post("/webhook", (req, res) => {
   const msg = req.body.query?.message || "";
   const replyText = processMessage(msg, sessionId);
   if (replyText) res.json({ replies: [{ message: replyText }] });
-  else res.json({ replies: [] });
+  else res.json({ replies: [] }); // no match
 });
 
 // -------------------- Stats API --------------------
@@ -150,7 +165,7 @@ app.get("/stats", (req, res) => {
     totalUsers: stats.totalUsers.length,
     totalMsgs: stats.totalMsgs,
     todayUsers: stats.todayUsers.length,
-    todayMsgs: stats.todayMsgs.length,
+    todayMsgs: stats.todayMsgs,
     nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
   });
 });
@@ -165,7 +180,17 @@ app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 // -------------------- Start server --------------------
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// -------------------- Self-ping every 5 mins --------------------
-setInterval(() => {
-  axios.get(`${SERVER_URL}/ping`).then(() => console.log("🔁 Self-ping sent!")).catch(err => console.log("❌ Ping failed:", err.message));
-});
+// -------------------- Self-ping every 5 mins (fixed overlap) --------------------
+let pingInProgress = false;
+setInterval(async () => {
+  if (pingInProgress) return;
+  pingInProgress = true;
+  try {
+    await axios.get(`${SERVER_URL}/ping`);
+    console.log("🔁 Self-ping sent!");
+  } catch (err) {
+    console.log("❌ Ping failed:", err.message);
+  } finally {
+    pingInProgress = false;
+  }
+}, 5 * 60 * 1000);
