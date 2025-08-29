@@ -224,6 +224,7 @@ async function processMessage(msg, sessionId = "default") {
 
 // -------------------- Initial Load --------------------
 (async () => {
+    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
@@ -250,22 +251,6 @@ async function processMessage(msg, sessionId = "default") {
         scheduleDailyReset();
     });
 })();
-
-// -------------------- Watch data folder for updates --------------------
-fs.watch(path.join(__dirname, "data"), async (eventType, filename) => {
-    if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
-        console.log(`📂 ${filename} UPDATED, UPLOADING TO MONGODB...`);
-        try {
-            const jsonRules = JSON.parse(fs.readFileSync(path.join(__dirname, "data", filename), "utf8"));
-            await Rule.deleteMany({});
-            await Rule.insertMany(jsonRules.rules);
-            await loadAllRules();
-            console.log(`✅ ${filename} synchronized with MongoDB.`);
-        } catch (err) {
-            console.error(`❌ Failed to sync ${filename} with MongoDB:`, err.message);
-        }
-    }
-});
 
 // -------------------- API Endpoints for Frontend --------------------
 app.get("/api/rules", async (req, res) => {
@@ -298,12 +283,21 @@ app.post("/api/rules/update", async (req, res) => {
         TARGET_USERS: rule.targetUsers
       });
     } else if (type === "edit") {
+      // Logic to handle moving rules up or down
       if (rule.ruleNumber !== oldRuleNumber) {
-        await Rule.updateMany(
-          { RULE_NUMBER: { $gte: rule.ruleNumber } },
-          { $inc: { RULE_NUMBER: 1 } }
-        );
+        if (rule.ruleNumber < oldRuleNumber) { // Moving rule UP
+            await Rule.updateMany(
+                { RULE_NUMBER: { $gte: rule.ruleNumber, $lt: oldRuleNumber } },
+                { $inc: { RULE_NUMBER: 1 } }
+            );
+        } else { // Moving rule DOWN
+            await Rule.updateMany(
+                { RULE_NUMBER: { $gt: oldRuleNumber, $lte: rule.ruleNumber } },
+                { $inc: { RULE_NUMBER: -1 } }
+            );
+        }
       }
+      // Find and update the rule
       await Rule.findOneAndUpdate(
         { RULE_NUMBER: oldRuleNumber },
         {
