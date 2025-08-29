@@ -6,9 +6,9 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 
 const app = express();
-const PORT = process.env.PORT || 10000;
-const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-const MONGODB_URI = process.env.MONGODB_URI;
+const PORT = process.env.env.PORT || 10000;
+const SERVER_URL = process.env.env.SERVER_URL || `http://localhost:${PORT}`;
+const MONGODB_URI = process.env.env.MONGODB_URI;
 
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
@@ -54,69 +54,32 @@ const today = new Date().toLocaleDateString();
 let stats;
 let welcomedUsers;
 let RULES = [];
-let isWritingToFile = false;
 
-// -------------------- Rules Functions (moved to global scope) --------------------
+// -------------------- Rules Functions --------------------
 async function loadAllRules() {
-    RULES = [];
-    const dataDir = path.join(__dirname, "data");
-    const dbRules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-    if (dbRules.length > 0) {
-        RULES = dbRules.map(r => r.toObject());
-        const jsonRules = { rules: RULES };
-        isWritingToFile = true;
-        fs.writeFileSync(path.join(dataDir, "funrules.json"), JSON.stringify(jsonRules, null, 2));
-        isWritingToFile = false;
-        console.log(`⚡ Rules restored from MongoDB. Loaded ${RULES.length} rules.`);
-    } else {
-        const jsonRulesPath = path.join(dataDir, "funrules.json");
-        const jsonRules = JSON.parse(fs.readFileSync(jsonRulesPath, "utf8"));
-        if (jsonRules.rules && jsonRules.rules.length > 0) {
-            RULES = jsonRules.rules;
-            await Rule.insertMany(RULES);
-            console.log(`⚡ Rules uploaded to MongoDB. Loaded ${RULES.length} rules.`);
-        }
-    }
+    RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
 }
 
-// Data Sync Function (moved to global scope)
+// Data Sync Function
 const syncData = async () => {
   try {
-    // Sync Stats
-    let dbStats = await Stats.findOne();
-    const localStats = JSON.parse(fs.readFileSync(statsFilePath, "utf8"));
-    if (dbStats) {
-      // If DB has data, use it. Update local file.
-      stats = dbStats;
-      isWritingToFile = true;
-      fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
-      isWritingToFile = false;
-      console.log("⚡ Stats restored from MongoDB.");
-    } else {
-      // If DB is empty, use local data. Upload to DB.
-      stats = localStats;
-      await Stats.create(stats);
-      console.log("⚡ Stats uploaded to MongoDB.");
+    // Restore Stats from MongoDB
+    stats = await Stats.findOne();
+    if (!stats) {
+        // If DB is empty, create a new stats document
+        stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
     }
+    fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+    console.log("⚡ Stats restored from MongoDB.");
 
-    // Sync Welcomed Users
-    let dbWelcomedUsers = await User.find({});
-    const localWelcomedUsers = JSON.parse(fs.readFileSync(welcomedUsersFilePath, "utf8"));
-    if (dbWelcomedUsers.length > 0) {
-      welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
-      isWritingToFile = true;
-      fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
-      isWritingToFile = false;
-      console.log("⚡ Welcomed users restored from MongoDB.");
-    } else {
-      welcomedUsers = localWelcomedUsers;
-      if (welcomedUsers.length > 0) {
-        await User.insertMany(welcomedUsers.map(id => ({ sessionId: id })));
-        console.log("⚡ Welcomed users uploaded to MongoDB.");
-      }
-    }
+    // Restore Welcomed Users from MongoDB
+    const dbWelcomedUsers = await User.find({}, 'sessionId');
+    welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
+    fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+    console.log("⚡ Welcomed users restored from MongoDB.");
 
-    // Sync Rules
+    // Restore Rules from MongoDB
     await loadAllRules();
 
     // Check if a new day has started on server restart
@@ -125,9 +88,7 @@ const syncData = async () => {
         stats.todayMsgs = 0;
         stats.lastResetDate = today;
         await Stats.findByIdAndUpdate(stats._id, stats);
-        isWritingToFile = true;
-        saveStats();
-        isWritingToFile = false;
+        fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
         console.log("📅 Daily stats reset!");
     }
 
@@ -140,15 +101,11 @@ const syncData = async () => {
 
 // -------------------- Helpers --------------------
 function saveStats() {
-  isWritingToFile = true;
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
-  isWritingToFile = false;
 }
 
 function saveWelcomedUsers() {
-  isWritingToFile = true;
   fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
-  isWritingToFile = false;
 }
 
 // Daily reset at midnight
@@ -195,7 +152,6 @@ async function processMessage(msg, sessionId = "default") {
   stats.todayMsgs++;
   if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
   
-  // Await the stats update to ensure it's complete before moving on
   const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
   stats = updatedStats;
   saveStats();
@@ -297,13 +253,19 @@ async function processMessage(msg, sessionId = "default") {
 })();
 
 // -------------------- Watch data folder for updates --------------------
-fs.watch(path.join(__dirname, "data"), (eventType, filename) => {
-  if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
-    console.log(`📂 ${filename} UPDATED, RELOADING...`);
-    if (!isWritingToFile) {
-        syncData();
+fs.watch(path.join(__dirname, "data"), async (eventType, filename) => {
+    if (filename.endsWith(".json") && filename !== "stats.json" && filename !== "welcomed_users.json") {
+        console.log(`📂 ${filename} UPDATED, UPLOADING TO MONGODB...`);
+        try {
+            const jsonRules = JSON.parse(fs.readFileSync(path.join(__dirname, "data", filename), "utf8"));
+            await Rule.deleteMany({});
+            await Rule.insertMany(jsonRules.rules);
+            await loadAllRules();
+            console.log(`✅ ${filename} synchronized with MongoDB.`);
+        } catch (err) {
+            console.error(`❌ Failed to sync ${filename} with MongoDB:`, err.message);
+        }
     }
-  }
 });
 
 // -------------------- Webhook --------------------
