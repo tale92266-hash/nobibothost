@@ -283,21 +283,19 @@ app.post("/api/rules/update", async (req, res) => {
         TARGET_USERS: rule.targetUsers
       });
     } else if (type === "edit") {
-      // Logic to handle moving rules up or down
       if (rule.ruleNumber !== oldRuleNumber) {
-        if (rule.ruleNumber < oldRuleNumber) { // Moving rule UP
+        if (rule.ruleNumber < oldRuleNumber) {
             await Rule.updateMany(
                 { RULE_NUMBER: { $gte: rule.ruleNumber, $lt: oldRuleNumber } },
                 { $inc: { RULE_NUMBER: 1 } }
             );
-        } else { // Moving rule DOWN
+        } else {
             await Rule.updateMany(
                 { RULE_NUMBER: { $gt: oldRuleNumber, $lte: rule.ruleNumber } },
                 { $inc: { RULE_NUMBER: -1 } }
             );
         }
       }
-      // Find and update the rule
       await Rule.findOneAndUpdate(
         { RULE_NUMBER: oldRuleNumber },
         {
