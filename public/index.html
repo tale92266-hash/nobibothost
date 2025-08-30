@@ -1,205 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nobi Bot</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-  <style>
-    body { font-family: Arial, sans-serif; background: #121212; color: #fff; margin: 0; }
-    .container { max-width: 600px; padding: 15px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .header h2 { margin: 0; color: #0d6efd; }
-    .rule-item { background: #1e1e1e; border-radius: 8px; margin-bottom: 10px; padding: 15px; border-left: 5px solid #0d6efd; }
-    .rule-item-header { display: flex; justify-content: space-between; align-items: center; }
-    .rule-item-header h5 { margin: 0; }
-    .rule-preview { font-size: 14px; color: #aaa; margin-top: 8px; border-top: 1px solid #333; padding-top: 8px; }
-    .preview-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .edit-rule-btn { cursor: pointer; transition: transform 0.2s; }
-    .edit-rule-btn:hover { transform: scale(1.1); }
-    
-    /* Modal styles */
-    .modal-content { background: #1e1e1e; color: #fff; }
-    .modal-header { border-bottom: 1px solid #333; }
-    .modal-footer { border-top: 1px solid #333; }
-    .modal-title { font-weight: bold; }
-    .form-control, .form-select { background: #2a2a2a; border: 1px solid #444; color: #fff; }
-    .form-control:focus, .form-select:focus { background: #2a2a2a; border-color: #0d6efd; color: #fff; box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25); }
-    .btn-close { filter: invert(1) grayscale(100%); }
-    
-    /* Responsive Text Area */
-    .form-control-textarea { min-height: 100px; resize: vertical; }
-
-    /* Toast styles */
-    .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1080; }
-    .toast { background-color: #333; color: #fff; border: none; }
-    .toast-header { background-color: #2a2a2a; color: #fff; border-bottom: 1px solid #444; }
-    .toast.success { background-color: #1a7e1a; }
-    .toast.fail { background-color: #a72323; }
-    
-    /* Spinner styles */
-    .spinner-border { width: 1.5rem; height: 1.5rem; }
-    .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 1050; }
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mobile Style Chatbot</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-<div class="container">
-  <div class="header">
-    <h2><i class="bi bi-robot"></i> NOBI BOT</h2>
-    <div>
-      <button id="addRuleBtn" class="btn btn-primary">
-        <i class="bi bi-plus-lg"></i> Add Rule
-      </button>
-      <button id="settingsBtn" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#settingsModal">
-        <i class="bi bi-gear-fill"></i>
-      </button>
-    </div>
-  </div>
-
-  <div id="rulesList">
-    <p class="text-center text-muted mt-5" id="loadingMessage">Loading rules...</p>
-  </div>
-</div>
-
-<div class="modal fade" id="ruleModal" tabindex="-1" aria-labelledby="ruleModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="formTitle">Add New Rule</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="ruleForm">
-          <div class="mb-3">
-            <label for="ruleName" class="form-label">Rule Name</label>
-            <input type="text" class="form-control" id="ruleName" name="ruleName" required placeholder="E.g., Welcome Message">
-          </div>
-          <div class="mb-3">
-            <label for="ruleNumber" class="form-label">Rule Number</label>
-            <input type="number" class="form-control" id="ruleNumber" name="ruleNumber" required>
-            <div id="ruleNumberError" class="text-danger mt-1" style="display: none;"></div>
-          </div>
-          <div class="mb-3">
-            <label for="ruleType" class="form-label">Rule Type</label>
-            <select class="form-select" id="ruleType" name="ruleType" required>
-              <option value="EXACT">EXACT</option>
-              <option value="PATTERN">PATTERN</option>
-              <option value="EXPERT">EXPERT</option>
-              <option value="WELCOME">WELCOME</option>
-              <option value="DEFAULT">DEFAULT</option>
-            </select>
-          </div>
-          <div id="keywordsField" class="mb-3">
-            <label for="keywords" class="form-label">Keywords (use // to separate)</label>
-            <input type="text" class="form-control" id="keywords" name="keywords" placeholder="E.g., hello//hi//hey">
-          </div>
-          <div id="repliesTypeField" class="mb-3">
-            <label for="repliesType" class="form-label">Replies Type</label>
-            <select class="form-select" id="repliesType" name="repliesType" required>
-              <option value="RANDOM">RANDOM</option>
-              <option value="ONE">ONE</option>
-              <option value="ALL">ALL</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label for="replyText" class="form-label">Reply Text (use &lt;#&gt; for replies, use %name% for variables)</label>
-            <textarea class="form-control form-control-textarea" id="replyText" name="replyText" rows="3" required placeholder="E.g., Hello %name%<#>Hi %name%, Welcome!"></textarea>
-          </div>
-          <div class="mb-3">
-            <label for="targetUsersToggle" class="form-label">Target Users</label>
-            <select class="form-select mb-2" id="targetUsersToggle">
-              <option value="ALL">ALL</option>
-              <option value="TARGET">Target</option>
-              <option value="IGNORED">Ignored</option>
-            </select>
-            <div id="targetUsersField">
-              <input type="text" class="form-control" id="targetUsers" name="targetUsers" placeholder="E.g., user1,user2,user3">
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-danger" id="deleteRuleBtn" style="display: none;">Delete</button>
-        <button type="submit" form="ruleForm" class="btn btn-primary" id="saveRuleBtn">
-          Save Rule <span id="ruleSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-        </button>
+  <div class="app-shell">
+    <div id="chat-section" class="screen">
+      <div class="app-header">ChatBot</div>
+      <div class="chat-body" id="chatBody"></div>
+      <div class="chat-input-area">
+        <input type="text" id="chatInput" placeholder="Message..." autocomplete="off" />
+        <button id="sendBtn">Send</button>
       </div>
     </div>
-  </div>
-</div>
-
-<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-fullscreen">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div id="settingsMenu">
-          <button id="variablesMenuBtn" class="btn btn-secondary w-100 mb-2">Variables</button>
-        </div>
-      </div>
+    <div id="rules-section" class="screen hidden">
+      <div class="app-header">Rules</div>
+      <div id="rulesList"></div>
+      <button class="fab" id="addRuleBtn">+</button>
     </div>
-  </div>
-</div>
-
-<div class="modal fade" id="variableModal" tabindex="-1" aria-labelledby="variableModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-fullscreen">
-    <div class="modal-content">
-      <div class="modal-header">
-        <button id="backToSettingsBtn" class="btn btn-link text-white p-0 me-3"><i class="bi bi-arrow-left fs-4"></i></button>
-        <h5 class="modal-title" id="variableModalLabel">Variables</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="mb-0">Variables List</h6>
-          <button id="addVariableBtn" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg"></i> Add Variable</button>
-        </div>
-        <div id="variablesList" class="list-group mb-3">
-          </div>
-
-        <div id="variableFormContainer" class="p-3 bg-dark rounded" style="display: none;">
-          <h6 id="variableFormTitle" class="mt-4">Add New Variable</h6>
-          <form id="variableForm">
-            <div class="mb-3">
-              <label for="variableName" class="form-label">Name</label>
-              <input type="text" class="form-control" id="variableName" name="name" required placeholder="E.g., name">
-            </div>
-            <div class="mb-3">
-              <label for="variableValue" class="form-label">Value</label>
-              <input type="text" class="form-control" id="variableValue" name="value" required placeholder="E.g., Nobita">
-            </div>
-            <div class="d-flex justify-content-between">
-              <button type="button" class="btn btn-danger btn-sm" id="deleteVariableBtn" style="display:none;">Delete</button>
-              <button type="submit" class="btn btn-primary btn-sm" id="saveVariableBtn">
-                Save Variable <span id="variableSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" id="cancelVariableBtn">Cancel</button>
-            </div>
-          </form>
-        </div>
-      </div>
+    <div id="variables-section" class="screen hidden">
+      <div class="app-header">Variables</div>
+      <div id="variablesList"></div>
+      <button class="fab" id="addVariableBtn">+</button>
     </div>
-  </div>
-</div>
-
-<div class="toast-container">
-  <div class="toast" role="alert" aria-live="assertive" aria-atomic="true" id="liveToast" data-bs-delay="3000">
-    <div class="toast-header">
-      <strong class="me-auto">Nobi Bot</strong>
-      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+    <div id="stats-section" class="screen hidden">
+      <div class="app-header">Stats</div>
+      <div id="statsContent"></div>
     </div>
-    <div class="toast-body">
-      Rule saved successfully!
-    </div>
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button data-screen="chat-section" class="nav-active">💬</button>
+      <button data-screen="rules-section">📋</button>
+      <button data-screen="variables-section">🔢</button>
+      <button data-screen="stats-section">📊</button>
+    </nav>
+    <!-- Modal placeholders if needed -->
   </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
