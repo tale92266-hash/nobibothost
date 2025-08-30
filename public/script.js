@@ -1,4 +1,4 @@
-// file: nobibothost-main (1).zip/nobibothost-main/public/script.js
+// file: nobibothost-main (2).zip/nobibothost-main/public/script.js
 
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
@@ -129,6 +129,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const userAvatar = getUserAvatar(userName);
         const timeDisplay = formatTime(message.timestamp);
 
+        // Replace newlines with <br> for proper display
+        const botReplyWithBreaks = message.botReply.replace(/\n/g, '<br>');
+
         messageDiv.innerHTML = `
             <div class="message-header">
                 <div class="user-info">
@@ -145,7 +148,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ` : ''}
                 ${message.botReply ? `
                     <div class="bot-reply">
-                        <strong>🤖 Bot:</strong> ${escapeHtml(message.botReply)}
+                        <strong>🤖 Bot:</strong> ${botReplyWithBreaks}
                     </div>
                 ` : ''}
             </div>
