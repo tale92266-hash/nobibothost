@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // FIXED: Rule Number Validation with Dynamic Max Values
+    // FIXED: Rule Number Validation - NO DOM MANIPULATION
     function validateRuleNumber(num, isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
         
@@ -68,22 +68,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
-    // FIXED: Dynamic Input Validation Setup
-    function setupRuleNumberInput(isEditing = false) {
+    // FIXED: Safe Input Setup WITHOUT DOM Recreation
+    function setupRuleNumberValidation(isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
         
-        // Set HTML attributes
+        // Set HTML attributes safely
         ruleNumberInput.setAttribute('max', maxAllowed);
         ruleNumberInput.setAttribute('min', 1);
         
-        console.log(`🔢 Rule number input configured: min=1, max=${maxAllowed} (${isEditing ? 'Edit' : 'Add'} mode)`);
+        console.log(`🔢 Rule number validation setup: min=1, max=${maxAllowed} (${isEditing ? 'Edit' : 'Add'} mode)`);
         
-        // Remove previous event listeners to avoid duplicates
-        const newInput = ruleNumberInput.cloneNode(true);
-        ruleNumberInput.parentNode.replaceChild(newInput, ruleNumberInput);
-        
-        // Add new validation event listener
-        newInput.addEventListener('input', function(e) {
+        // Remove existing event listeners by cloning the input without DOM replacement
+        const newHandler = function(e) {
             let value = parseInt(e.target.value);
             
             if (isNaN(value)) {
@@ -107,10 +103,15 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Validate the corrected value
             validateRuleNumber(value, isEditing);
-        });
-
-        // Also prevent invalid input on keydown
-        newInput.addEventListener('keydown', function(e) {
+        };
+        
+        // Remove previous listeners and add new one
+        ruleNumberInput.removeEventListener('input', ruleNumberInput._currentHandler);
+        ruleNumberInput.addEventListener('input', newHandler);
+        ruleNumberInput._currentHandler = newHandler; // Store for future removal
+        
+        // Prevent invalid input on keydown
+        const keydownHandler = function(e) {
             // Allow backspace, delete, tab, escape, enter
             if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
                 // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
@@ -127,12 +128,11 @@ document.addEventListener("DOMContentLoaded", () => {
             if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
                 e.preventDefault();
             }
-        });
+        };
         
-        // Update the global reference
-        window.ruleNumberInput = newInput;
-        
-        return newInput;
+        ruleNumberInput.removeEventListener('keydown', ruleNumberInput._currentKeydownHandler);
+        ruleNumberInput.addEventListener('keydown', keydownHandler);
+        ruleNumberInput._currentKeydownHandler = keydownHandler;
     }
 
     // Rule Reordering Function
@@ -498,7 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // UPDATED: Add Rule Modal with Dynamic Input Validation
+    // FIXED: Add Rule Modal with Safe Input Validation
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
@@ -507,8 +507,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reset form
             if (ruleForm) ruleForm.reset();
             
-            // FIXED: Setup input validation for ADD mode
-            const ruleNumberInput = setupRuleNumberInput(false); // false = Add mode
+            // FIXED: Setup input validation for ADD mode WITHOUT DOM recreation
+            setupRuleNumberValidation(false); // false = Add mode
             ruleNumberInput.value = totalRules + 1; // Set to next available number
             
             // Set default values
@@ -538,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // UPDATED: Edit Rule Modal with Dynamic Input Validation  
+    // FIXED: Edit Rule Modal with Safe Input Validation  
     function editRule(rule) {
         try {
             if (!rule) {
@@ -551,8 +551,8 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRuleNumber = rule.RULE_NUMBER;
             formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
             
-            // FIXED: Setup input validation for EDIT mode
-            const ruleNumberInput = setupRuleNumberInput(true); // true = Edit mode
+            // FIXED: Setup input validation for EDIT mode WITHOUT DOM recreation
+            setupRuleNumberValidation(true); // true = Edit mode
             ruleNumberInput.value = rule.RULE_NUMBER;
             
             // Populate form fields safely
