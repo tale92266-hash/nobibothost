@@ -202,6 +202,68 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
+// UPDATED: Enhanced Variable Resolution with Nesting Support
+function resolveVariablesRecursively(text, maxIterations = 10) {
+  let result = text;
+  let iterationCount = 0;
+
+  while (iterationCount < maxIterations) {
+    let hasVariables = false;
+    let previousResult = result;
+    
+    console.log(`🔄 Variable resolution iteration ${iterationCount + 1}: "${result}"`);
+    
+    // 1. Replace static variables first
+    for (const variable of VARIABLES) {
+      const varRegex = new RegExp(`%${variable.name}%`, 'g');
+      if (varRegex.test(result)) {
+        result = result.replace(varRegex, variable.value);
+        hasVariables = true;
+        console.log(`✅ Replaced %${variable.name}% with "${variable.value}"`);
+      }
+    }
+
+    // 2. Then replace random variables
+    const randomVarRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
+    const randomMatches = result.match(randomVarRegex);
+
+    if (randomMatches) {
+      result = result.replace(randomVarRegex, (match, type, param1, param2) => {
+        let value;
+        
+        if (type === 'custom') {
+          // Handle custom random with comma-separated values
+          const tokens = param2 ? param2.split(',') : [param1];
+          const cleanTokens = tokens.map(token => token.trim());
+          value = pick(cleanTokens);
+          console.log(`🎲 Random custom picked "${value}" from [${cleanTokens.join(', ')}]`);
+        } else if (type === 'num') {
+          const [min, max] = param1.split('_').map(Number);
+          value = Math.floor(Math.random() * (max - min + 1)) + min;
+          console.log(`🎲 Random number generated: ${value} (${min}-${max})`);
+        } else {
+          const length = parseInt(param1);
+          value = generateRandom(type, length);
+          console.log(`🎲 Random ${type} generated: "${value}" (length: ${length})`);
+        }
+        
+        hasVariables = true;
+        return value;
+      });
+    }
+    
+    // If no changes were made, break the loop
+    if (result === previousResult) {
+      break;
+    }
+    
+    iterationCount++;
+  }
+  
+  console.log(`✅ Final resolved result: "${result}"`);
+  return result;
+}
+
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
@@ -279,47 +341,10 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
-  // Replace variables in the final reply with a loop for nesting
+  // UPDATED: Enhanced Variable Processing with Recursive Support
   if (reply) {
-    let hasVariables = true;
-    let iterationCount = 0;
-    const maxIterations = 10; // Safety limit to prevent infinite loops
-
-    while (hasVariables && iterationCount < maxIterations) {
-      hasVariables = false;
-      
-      // 1. Replace static variables first
-      for (const variable of VARIABLES) {
-        const varRegex = new RegExp(`%${variable.name}%`, 'g');
-        if (varRegex.test(reply)) {
-          reply = reply.replace(varRegex, variable.value);
-          hasVariables = true;
-        }
-      }
-
-      // 2. Then replace random variables
-      const randomVarRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
-      const matchedRandom = reply.match(randomVarRegex);
-
-      if (matchedRandom) {
-        reply = reply.replace(randomVarRegex, (match, type, param1, param2) => {
-          let length, customSet;
-          if (type === 'custom') {
-            const parts = param2.split(',');
-            return pick(parts);
-          } else if (type === 'num') {
-            const [min, max] = param1.split('_').map(Number);
-            return Math.floor(Math.random() * (max - min + 1)) + min;
-          } else {
-            length = parseInt(param1);
-          }
-          return generateRandom(type, length, customSet);
-        });
-        hasVariables = true;
-      }
-      
-      iterationCount++;
-    }
+    console.log(`🔧 Processing reply: "${reply}"`);
+    reply = resolveVariablesRecursively(reply);
   }
 
   return reply || null;
