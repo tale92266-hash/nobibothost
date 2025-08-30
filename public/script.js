@@ -46,13 +46,13 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // NEW: Rule Reordering Function
+    // Rule Reordering Function
     function reorderRulesArray(rules, oldNumber, newNumber) {
         if (oldNumber === newNumber) return rules;
         
         console.log(`Reordering: Rule ${oldNumber} → Rule ${newNumber}`);
         
-        // Create a deep copy to avoid mutating original
+        // Create deep copy
         const newRules = rules.map(rule => ({...rule}));
         
         // Find the rule being moved
@@ -62,16 +62,16 @@ document.addEventListener("DOMContentLoaded", () => {
             return rules;
         }
         
-        // Remove moving rule from array
+        // Remove moving rule
         const filteredRules = newRules.filter(rule => rule.RULE_NUMBER !== oldNumber);
         
         // Update moving rule's number
         movingRule.RULE_NUMBER = newNumber;
         
-        // Insert moving rule at correct position (newNumber - 1 for 0-based index)
+        // Insert at correct position
         filteredRules.splice(newNumber - 1, 0, movingRule);
         
-        // Reassign all rule numbers to maintain sequence
+        // Reassign all rule numbers sequentially
         const reorderedRules = filteredRules.map((rule, index) => ({
             ...rule,
             RULE_NUMBER: index + 1
@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return reorderedRules;
     }
 
-    // NEW: Bulk Update Rules API Call
+    // Bulk Update Rules API Call
     async function bulkUpdateRules(reorderedRules) {
         try {
             console.log('Sending bulk update for', reorderedRules.length, 'rules');
@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         console.log(`Configuring ${modalType} modal for ${mode} mode`);
         
-        // Handle delete button visibility WITHOUT DOM manipulation
+        // Handle delete button visibility
         if (mode === 'add') {
             deleteBtn.style.display = 'none';
             deleteBtn.style.visibility = 'hidden';
@@ -268,16 +268,6 @@ document.addEventListener("DOMContentLoaded", () => {
         toastInstance.show();
     }
 
-    function showSpinner(spinnerId) {
-        const spinner = document.getElementById(spinnerId);
-        if (spinner) spinner.style.display = 'inline-block';
-    }
-
-    function hideSpinner(spinnerId) {
-        const spinner = document.getElementById(spinnerId);
-        if (spinner) spinner.style.display = 'none';
-    }
-
     // Rule Functions
     function validateRuleNumber(num) {
         if (num > totalRules + 1) {
@@ -349,7 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // UPDATED renderRules Function
+    // Render Rules Function
     function renderRules(rules) {
         if (!rulesList) return;
         
@@ -539,8 +529,6 @@ document.addEventListener("DOMContentLoaded", () => {
         saveBtn.disabled = true;
         
         try {
-            let rulesToUpdate = [];
-            
             if (currentRuleNumber) {
                 // EDIT MODE: Check if rule number changed
                 if (currentRuleNumber !== newRuleNumber) {
