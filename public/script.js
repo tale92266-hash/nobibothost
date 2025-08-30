@@ -46,6 +46,66 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
+    // BEST APPROACH: Modal Button Management
+    function configureModalButtons(modalType, mode, container = null) {
+        let buttonContainer, deleteBtn, saveBtn, cancelBtn;
+        
+        if (modalType === 'rule') {
+            buttonContainer = document.querySelector('#ruleModal .modal-footer');
+            deleteBtn = document.getElementById('deleteRuleBtn');
+            saveBtn = buttonContainer?.querySelector('.btn-primary');
+            cancelBtn = buttonContainer?.querySelector('.btn-secondary');
+        } else if (modalType === 'variable') {
+            buttonContainer = container || document.querySelector('.form-actions');
+            deleteBtn = document.getElementById('deleteVariableBtn');
+            saveBtn = buttonContainer?.querySelector('.btn-primary');
+            cancelBtn = buttonContainer?.querySelector('.btn-secondary');
+        }
+        
+        if (!buttonContainer || !deleteBtn || !saveBtn || !cancelBtn) {
+            console.error('Modal buttons not found:', modalType);
+            return;
+        }
+        
+        // Clear existing buttons
+        buttonContainer.innerHTML = '';
+        
+        // Configure delete button visibility
+        if (mode === 'add') {
+            deleteBtn.style.display = 'none';
+            deleteBtn.classList.add('d-none');
+        } else if (mode === 'edit') {
+            deleteBtn.style.display = 'inline-flex';
+            deleteBtn.classList.remove('d-none');
+        }
+        
+        // Add buttons in correct order: Save, Delete (if edit), Cancel
+        buttonContainer.appendChild(saveBtn);
+        
+        if (mode === 'edit') {
+            buttonContainer.appendChild(deleteBtn);
+        }
+        
+        buttonContainer.appendChild(cancelBtn);
+        
+        // Apply consistent styling
+        [saveBtn, deleteBtn, cancelBtn].forEach(btn => {
+            if (btn) {
+                btn.style.display = (btn === deleteBtn && mode === 'add') ? 'none' : 'inline-flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.style.minWidth = '100px';
+                btn.style.minHeight = '38px';
+                btn.style.padding = '0.625rem 1.25rem';
+                btn.style.lineHeight = '1.5';
+                btn.style.whiteSpace = 'nowrap';
+                btn.style.marginLeft = '0';
+            }
+        });
+        
+        console.log(`${modalType} modal configured for ${mode} mode`);
+    }
+
     // Bottom Navigation Handler
     function initBottomNavigation() {
         const navItems = document.querySelectorAll('.nav-item');
@@ -293,14 +353,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED - Add Rule Modal - Hide Delete Button
+    // FIXED - Add Rule Modal with Best Button Approach
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
             formTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Add New Rule';
-            
-            // FIXED: Hide delete button for new rules
-            if (deleteRuleBtn) deleteRuleBtn.style.display = 'none';
             
             // Reset form
             if (ruleForm) ruleForm.reset();
@@ -320,13 +377,19 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Show modal
             ruleModal.show();
+            
+            // Configure buttons after modal is shown
+            setTimeout(() => {
+                configureModalButtons('rule', 'add');
+            }, 150);
+            
         } catch (error) {
             console.error('Error opening add rule modal:', error);
             showToast('Failed to open add rule form', 'fail');
         }
     }
 
-    // FIXED - Edit Rule Modal - Show Delete Button
+    // FIXED - Edit Rule Modal with Best Button Approach
     function editRule(rule) {
         try {
             if (!rule) {
@@ -336,9 +399,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             currentRuleNumber = rule.RULE_NUMBER;
             formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
-            
-            // FIXED: Show delete button for existing rules
-            if (deleteRuleBtn) deleteRuleBtn.style.display = 'inline-block';
             
             // Populate form fields safely
             const fields = {
@@ -378,6 +438,12 @@ document.addEventListener("DOMContentLoaded", () => {
             
             // Show modal
             ruleModal.show();
+            
+            // Configure buttons after modal is shown
+            setTimeout(() => {
+                configureModalButtons('rule', 'edit');
+            }, 150);
+            
         } catch (error) {
             console.error('Error editing rule:', error);
             showToast('Failed to load rule for editing', 'fail');
@@ -534,30 +600,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED - Add Variable Modal - Hide Delete Button
+    // FIXED - Add Variable Modal with Best Button Approach
     function openAddVariableModal() {
         currentVariableName = null;
         document.getElementById('variableFormContainer').style.display = 'block';
         
-        // FIXED: Hide delete button for new variables
-        if (deleteVariableBtn) deleteVariableBtn.style.display = 'none';
-        
         variableForm.reset();
         document.getElementById('variableName').focus();
+        
+        // Configure buttons after form is visible
+        setTimeout(() => {
+            configureModalButtons('variable', 'add');
+        }, 150);
     }
 
-    // FIXED - Edit Variable Modal - Show Delete Button
+    // FIXED - Edit Variable Modal with Best Button Approach
     function editVariable(variable) {
         currentVariableName = variable.name;
         document.getElementById('variableFormContainer').style.display = 'block';
-        
-        // FIXED: Show delete button for existing variables
-        if (deleteVariableBtn) deleteVariableBtn.style.display = 'inline-block';
         
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
         
         document.getElementById('variableName').focus();
+        
+        // Configure buttons after form is visible
+        setTimeout(() => {
+            configureModalButtons('variable', 'edit');
+        }, 150);
     }
 
     async function saveVariable(event) {
