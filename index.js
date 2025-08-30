@@ -360,6 +360,82 @@ async function processMessage(msg, sessionId = "default") {
     });
 })();
 
+// -------------------- NEW: Bulk Update Rules API with Transaction --------------------
+app.post("/api/rules/bulk-update", async (req, res) => {
+  const session = await mongoose.startSession();
+  
+  try {
+    await session.withTransaction(async () => {
+      const { rules } = req.body;
+      
+      if (!Array.isArray(rules) || rules.length === 0) {
+        throw new Error('Invalid rules data');
+      }
+      
+      console.log(`Starting bulk update for ${rules.length} rules`);
+      
+      // Prepare bulk operations
+      const bulkOps = rules.map(rule => ({
+        updateOne: {
+          filter: { _id: rule._id },
+          update: { 
+            $set: { 
+              RULE_NUMBER: rule.RULE_NUMBER,
+              RULE_NAME: rule.RULE_NAME || '',
+              RULE_TYPE: rule.RULE_TYPE,
+              KEYWORDS: rule.KEYWORDS,
+              REPLIES_TYPE: rule.REPLIES_TYPE,
+              REPLY_TEXT: rule.REPLY_TEXT,
+              TARGET_USERS: rule.TARGET_USERS
+            } 
+          },
+          upsert: false
+        }
+      }));
+      
+      // Execute bulk write within transaction
+      if (bulkOps.length > 0) {
+        const result = await Rule.bulkWrite(bulkOps, { session });
+        console.log('Bulk write result:', {
+          matchedCount: result.matchedCount,
+          modifiedCount: result.modifiedCount,
+          upsertedCount: result.upsertedCount
+        });
+        
+        if (result.matchedCount !== rules.length) {
+          throw new Error(`Only ${result.matchedCount} out of ${rules.length} rules were matched`);
+        }
+      }
+    });
+    
+    await session.endSession();
+    
+    // Update local RULES array and save to file
+    await loadAllRules();
+    const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
+    fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: `${req.body.rules.length} rules reordered successfully` 
+    });
+    
+    // Emit socket event for real-time updates
+    io.emit('rulesUpdated', { action: 'bulk_reorder', count: req.body.rules.length });
+    
+  } catch (error) {
+    console.error('Bulk update error:', error);
+    await session.abortTransaction();
+    await session.endSession();
+    
+    res.json({ 
+      success: false, 
+      message: 'Failed to reorder rules: ' + error.message 
+    });
+  }
+});
+
 // -------------------- API Endpoints for Frontend --------------------
 app.get("/api/rules", async (req, res) => {
   try {
@@ -431,6 +507,10 @@ app.post("/api/rules/update", async (req, res) => {
     await loadAllRules();
 
     res.json({ success: true, message: "Rule updated successfully!" });
+    
+    // Emit socket event
+    io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+    
   } catch (err) {
     console.error("❌ Failed to update rule:", err);
     res.status(500).json({ success: false, message: "Server error" });
@@ -462,6 +542,10 @@ app.post("/api/variables/update", async (req, res) => {
     fs.writeFileSync(variablesFilePath, JSON.stringify(variablesFromDB.map(v => v.toObject()), null, 2));
 
     res.json({ success: true, message: "Variable updated successfully!" });
+    
+    // Emit socket event
+    io.emit('variablesUpdated', { action: type, variableName: variable.name });
+    
   } catch (err) {
     console.error("❌ Failed to update variable:", err);
     res.status(500).json({ success: false, message: "Server error" });
