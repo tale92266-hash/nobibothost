@@ -688,6 +688,7 @@ body {
     gap: 2rem;
 }
 
+/* All Settings Cards - Uniform Styling */
 .settings-card {
     background: var(--white);
     border-radius: var(--border-radius-lg);
@@ -703,10 +704,34 @@ body {
     border-color: var(--primary);
 }
 
+/* All Settings Card Icons - Different Colors */
+.settings-card:nth-child(1) .settings-card-icon {
+    background: linear-gradient(135deg, #48bb78, #38a169); /* Green for Variables */
+}
+
+.settings-card:nth-child(2) .settings-card-icon {
+    background: linear-gradient(135deg, #ed8936, #dd6b20); /* Orange for Export */
+}
+
+.settings-card:nth-child(3) .settings-card-icon {
+    background: linear-gradient(135deg, #38b2ac, #319795); /* Teal for Analytics */
+}
+
+.settings-card:nth-child(4) .settings-card-icon {
+    background: linear-gradient(135deg, #667eea, #5a6fd8); /* Blue for System */
+}
+
+.settings-card:nth-child(5) .settings-card-icon {
+    background: linear-gradient(135deg, #9f7aea, #805ad5); /* Purple for Backup */
+}
+
+.settings-card:nth-child(6) .settings-card-icon {
+    background: linear-gradient(135deg, #f56565, #e53e3e); /* Red for Help */
+}
+
 .settings-card-icon {
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
     border-radius: var(--border-radius);
     display: flex;
     align-items: center;
@@ -737,20 +762,6 @@ body {
     border-radius: var(--border-radius);
     font-weight: 600;
     transition: var(--transition);
-}
-
-/* Variables Card Special Styling */
-#variablesCard {
-    border: 2px solid var(--primary);
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(102, 126, 234, 0.02));
-}
-
-#variablesCard .settings-card-icon {
-    background: linear-gradient(135deg, var(--success), #38a169);
-}
-
-#variablesCard:hover {
-    border-color: var(--success);
 }
 
 /* Info Cards for Stats Tab */
