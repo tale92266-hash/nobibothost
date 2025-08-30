@@ -360,127 +360,45 @@ async function processMessage(msg, sessionId = "default") {
     });
 })();
 
-// -------------------- NEW: FIXED Bulk Update Rules API with Transaction --------------------
+// -------------------- FIXED: Bulk Update API with Proper Reorder Logic --------------------
 app.post("/api/rules/bulk-update", async (req, res) => {
-  const session = await mongoose.startSession();
-  
-  try {
-    await session.withTransaction(async () => {
-      const { rules } = req.body;
-      
-      if (!Array.isArray(rules) || rules.length === 0) {
-        throw new Error('Invalid rules data - must be an array');
-      }
-      
-      console.log(`Starting bulk update for ${rules.length} rules`);
-      
-      // Validate each rule has required fields
-      for (let i = 0; i < rules.length; i++) {
-        const rule = rules[i];
-        if (!rule._id) {
-          throw new Error(`Rule at index ${i} missing _id field`);
-        }
-        if (!rule.RULE_NUMBER || !rule.RULE_TYPE) {
-          throw new Error(`Rule at index ${i} missing required fields`);
-        }
-      }
-      
-      // Prepare bulk operations with proper ObjectId conversion
-      const bulkOps = rules.map(rule => ({
-        updateOne: {
-          filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-          update: { 
-            $set: { 
-              RULE_NUMBER: rule.RULE_NUMBER,
-              RULE_NAME: rule.RULE_NAME || '',
-              RULE_TYPE: rule.RULE_TYPE,
-              KEYWORDS: rule.KEYWORDS,
-              REPLIES_TYPE: rule.REPLIES_TYPE,
-              REPLY_TEXT: rule.REPLY_TEXT,
-              TARGET_USERS: rule.TARGET_USERS || 'ALL'
-            } 
-          },
-          upsert: false
-        }
-      }));
-      
-      // Execute bulk write within transaction
-      if (bulkOps.length > 0) {
-        const result = await Rule.bulkWrite(bulkOps, { session });
-        
-        console.log('Bulk write result:', {
-          matchedCount: result.matchedCount,
-          modifiedCount: result.modifiedCount,
-          upsertedCount: result.upsertedCount
-        });
-        
-        // Check for write errors
-        if (result.result && result.result.writeErrors && result.result.writeErrors.length > 0) {
-          console.error('Write errors:', result.result.writeErrors);
-          throw new Error(`Bulk write had ${result.result.writeErrors.length} write errors`);
-        }
-        
-        if (result.matchedCount !== rules.length) {
-          console.warn(`Only ${result.matchedCount} out of ${rules.length} rules were matched`);
-        }
-      }
-    });
-    
-    await session.endSession();
-    
-    // Update local RULES array and save to file
-    await loadAllRules();
-    const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-    const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
-    fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
-    
-    res.json({ 
-      success: true, 
-      message: `${req.body.rules.length} rules reordered successfully` 
-    });
-    
-    // Emit socket event for real-time updates
-    io.emit('rulesUpdated', { action: 'bulk_reorder', count: req.body.rules.length });
-    
-  } catch (error) {
-    console.error('Bulk update error:', error);
-    
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
-    await session.endSession();
-    
-    res.json({ 
-      success: false, 
-      message: 'Failed to reorder rules: ' + error.message 
-    });
-  }
-});
-
-// -------------------- ALTERNATIVE: Simple Bulk Update (Without Transaction) --------------------
-app.post("/api/rules/bulk-update-simple", async (req, res) => {
   try {
     const { rules } = req.body;
     
     if (!Array.isArray(rules) || rules.length === 0) {
-      return res.json({ success: false, message: 'Invalid rules data' });
+      return res.json({ success: false, message: 'Invalid rules data - must be an array' });
     }
     
-    console.log(`Starting simple bulk update for ${rules.length} rules`);
+    console.log(`📝 Starting bulk update for ${rules.length} rules`);
     
-    // Update each rule individually
+    // Validate each rule has required fields
+    for (let i = 0; i < rules.length; i++) {
+      const rule = rules[i];
+      if (!rule._id) {
+        return res.json({ success: false, message: `Rule at index ${i} missing _id field` });
+      }
+      if (!rule.RULE_NUMBER || !rule.RULE_TYPE) {
+        return res.json({ success: false, message: `Rule at index ${i} missing required fields` });
+      }
+    }
+    
+    // Update each rule individually with detailed logging
     let successCount = 0;
+    let errorDetails = [];
+    
     for (const rule of rules) {
       try {
+        console.log(`🔄 Updating rule ${rule.RULE_NUMBER} (ID: ${rule._id})`);
+        
         const updateResult = await Rule.findByIdAndUpdate(
           rule._id,
           {
             RULE_NUMBER: rule.RULE_NUMBER,
             RULE_NAME: rule.RULE_NAME || '',
             RULE_TYPE: rule.RULE_TYPE,
-            KEYWORDS: rule.KEYWORDS,
+            KEYWORDS: rule.KEYWORDS || '',
             REPLIES_TYPE: rule.REPLIES_TYPE,
-            REPLY_TEXT: rule.REPLY_TEXT,
+            REPLY_TEXT: rule.REPLY_TEXT || '',
             TARGET_USERS: rule.TARGET_USERS || 'ALL'
           },
           { new: true }
@@ -488,33 +406,55 @@ app.post("/api/rules/bulk-update-simple", async (req, res) => {
         
         if (updateResult) {
           successCount++;
+          console.log(`✅ Successfully updated rule ${rule.RULE_NUMBER}`);
+        } else {
+          errorDetails.push(`Rule ${rule.RULE_NUMBER} not found in database`);
         }
       } catch (updateError) {
-        console.error(`Failed to update rule ${rule._id}:`, updateError);
-        // Continue with next rule instead of failing completely
+        console.error(`❌ Failed to update rule ${rule.RULE_NUMBER}:`, updateError);
+        errorDetails.push(`Rule ${rule.RULE_NUMBER}: ${updateError.message}`);
       }
     }
     
     if (successCount === 0) {
-      throw new Error('No rules were updated successfully');
+      return res.json({ 
+        success: false, 
+        message: 'No rules were updated successfully',
+        errors: errorDetails 
+      });
     }
     
-    // Update local RULES array and save to file
+    // ✅ CRITICAL: Update everything after successful database updates
+    console.log(`🔄 Refreshing data structures...`);
+    
+    // 1. Update local RULES array
     await loadAllRules();
+    
+    // 2. Update JSON file
     const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
     fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
     
+    console.log(`✅ Successfully updated ${successCount}/${rules.length} rules`);
+    console.log(`📊 Current rules order: ${RULES.map(r => r.RULE_NUMBER).join(', ')}`);
+    
     res.json({ 
       success: true, 
-      message: `${successCount} out of ${rules.length} rules updated successfully` 
+      message: `${successCount} out of ${rules.length} rules reordered successfully`,
+      updatedCount: successCount,
+      totalCount: rules.length,
+      errors: errorDetails.length > 0 ? errorDetails : undefined
     });
     
-    // Emit socket event
-    io.emit('rulesUpdated', { action: 'bulk_reorder_simple', count: successCount });
+    // Emit socket event for real-time updates
+    io.emit('rulesUpdated', { 
+      action: 'bulk_reorder', 
+      count: successCount,
+      newOrder: RULES.map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
+    });
     
   } catch (error) {
-    console.error('Simple bulk update error:', error);
+    console.error('❌ Bulk update error:', error);
     res.json({ 
       success: false, 
       message: 'Failed to reorder rules: ' + error.message 
