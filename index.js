@@ -16,7 +16,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
-// -------------------- MongoDB Connection & Models --------------------
+// MongoDB Connection & Models
 mongoose.connect(MONGODB_URI)
   .then(() => console.log("⚡ MongoDB connected successfully!"))
   .catch(err => console.error("❌ MongoDB connection error:", err));
@@ -53,7 +53,7 @@ const variableSchema = new mongoose.Schema({
 });
 const Variable = mongoose.model("Variable", variableSchema);
 
-// -------------------- Persistent Stats --------------------
+// Persistent Stats
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const variablesFilePath = path.join(__dirname, "data", "variables.json");
@@ -64,7 +64,7 @@ let welcomedUsers;
 let RULES = [];
 let VARIABLES = [];
 
-// -------------------- Rules Functions --------------------
+// Helper functions
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
@@ -75,10 +75,8 @@ async function loadAllVariables() {
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
-// Data Sync Function
 const syncData = async () => {
   try {
-    // Restore Stats from MongoDB
     stats = await Stats.findOne();
     if (!stats) {
         stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
@@ -86,19 +84,14 @@ const syncData = async () => {
     fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
     console.log("⚡ Stats restored from MongoDB.");
 
-    // Restore Welcomed Users from MongoDB
     const dbWelcomedUsers = await User.find({}, 'sessionId');
     welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
     fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
     console.log("⚡ Welcomed users restored from MongoDB.");
 
-    // Restore Rules from MongoDB
     await loadAllRules();
-
-    // Restore Variables from MongoDB
     await loadAllVariables();
 
-    // Check if a new day has started on server restart
     if (stats.lastResetDate !== today) {
         stats.todayUsers = [];
         stats.todayMsgs = 0;
@@ -109,13 +102,11 @@ const syncData = async () => {
     }
 
     emitStats();
-
   } catch (err) {
     console.error("❌ Data sync error:", err);
   }
 };
 
-// -------------------- Helpers --------------------
 function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
@@ -128,7 +119,6 @@ function saveVariables() {
   fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
-// Daily reset at midnight
 const resetDailyStats = async () => {
   stats.todayUsers = [];
   stats.todayMsgs = 0;
@@ -146,7 +136,6 @@ const scheduleDailyReset = () => {
   const timeUntilMidnight = midnight.getTime() - now.getTime();
   setTimeout(() => {
     resetDailyStats();
-    // Schedule for the next day
     setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
   }, timeUntilMidnight);
 };
@@ -163,7 +152,7 @@ function emitStats() {
   });
 }
 
-// Random variable generation logic
+// Random generation logic
 const charSets = {
   lower: 'abcdefghijklmnopqrstuvwxyz',
   upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -202,14 +191,21 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
-// TARGETED: Convert \n to newlines ONLY for specific contexts
-function convertNewlinesInText(text) {
+// NEW: Convert literal \n to actual newlines BEFORE saving to DB
+function convertNewlinesBeforeSave(text) {
   if (!text) return '';
-  // Convert literal \n to actual newlines
+  // Convert literal \n (backslash n) to actual newline character
   return text.replace(/\\n/g, '\n');
 }
 
-// Smart Token Splitting (NO \n conversion here)
+// UPDATED: Convert \n to actual newlines when displaying/processing
+function convertNewlinesInText(text) {
+  if (!text) return '';
+  // This handles already converted newlines for display
+  return text.replace(/\\n/g, '\n');
+}
+
+// Smart Token Splitting (NO conversion here)
 function smartSplitTokens(tokensString) {
   const tokens = [];
   let current = '';
@@ -223,10 +219,12 @@ function smartSplitTokens(tokensString) {
     if (char === '%') {
       percentCount++;
       current += char;
+      console.log(`📍 Found % at position ${i}, percentCount: ${percentCount}`);
     }
     else if (char === ',' && percentCount % 2 === 0) {
       if (current.trim().length > 0) {
         tokens.push(current.trim());
+        console.log(`✂️ Split token: "${current.trim()}"`);
       }
       current = '';
     }
@@ -237,6 +235,7 @@ function smartSplitTokens(tokensString) {
   
   if (current.trim().length > 0) {
     tokens.push(current.trim());
+    console.log(`✂️ Final token: "${current.trim()}"`);
   }
   
   console.log(`🎯 Total tokens found: ${tokens.length}`);
@@ -270,7 +269,7 @@ function pickNUniqueRandomly(tokens, count) {
   return selectedTokens;
 }
 
-// UPDATED: Selective \n conversion - ONLY in variable values
+// Variable resolution with newline support
 function resolveVariablesRecursively(text, maxIterations = 10) {
   let result = text;
   let iterationCount = 0;
@@ -281,19 +280,18 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     
     console.log(`🔄 Variable resolution iteration ${iterationCount + 1}: "${result}"`);
     
-    // 1. Replace static variables (CONVERT \n HERE)
+    // 1. Replace static variables (with newline conversion)
     for (const variable of VARIABLES) {
       const varRegex = new RegExp(`%${variable.name}%`, 'g');
       if (varRegex.test(result)) {
-        // ✅ APPLY \n CONVERSION ONLY TO VARIABLE VALUES
-        const processedValue = convertNewlinesInText(variable.value);
-        result = result.replace(varRegex, processedValue);
+        // Variable values already have converted newlines from DB
+        result = result.replace(varRegex, variable.value);
         hasVariables = true;
-        console.log(`✅ Replaced %${variable.name}% with processed value (with newlines)`);
+        console.log(`✅ Replaced %${variable.name}% with processed value`);
       }
     }
 
-    // 2. Process Custom Random Variables (NO \n conversion in regex processing)
+    // 2. Process Custom Random Variables
     const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
     
     result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
@@ -317,20 +315,18 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
         finalResult = selectedTokens.join(' ');
       }
       
-      // NO \n conversion here - tokens will be processed when variables inside them are resolved
-      
-      console.log(`✅ Selected result (no newline processing): "${finalResult}"`);
+      console.log(`✅ Selected result: "${finalResult}"`);
       
       hasVariables = true;
       return finalResult;
     });
 
-    // 3. Handle other random variables (NO \n conversion)
+    // 3. Handle other random variables
     const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
     
     result = result.replace(otherRandomRegex, (match, type, param1, param2) => {
       if (type === 'custom') {
-        return match; // Skip custom (already handled)
+        return match;
       }
       
       let value;
@@ -338,9 +334,11 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       if (type === 'num') {
         const [min, max] = param1.split('_').map(Number);
         value = Math.floor(Math.random() * (max - min + 1)) + min;
+        console.log(`🎲 Random number generated: ${value} (${min}-${max})`);
       } else {
         const length = parseInt(param1);
         value = generateRandom(type, length);
+        console.log(`🎲 Random ${type} generated: "${value}" (length: ${length})`);
       }
       
       hasVariables = true;
@@ -354,16 +352,14 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     iterationCount++;
   }
   
-  // ❌ NO GLOBAL \n CONVERSION AT THE END - only in variable values
-  
-  console.log(`✅ Final resolved result (selective newline processing)`);
+  console.log(`✅ Final resolved result`);
   return result;
 }
 
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
-  // -------------------- Update Stats --------------------
+  // Update Stats
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
@@ -375,7 +371,7 @@ async function processMessage(msg, sessionId = "default") {
   saveStats();
   emitStats();
 
-  // -------------------- Match Rules --------------------
+  // Match Rules
   let reply = null;
 
   for (let rule of RULES) {
@@ -436,56 +432,42 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
-  // TARGETED: Apply \n conversion ONLY to reply text
+  // Process reply with variables (reply text already has converted newlines from DB)
   if (reply) {
-    console.log(`🔧 Processing reply with selective newline support`);
-    
-    // ✅ CONVERT \n IN REPLY TEXT BEFORE VARIABLE PROCESSING
-    reply = convertNewlinesInText(reply);
-    
-    // Then process variables (which will have their own \n conversion)
+    console.log(`🔧 Processing reply`);
     reply = resolveVariablesRecursively(reply);
   }
 
   return reply || null;
 }
 
-// -------------------- Initial Load --------------------
+// Initial Load
 (async () => {
-    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
-        const funrulesPath = path.join(dataDir, "funrules.json");
-        const welcomedPath = path.join(dataDir, "welcomed_users.json");
-        const statsPath = path.join(dataDir, "stats.json");
-        const variablesPath = path.join(dataDir, "variables.json");
-
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        if (!fs.existsSync(statsPath)) {
-            fs.writeFileSync(statsPath, JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today }, null, 2));
-        }
-
-        if (!fs.existsSync(welcomedPath)) {
-            fs.writeFileSync(welcomedPath, JSON.stringify([], null, 2));
-        }
-
-        if (!fs.existsSync(funrulesPath)) {
-            fs.writeFileSync(funrulesPath, JSON.stringify({ rules: [] }, null, 2));
-        }
-
-        if (!fs.existsSync(variablesPath)) {
-            fs.writeFileSync(variablesPath, JSON.stringify([], null, 2));
-        }
+        const files = [
+            { path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
+            { path: path.join(dataDir, "welcomed_users.json"), content: [] },
+            { path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
+            { path: path.join(dataDir, "variables.json"), content: [] }
+        ];
+        
+        files.forEach(file => {
+            if (!fs.existsSync(file.path)) {
+                fs.writeFileSync(file.path, JSON.stringify(file.content, null, 2));
+            }
+        });
 
         await syncData();
         scheduleDailyReset();
     });
 })();
 
-// -------------------- FIXED: Atomic Bulk Update with Temporary Numbers --------------------
+// Bulk Update Rules API Call with \n conversion
 app.post("/api/rules/bulk-update", async (req, res) => {
   const session = await mongoose.startSession();
   
@@ -510,16 +492,12 @@ app.post("/api/rules/bulk-update", async (req, res) => {
         }
       }
       
-      // STEP 1: Temporarily assign negative numbers to avoid conflicts
+      // STEP 1: Temporary negative numbers
       console.log('🔄 Step 1: Assigning temporary negative numbers to avoid conflicts');
       const tempBulkOps = rules.map((rule, index) => ({
         updateOne: {
           filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-          update: { 
-            $set: { 
-              RULE_NUMBER: -(index + 1000) // Use large negative numbers
-            } 
-          },
+          update: { $set: { RULE_NUMBER: -(index + 1000) } },
           upsert: false
         }
       }));
@@ -529,7 +507,7 @@ app.post("/api/rules/bulk-update", async (req, res) => {
         console.log(`✅ Step 1 complete: ${tempResult.modifiedCount} rules assigned temporary numbers`);
       }
       
-      // STEP 2: Assign final rule numbers (no conflicts now)
+      // STEP 2: Final rule numbers with \n conversion
       console.log('🔄 Step 2: Assigning final rule numbers');
       const finalBulkOps = rules.map(rule => ({
         updateOne: {
@@ -541,7 +519,8 @@ app.post("/api/rules/bulk-update", async (req, res) => {
               RULE_TYPE: rule.RULE_TYPE,
               KEYWORDS: rule.KEYWORDS || '',
               REPLIES_TYPE: rule.REPLIES_TYPE,
-              REPLY_TEXT: rule.REPLY_TEXT || '',
+              // CONVERT \n IN REPLY TEXT BEFORE SAVING
+              REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
               TARGET_USERS: rule.TARGET_USERS || 'ALL'
             } 
           },
@@ -600,7 +579,7 @@ app.post("/api/rules/bulk-update", async (req, res) => {
   }
 });
 
-// -------------------- API Endpoints for Frontend --------------------
+// API Endpoints
 app.get("/api/rules", async (req, res) => {
   try {
     const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
@@ -627,7 +606,8 @@ app.post("/api/rules/update", async (req, res) => {
         RULE_TYPE: rule.ruleType,
         KEYWORDS: rule.keywords,
         REPLIES_TYPE: rule.repliesType,
-        REPLY_TEXT: rule.replyText,
+        // CONVERT \n IN REPLY TEXT BEFORE SAVING
+        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
         TARGET_USERS: rule.targetUsers
       });
     } else if (type === "edit") {
@@ -652,7 +632,8 @@ app.post("/api/rules/update", async (req, res) => {
           RULE_TYPE: rule.ruleType,
           KEYWORDS: rule.keywords,
           REPLIES_TYPE: rule.repliesType,
-          REPLY_TEXT: rule.replyText,
+          // CONVERT \n IN REPLY TEXT BEFORE SAVING
+          REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
           TARGET_USERS: rule.targetUsers
         },
         { new: true }
@@ -693,10 +674,16 @@ app.get("/api/variables", async (req, res) => {
 app.post("/api/variables/update", async (req, res) => {
   const { type, variable, oldName } = req.body;
   try {
+    // CONVERT \n IN VARIABLE VALUES BEFORE SAVING
+    const processedVariable = {
+      name: variable.name,
+      value: convertNewlinesBeforeSave(variable.value)
+    };
+
     if (type === "add") {
-      await Variable.create(variable);
+      await Variable.create(processedVariable);
     } else if (type === "edit") {
-      await Variable.findOneAndUpdate({ name: oldName }, variable, { new: true });
+      await Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true });
     } else if (type === "delete") {
       await Variable.deleteOne({ name: variable.name });
     }
@@ -716,7 +703,7 @@ app.post("/api/variables/update", async (req, res) => {
   }
 });
 
-// -------------------- Webhook --------------------
+// Webhook
 app.post("/webhook", async (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
@@ -725,7 +712,7 @@ app.post("/webhook", async (req, res) => {
   res.json({ replies: [{ message: replyText }] });
 });
 
-// -------------------- Stats API --------------------
+// Stats API
 app.get("/stats", (req, res) => {
   res.json({
     totalUsers: stats.totalUsers.length,
@@ -736,17 +723,17 @@ app.get("/stats", (req, res) => {
   });
 });
 
-// -------------------- Frontend --------------------
+// Frontend
 app.use(express.static("public"));
 
-// -------------------- Ping --------------------
+// Health Check
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-// -------------------- Start server --------------------
+// Start server
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// -------------------- Self-ping every 5 mins (only once at a time) --------------------
+// Self-ping every 5 mins
 let pinging = false;
 setInterval(async () => {
   if (pinging) return;
