@@ -234,6 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // UPDATED renderRules Function - NEW FORMAT
     function renderRules(rules) {
         if (!rulesList) return;
         
@@ -248,43 +249,43 @@ document.addEventListener("DOMContentLoaded", () => {
             // Create click handler for editing
             item.addEventListener('click', () => editRule(rule));
             
-            // Truncate long text
-            const truncateText = (text, maxLength = 100) => {
+            // Format rule number with leading zero
+            const ruleNumber = rule.RULE_NUMBER.toString().padStart(2, '0');
+            
+            // Rule name - show (no name) if empty
+            const ruleName = rule.RULE_NAME && rule.RULE_NAME.trim() ? rule.RULE_NAME : '(no name)';
+            
+            // Keywords - show * for ALL
+            let keywords = rule.KEYWORDS;
+            if (!keywords || keywords.trim() === '' || keywords.toUpperCase() === 'ALL') {
+                keywords = '*';
+            }
+            
+            // Reply text as is
+            const replyText = rule.REPLY_TEXT || '';
+            
+            // Truncate long text for display
+            const truncateText = (text, maxLength = 80) => {
                 return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
             };
             
-            const keywords = rule.KEYWORDS === 'ALL' ? 
-                '<em>All messages</em>' : 
-                rule.KEYWORDS.split('//').slice(0, 3).join(', ');
-            
-            const reply = rule.REPLY_TEXT.split('<#>')[0];
-            
             item.innerHTML = `
-                <div class="rule-header">
-                    <span class="rule-number">#${rule.RULE_NUMBER}</span>
+                <div class="rule-header-new">
+                    <div class="rule-title">
+                        <span class="rule-number-new">#${ruleNumber}</span>
+                        <span class="rule-name-new">${ruleName}</span>
+                    </div>
                     <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
                 </div>
-                <div class="rule-content">
-                    ${rule.RULE_NAME ? `
-                        <div class="rule-field">
-                            <strong>Name:</strong>
-                            <span>${rule.RULE_NAME}</span>
-                        </div>
-                    ` : ''}
-                    <div class="rule-field">
-                        <strong>Keywords:</strong>
+                <div class="rule-content-new">
+                    <div class="rule-line">
+                        <strong>KEYWORD:</strong>
                         <span>${keywords}</span>
                     </div>
-                    <div class="rule-field">
-                        <strong>Reply:</strong>
-                        <span>${truncateText(reply)}</span>
+                    <div class="rule-reply">
+                        <strong>reply:</strong>
+                        <div class="reply-text">${truncateText(replyText)}</div>
                     </div>
-                    ${rule.TARGET_USERS && rule.TARGET_USERS !== 'ALL' ? `
-                        <div class="rule-field">
-                            <strong>Target:</strong>
-                            <span>${Array.isArray(rule.TARGET_USERS) ? rule.TARGET_USERS.join(', ') : rule.TARGET_USERS}</span>
-                        </div>
-                    ` : ''}
                 </div>
             `;
             
