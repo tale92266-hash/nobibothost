@@ -202,7 +202,7 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
-// UPDATED: Enhanced Variable Resolution with Nesting Support
+// Enhanced Variable Resolution with Nesting Support
 function resolveVariablesRecursively(text, maxIterations = 10) {
   let result = text;
   let iterationCount = 0;
@@ -341,7 +341,7 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
-  // UPDATED: Enhanced Variable Processing with Recursive Support
+  // Enhanced Variable Processing with Recursive Support
   if (reply) {
     console.log(`🔧 Processing reply: "${reply}"`);
     reply = resolveVariablesRecursively(reply);
@@ -385,104 +385,106 @@ async function processMessage(msg, sessionId = "default") {
     });
 })();
 
-// -------------------- FIXED: Bulk Update API with Proper Reorder Logic --------------------
+// -------------------- FIXED: Atomic Bulk Update with Temporary Numbers --------------------
 app.post("/api/rules/bulk-update", async (req, res) => {
+  const session = await mongoose.startSession();
+  
   try {
-    const { rules } = req.body;
-    
-    if (!Array.isArray(rules) || rules.length === 0) {
-      return res.json({ success: false, message: 'Invalid rules data - must be an array' });
-    }
-    
-    console.log(`📝 Starting bulk update for ${rules.length} rules`);
-    
-    // Validate each rule has required fields
-    for (let i = 0; i < rules.length; i++) {
-      const rule = rules[i];
-      if (!rule._id) {
-        return res.json({ success: false, message: `Rule at index ${i} missing _id field` });
+    await session.withTransaction(async () => {
+      const { rules } = req.body;
+      
+      if (!Array.isArray(rules) || rules.length === 0) {
+        throw new Error('Invalid rules data - must be an array');
       }
-      if (!rule.RULE_NUMBER || !rule.RULE_TYPE) {
-        return res.json({ success: false, message: `Rule at index ${i} missing required fields` });
-      }
-    }
-    
-    // Update each rule individually with detailed logging
-    let successCount = 0;
-    let errorDetails = [];
-    
-    for (const rule of rules) {
-      try {
-        console.log(`🔄 Updating rule ${rule.RULE_NUMBER} (ID: ${rule._id})`);
-        
-        const updateResult = await Rule.findByIdAndUpdate(
-          rule._id,
-          {
-            RULE_NUMBER: rule.RULE_NUMBER,
-            RULE_NAME: rule.RULE_NAME || '',
-            RULE_TYPE: rule.RULE_TYPE,
-            KEYWORDS: rule.KEYWORDS || '',
-            REPLIES_TYPE: rule.REPLIES_TYPE,
-            REPLY_TEXT: rule.REPLY_TEXT || '',
-            TARGET_USERS: rule.TARGET_USERS || 'ALL'
+      
+      console.log(`📝 Starting ATOMIC bulk update for ${rules.length} rules`);
+      
+      // STEP 1: Temporarily assign negative numbers to avoid conflicts
+      console.log('🔄 Step 1: Assigning temporary negative numbers to avoid conflicts');
+      const tempBulkOps = rules.map((rule, index) => ({
+        updateOne: {
+          filter: { _id: new mongoose.Types.ObjectId(rule._id) },
+          update: { 
+            $set: { 
+              RULE_NUMBER: -(index + 1000) // Use large negative numbers
+            } 
           },
-          { new: true }
-        );
-        
-        if (updateResult) {
-          successCount++;
-          console.log(`✅ Successfully updated rule ${rule.RULE_NUMBER}`);
-        } else {
-          errorDetails.push(`Rule ${rule.RULE_NUMBER} not found in database`);
+          upsert: false
         }
-      } catch (updateError) {
-        console.error(`❌ Failed to update rule ${rule.RULE_NUMBER}:`, updateError);
-        errorDetails.push(`Rule ${rule.RULE_NUMBER}: ${updateError.message}`);
+      }));
+      
+      if (tempBulkOps.length > 0) {
+        const tempResult = await Rule.bulkWrite(tempBulkOps, { session, ordered: true });
+        console.log(`✅ Step 1 complete: ${tempResult.modifiedCount} rules assigned temporary numbers`);
       }
-    }
+      
+      // STEP 2: Assign final rule numbers (no conflicts now)
+      console.log('🔄 Step 2: Assigning final rule numbers');
+      const finalBulkOps = rules.map(rule => ({
+        updateOne: {
+          filter: { _id: new mongoose.Types.ObjectId(rule._id) },
+          update: { 
+            $set: { 
+              RULE_NUMBER: rule.RULE_NUMBER,
+              RULE_NAME: rule.RULE_NAME || '',
+              RULE_TYPE: rule.RULE_TYPE,
+              KEYWORDS: rule.KEYWORDS || '',
+              REPLIES_TYPE: rule.REPLIES_TYPE,
+              REPLY_TEXT: rule.REPLY_TEXT || '',
+              TARGET_USERS: rule.TARGET_USERS || 'ALL'
+            } 
+          },
+          upsert: false
+        }
+      }));
+      
+      if (finalBulkOps.length > 0) {
+        const finalResult = await Rule.bulkWrite(finalBulkOps, { session, ordered: true });
+        console.log(`✅ Step 2 complete: ${finalResult.modifiedCount} rules updated with final numbers`);
+        
+        if (finalResult.modifiedCount !== rules.length) {
+          throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
+        }
+      }
+    });
     
-    if (successCount === 0) {
-      return res.json({ 
-        success: false, 
-        message: 'No rules were updated successfully',
-        errors: errorDetails 
-      });
-    }
+    await session.endSession();
     
-    // ✅ CRITICAL: Update everything after successful database updates
+    // Update local data structures
     console.log(`🔄 Refreshing data structures...`);
-    
-    // 1. Update local RULES array
     await loadAllRules();
-    
-    // 2. Update JSON file
     const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
     fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
     
-    console.log(`✅ Successfully updated ${successCount}/${rules.length} rules`);
-    console.log(`📊 Current rules order: ${RULES.map(r => r.RULE_NUMBER).join(', ')}`);
+    console.log(`✅ Successfully updated ${req.body.rules.length} rules atomically`);
+    console.log(`📊 Final rules order: ${RULES.map(r => r.RULE_NUMBER).join(', ')}`);
     
     res.json({ 
       success: true, 
-      message: `${successCount} out of ${rules.length} rules reordered successfully`,
-      updatedCount: successCount,
-      totalCount: rules.length,
-      errors: errorDetails.length > 0 ? errorDetails : undefined
+      message: `${req.body.rules.length} rules reordered successfully using atomic transaction`,
+      updatedCount: req.body.rules.length,
+      totalCount: req.body.rules.length
     });
     
     // Emit socket event for real-time updates
     io.emit('rulesUpdated', { 
-      action: 'bulk_reorder', 
-      count: successCount,
+      action: 'bulk_reorder_atomic', 
+      count: req.body.rules.length,
       newOrder: RULES.map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
     });
     
   } catch (error) {
-    console.error('❌ Bulk update error:', error);
+    console.error('❌ Atomic bulk update failed:', error);
+    
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+    await session.endSession();
+    
     res.json({ 
       success: false, 
-      message: 'Failed to reorder rules: ' + error.message 
+      message: 'Failed to reorder rules atomically: ' + error.message 
     });
   }
 });
