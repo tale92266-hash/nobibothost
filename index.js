@@ -194,11 +194,9 @@ if (!text) return '';
 return text.replace(/\\n/g, '\n');
 }
 
-// Updated smartSplitTokens logic
+// Updated smartSplitTokens logic - REMOVED LOGS
 function smartSplitTokens(tokensString) {
-console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
 const tokens = tokensString.split(/,(?![^%]*%)/g).map(t => t.trim());
-console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
 return tokens.filter(t => t !== '');
 }
 
@@ -207,7 +205,6 @@ const actualCount = Math.min(count, tokens.length);
 if (actualCount === 0) return [];
 if (actualCount === 1) {
 const selected = pick(tokens);
-console.log(`🎯 Single token selected: "${selected}"`);
 return [selected];
 }
 
@@ -221,11 +218,10 @@ selectedTokens.push(selectedToken);
 availableTokens.splice(randomIndex, 1);
 }
 
-console.log(`🎯 Selected ${selectedTokens.length} tokens: [${selectedTokens.join('] | [')}]`);
 return selectedTokens;
 }
 
-// Updated resolveVariablesRecursively function
+// Updated resolveVariablesRecursively function - REMOVED ALL VARIABLE PROCESSING LOGS
 function resolveVariablesRecursively(text, maxIterations = 10) {
 let result = text;
 let iterationCount = 0;
@@ -246,18 +242,13 @@ let previousResult = result;
 const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
 result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
 const count = parseInt(countStr, 10);
-console.log(`🎲 Processing custom random FIRST: count=${count}`);
-console.log(`🎲 Raw tokens string: "${tokensString}"`);
-
 const tokens = smartSplitTokens(tokensString);
 if (tokens.length === 0) {
-console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
 return '';
 }
 
 const selectedTokens = pickNUniqueRandomly(tokens, count);
 let finalResult = selectedTokens.join(' ');
-console.log(`✅ Custom random result: "${finalResult}"`);
 hasVariables = true;
 return finalResult;
 });
@@ -294,7 +285,6 @@ varValue = generateRandom(type, length);
 result = result.split(placeholder).join(varValue);
 }
 
-console.log(`✅ Final resolved result completed`);
 return result;
 }
 
@@ -421,11 +411,9 @@ console.log(`❌ No match for Rule #${rule.RULE_NUMBER}`);
 }
 }
 
-// Process reply with variables (with proper order)
+// Process reply with variables (REMOVED DETAILED VARIABLE LOGS)
 if (reply) {
-console.log(`🔧 Processing reply with variables: "${reply}"`);
 reply = resolveVariablesRecursively(reply);
-console.log(`✅ Final reply after variable resolution: "${reply}"`);
 } else {
 console.log(`❌ No matching rule found for message: "${originalMsg}"`);
 }
@@ -658,7 +646,6 @@ res.status(500).json({ success: false, message: "Server error" });
 
 // UPDATED WEBHOOK WITH DETAILED LOGGING
 app.post("/webhook", async (req, res) => {
-// Complete incoming request body log
 console.log("📨 INCOMING WEBHOOK REQUEST:", JSON.stringify(req.body, null, 2));
 console.log("🕐 Request Timestamp:", new Date().toISOString());
 
