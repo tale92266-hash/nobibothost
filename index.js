@@ -59,6 +59,7 @@ const Variable = mongoose.model("Variable", variableSchema);
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const variablesFilePath = path.join(__dirname, "data", "variables.json");
+const chatHistoryFilePath = path.join(__dirname, "data", "chat_history.json"); // New file path
 const today = new Date().toLocaleDateString();
 
 let stats;
@@ -316,6 +317,34 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     return result;
 }
 
+// Function to save chat messages to a file
+async function saveChatMessageToFile(messageData) {
+    try {
+        const dataDir = path.join(__dirname, "data");
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+
+        let chatHistory = [];
+        if (fs.existsSync(chatHistoryFilePath)) {
+            const fileData = fs.readFileSync(chatHistoryFilePath, 'utf8');
+            chatHistory = JSON.parse(fileData);
+        }
+
+        chatHistory.push(messageData);
+
+        // Keep only the last 10 messages
+        if (chatHistory.length > 10) {
+            chatHistory = chatHistory.slice(chatHistory.length - 10);
+        }
+
+        fs.writeFileSync(chatHistoryFilePath, JSON.stringify(chatHistory, null, 2));
+        console.log("📝 Chat message saved to history.");
+    } catch (error) {
+        console.error("❌ Failed to save chat message to file:", error);
+    }
+}
+
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
@@ -413,7 +442,8 @@ async function processMessage(msg, sessionId = "default") {
             { path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
             { path: path.join(dataDir, "welcomed_users.json"), content: [] },
             { path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
-            { path: path.join(dataDir, "variables.json"), content: [] }
+            { path: path.join(dataDir, "variables.json"), content: [] },
+            { path: chatHistoryFilePath, content: [] } // Ensure chat history file exists
         ];
         
         files.forEach(file => {
@@ -628,6 +658,21 @@ app.post("/api/variables/update", async (req, res) => {
   }
 });
 
+// New API endpoint to serve chat history
+app.get("/api/chat-history", (req, res) => {
+    try {
+        if (fs.existsSync(chatHistoryFilePath)) {
+            const fileData = fs.readFileSync(chatHistoryFilePath, 'utf8');
+            res.json(JSON.parse(fileData));
+        } else {
+            res.json([]);
+        }
+    } catch (error) {
+        console.error("❌ Failed to read chat history file:", error);
+        res.status(500).json({ error: "Failed to fetch chat history" });
+    }
+});
+
 app.post("/webhook", async (req, res) => {
     const sessionId = req.body.session_id || "default_session";
     const msg = req.body.query?.message || "";
@@ -635,15 +680,18 @@ app.post("/webhook", async (req, res) => {
 
     const replyText = await processMessage(msg, sessionId);
     
-    // Emit real-time chat message with resolved reply
-    io.emit('newMessage', {
+    // Create message object to save to file
+    const messageData = {
         sessionId: sessionId,
         senderName: senderName,
         userMessage: msg,
         botReply: replyText,
         timestamp: new Date().toISOString()
-    });
-    
+    };
+
+    // Save the message to a file instead of emitting via socket.io
+    await saveChatMessageToFile(messageData);
+
     if (!replyText) return res.json({ replies: [] });
     res.json({ replies: [{ message: replyText }] });
 });
