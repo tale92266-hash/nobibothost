@@ -513,6 +513,7 @@ body {
     border-radius: var(--border-radius-lg);
     border: none;
     box-shadow: var(--shadow-xl);
+    background: var(--white);
 }
 
 .modal-header {
@@ -528,6 +529,7 @@ body {
     align-items: center;
     gap: 0.75rem;
     font-weight: 700;
+    font-size: 1.25rem;
 }
 
 .btn-close {
@@ -541,6 +543,7 @@ body {
 
 .modal-body {
     padding: 2rem;
+    background: var(--white);
 }
 
 .modal-footer {
@@ -598,62 +601,110 @@ body {
     color: var(--danger);
 }
 
-/* Variable Form */
+/* Variable Form Enhanced Styling */
 .variable-form {
-    background: var(--gray-50);
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border: 2px solid var(--gray-200);
     padding: 1.5rem;
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-lg);
     margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
 }
 
-.form-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
+.variable-form .form-group {
+    margin-bottom: 1.25rem;
 }
 
+.variable-form label {
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Variables List Better Styling */
 .variables-list {
     max-height: 400px;
     overflow-y: auto;
+    background: var(--gray-50);
+    border-radius: var(--border-radius);
+    padding: 1rem;
 }
 
 .variable-item {
     background: var(--white);
-    border: 1px solid var(--gray-200);
+    border: 2px solid var(--gray-200);
     border-radius: var(--border-radius);
-    padding: 1rem;
+    padding: 1.25rem;
     margin-bottom: 0.75rem;
     transition: var(--transition);
     cursor: pointer;
+    box-shadow: var(--shadow-sm);
 }
 
 .variable-item:hover {
     border-color: var(--primary);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.variable-item:last-child {
+    margin-bottom: 0;
 }
 
 .variable-header {
     display: flex;
     align-items: center;
-    justify-content: between;
-    margin-bottom: 0.5rem;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
 }
 
 .variable-name {
-    font-weight: 600;
-    color: var(--primary);
+    font-weight: 700;
+    color: var(--white);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
     font-family: 'Monaco', 'Menlo', monospace;
-    background: var(--gray-100);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
     font-size: 0.875rem;
+    box-shadow: var(--shadow-sm);
 }
 
 .variable-value {
-    color: var(--gray-600);
+    color: var(--gray-700);
     font-size: 0.875rem;
-    line-height: 1.4;
+    line-height: 1.6;
     word-break: break-word;
+    background: var(--gray-100);
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--primary);
+}
+
+/* Variables Empty State */
+.variables-list .empty-state {
+    background: var(--white);
+    border: 2px dashed var(--gray-300);
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    text-align: center;
+}
+
+.variables-list .empty-state i {
+    color: var(--primary);
+    opacity: 0.5;
+}
+
+/* Form Actions Better Styling */
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    justify-content: flex-end;
+}
+
+.form-actions .btn {
+    min-width: 100px;
 }
 
 /* Settings Page Styles */
@@ -688,7 +739,7 @@ body {
     gap: 2rem;
 }
 
-/* All Settings Cards - Uniform Styling */
+/* All Settings Cards - Fixed Uniform Styling */
 .settings-card {
     background: var(--white);
     border-radius: var(--border-radius-lg);
@@ -696,37 +747,55 @@ body {
     padding: 2rem;
     transition: var(--transition);
     border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.settings-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.settings-card:hover::before {
+    opacity: 1;
 }
 
 .settings-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-6px);
     box-shadow: var(--shadow-xl);
-    border-color: var(--primary);
+    border-color: rgba(102, 126, 234, 0.2);
 }
 
-/* All Settings Card Icons - Different Colors */
+/* Settings Card Icons - Different Colors and Better Contrast */
 .settings-card:nth-child(1) .settings-card-icon {
-    background: linear-gradient(135deg, #48bb78, #38a169); /* Green for Variables */
+    background: linear-gradient(135deg, #10b981, #059669); /* Emerald Green for Variables */
 }
 
 .settings-card:nth-child(2) .settings-card-icon {
-    background: linear-gradient(135deg, #ed8936, #dd6b20); /* Orange for Export */
+    background: linear-gradient(135deg, #f59e0b, #d97706); /* Amber for Export */
 }
 
 .settings-card:nth-child(3) .settings-card-icon {
-    background: linear-gradient(135deg, #38b2ac, #319795); /* Teal for Analytics */
+    background: linear-gradient(135deg, #06b6d4, #0891b2); /* Cyan for Analytics */
 }
 
 .settings-card:nth-child(4) .settings-card-icon {
-    background: linear-gradient(135deg, #667eea, #5a6fd8); /* Blue for System */
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed); /* Purple for System */
 }
 
 .settings-card:nth-child(5) .settings-card-icon {
-    background: linear-gradient(135deg, #9f7aea, #805ad5); /* Purple for Backup */
+    background: linear-gradient(135deg, #ef4444, #dc2626); /* Red for Backup */
 }
 
 .settings-card:nth-child(6) .settings-card-icon {
-    background: linear-gradient(135deg, #f56565, #e53e3e); /* Red for Help */
+    background: linear-gradient(135deg, #f97316, #ea580c); /* Orange for Help */
 }
 
 .settings-card-icon {
@@ -762,6 +831,15 @@ body {
     border-radius: var(--border-radius);
     font-weight: 600;
     transition: var(--transition);
+}
+
+/* Variables Modal Special Styling */
+#variableModal .modal-content {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+#variableModal .modal-body {
+    background: transparent;
 }
 
 /* Info Cards for Stats Tab */
@@ -1051,6 +1129,29 @@ body {
     
     .status-item {
         padding: 0.5rem 0;
+    }
+    
+    .variable-form {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .variables-list {
+        padding: 0.75rem;
+    }
+    
+    .variable-item {
+        padding: 1rem;
+    }
+    
+    .variable-name {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+    }
+    
+    .variable-value {
+        padding: 0.5rem;
+        font-size: 0.8125rem;
     }
 }
 
