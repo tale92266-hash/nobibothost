@@ -197,8 +197,6 @@ return text.replace(/\\n/g, '\n');
 // Updated smartSplitTokens logic
 function smartSplitTokens(tokensString) {
 console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
-// Split by comma followed by any whitespace, but only if not inside a variable.
-// This is handled by a simple regex now that the nested variables are placeholders.
 const tokens = tokensString.split(/,(?![^%]*%)/g).map(t => t.trim());
 console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
 return tokens.filter(t => t !== '');
@@ -231,11 +229,9 @@ return selectedTokens;
 function resolveVariablesRecursively(text, maxIterations = 10) {
 let result = text;
 let iterationCount = 0;
-// Use a Map to store placeholders and original variable names
 const placeholderMap = new Map();
 let placeholderCounter = 0;
 
-// First, find all static and other random variables and replace them with placeholders
 const staticAndRandomRegex = /%(\w+)%/g;
 result = result.replace(staticAndRandomRegex, (match) => {
 const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
@@ -247,7 +243,6 @@ while (iterationCount < maxIterations) {
 let hasVariables = false;
 let previousResult = result;
 
-// STEP 1: Process Custom Random Variables using placeholders
 const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
 result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
 const count = parseInt(countStr, 10);
@@ -274,17 +269,14 @@ break;
 iterationCount++;
 }
 
-// Finally, resolve the placeholders
 for (const [placeholder, originalVariable] of placeholderMap.entries()) {
 const varName = originalVariable.replace(/%/g, '');
 let varValue = '';
 
-// Find the actual value for the original variable name
 const staticVar = VARIABLES.find(v => v.name === varName);
 if (staticVar) {
 varValue = staticVar.value;
 } else {
-// Check for other random variables here, since they were also replaced by placeholders
 const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
 const match = originalVariable.match(otherRandomRegex);
 if (match) {
