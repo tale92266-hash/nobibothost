@@ -1,4 +1,4 @@
-// file: nobibothost-main (7).zip/nobibothost-main/index.js
+// file: nobibothost-main (1).zip/nobibothost-main/index.js
 
 require("dotenv").config();
 const express = require("express");
@@ -631,12 +631,14 @@ app.post("/api/variables/update", async (req, res) => {
 app.post("/webhook", async (req, res) => {
     const sessionId = req.body.session_id || "default_session";
     const msg = req.body.query?.message || "";
-    
+    const senderName = req.body.query?.sender || "";
+
     const replyText = await processMessage(msg, sessionId);
     
     // Emit real-time chat message with resolved reply
     io.emit('newMessage', {
         sessionId: sessionId,
+        senderName: senderName,
         userMessage: msg,
         botReply: replyText,
         timestamp: new Date().toISOString()
