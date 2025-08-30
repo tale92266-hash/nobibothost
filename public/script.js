@@ -78,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         console.log(`🔢 Rule number validation setup: min=1, max=${maxAllowed} (${isEditing ? 'Edit' : 'Add'} mode)`);
         
-        // Remove existing event listeners by cloning the input without DOM replacement
+        // Remove existing event listeners by storing references
         const newHandler = function(e) {
             let value = parseInt(e.target.value);
             
@@ -106,7 +106,9 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         
         // Remove previous listeners and add new one
-        ruleNumberInput.removeEventListener('input', ruleNumberInput._currentHandler);
+        if (ruleNumberInput._currentHandler) {
+            ruleNumberInput.removeEventListener('input', ruleNumberInput._currentHandler);
+        }
         ruleNumberInput.addEventListener('input', newHandler);
         ruleNumberInput._currentHandler = newHandler; // Store for future removal
         
@@ -130,7 +132,9 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         };
         
-        ruleNumberInput.removeEventListener('keydown', ruleNumberInput._currentKeydownHandler);
+        if (ruleNumberInput._currentKeydownHandler) {
+            ruleNumberInput.removeEventListener('keydown', ruleNumberInput._currentKeydownHandler);
+        }
         ruleNumberInput.addEventListener('keydown', keydownHandler);
         ruleNumberInput._currentKeydownHandler = keydownHandler;
     }
@@ -182,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
     async function bulkUpdateRules(reorderedRules) {
         try {
             console.log('📡 Sending bulk update for', reorderedRules.length, 'rules');
-            console.log('📊 Sample rule ', {
+            console.log('📊 Sample rule data:', {
                 _id: reorderedRules[0]._id,
                 RULE_NUMBER: reorderedRules[0].RULE_NUMBER,
                 RULE_NAME: reorderedRules[0].RULE_NAME
