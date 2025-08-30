@@ -233,84 +233,67 @@ function pickNUniqueRandomly(tokens, count) {
   return selectedTokens;
 }
 
-// Updated resolveVariablesRecursively function
-function resolveVariablesRecursively(text, maxIterations = 10) {
+// Updated and fixed resolveVariablesRecursively function
+function resolveVariablesRecursively(text) {
     let result = text;
     let iterationCount = 0;
+    const maxIterations = 10; // To prevent infinite loops with self-referencing variables
 
-    // Use a Map to store placeholders and original variable names
-    const placeholderMap = new Map();
-    let placeholderCounter = 0;
-
-    // First, find all static and other random variables and replace them with placeholders
-    const staticAndRandomRegex = /%(\w+)%/g;
-    result = result.replace(staticAndRandomRegex, (match) => {
-        const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
-        placeholderMap.set(placeholder, match);
-        return placeholder;
-    });
-
+    // Loop to handle nested variables
     while (iterationCount < maxIterations) {
         let hasVariables = false;
-        let previousResult = result;
 
-        // STEP 1: Process Custom Random Variables using placeholders
-        const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
-        result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
-            const count = parseInt(countStr, 10);
+        // Regular expression to match all types of variables: static, simple random, and custom random
+        const allVariablesRegex = /%(\w+)(?:_([^%]+))?(?:_([^%]+))?%/g;
+
+        // Replace all variables in one pass
+        const newResult = result.replace(allVariablesRegex, (fullMatch, type, param1, param2) => {
+            hasVariables = true;
             
-            console.log(`🎲 Processing custom random FIRST: count=${count}`);
-            console.log(`🎲 Raw tokens string: "${tokensString}"`);
-            
-            const tokens = smartSplitTokens(tokensString);
-            
-            if (tokens.length === 0) {
-                console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
-                return '';
+            // Check for simple static variables first
+            const staticVar = VARIABLES.find(v => v.name === type);
+            if (staticVar) {
+                return staticVar.value;
+            }
+
+            // Check for custom random variables
+            if (type === 'rndm_custom') {
+                const count = parseInt(param1, 10);
+                const tokensString = param2;
+                
+                console.log(`🎲 Processing custom random variable: ${fullMatch}`);
+                const tokens = smartSplitTokens(tokensString);
+                
+                if (tokens.length === 0) {
+                    console.warn(`⚠️ No valid tokens found in custom random variable: ${fullMatch}`);
+                    return '';
+                }
+                const selectedTokens = pickNUniqueRandomly(tokens, count);
+                return selectedTokens.join(' ');
             }
             
-            const selectedTokens = pickNUniqueRandomly(tokens, count);
-            let finalResult = selectedTokens.join(' ');
-            
-            console.log(`✅ Custom random result: "${finalResult}"`);
-            
-            hasVariables = true;
-            return finalResult;
+            // Check for other simple random variables
+            if (type === 'rndm') {
+                if (param1 === 'num') {
+                    const [min, max] = param2.split('_').map(Number);
+                    return Math.floor(Math.random() * (max - min + 1)) + min;
+                } else {
+                    const length = parseInt(param1);
+                    return generateRandom(param1, length);
+                }
+            }
+
+            // Fallback for unresolved variables
+            return fullMatch;
         });
 
-        if (result === previousResult) {
+        // If no variables were replaced, break the loop
+        if (!hasVariables) {
             break;
         }
 
+        result = newResult;
         iterationCount++;
-    }
-
-    // Finally, resolve the placeholders
-    for (const [placeholder, originalVariable] of placeholderMap.entries()) {
-        const varName = originalVariable.replace(/%/g, '');
-        let varValue = '';
-        
-        // Find the actual value for the original variable name
-        const staticVar = VARIABLES.find(v => v.name === varName);
-        if (staticVar) {
-            varValue = staticVar.value;
-        } else {
-            // Check for other random variables here, since they were also replaced by placeholders
-            const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
-            const match = originalVariable.match(otherRandomRegex);
-            if (match) {
-                const [fullMatch, type, param1, param2] = match;
-                if (type === 'num') {
-                    const [min, max] = param1.split('_').map(Number);
-                    varValue = Math.floor(Math.random() * (max - min + 1)) + min;
-                } else {
-                    const length = parseInt(param1);
-                    varValue = generateRandom(type, length);
-                }
-            }
-        }
-        
-        result = result.split(placeholder).join(varValue);
     }
     
     console.log(`✅ Final resolved result completed`);
