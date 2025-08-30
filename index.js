@@ -16,7 +16,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
-// MongoDB Connection & Models [Same as before]
+// -------------------- MongoDB Connection & Models --------------------
 mongoose.connect(MONGODB_URI)
   .then(() => console.log("⚡ MongoDB connected successfully!"))
   .catch(err => console.error("❌ MongoDB connection error:", err));
@@ -53,7 +53,7 @@ const variableSchema = new mongoose.Schema({
 });
 const Variable = mongoose.model("Variable", variableSchema);
 
-// Persistent Stats & Variables
+// -------------------- Persistent Stats --------------------
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const variablesFilePath = path.join(__dirname, "data", "variables.json");
@@ -64,7 +64,7 @@ let welcomedUsers;
 let RULES = [];
 let VARIABLES = [];
 
-// [Same helper functions as before - saveStats, loadAllRules, etc.]
+// -------------------- Rules Functions --------------------
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
@@ -75,8 +75,10 @@ async function loadAllVariables() {
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
+// Data Sync Function
 const syncData = async () => {
   try {
+    // Restore Stats from MongoDB
     stats = await Stats.findOne();
     if (!stats) {
         stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
@@ -84,14 +86,19 @@ const syncData = async () => {
     fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
     console.log("⚡ Stats restored from MongoDB.");
 
+    // Restore Welcomed Users from MongoDB
     const dbWelcomedUsers = await User.find({}, 'sessionId');
     welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
     fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
     console.log("⚡ Welcomed users restored from MongoDB.");
 
+    // Restore Rules from MongoDB
     await loadAllRules();
+
+    // Restore Variables from MongoDB
     await loadAllVariables();
 
+    // Check if a new day has started on server restart
     if (stats.lastResetDate !== today) {
         stats.todayUsers = [];
         stats.todayMsgs = 0;
@@ -102,11 +109,13 @@ const syncData = async () => {
     }
 
     emitStats();
+
   } catch (err) {
     console.error("❌ Data sync error:", err);
   }
 };
 
+// -------------------- Helpers --------------------
 function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
@@ -119,6 +128,7 @@ function saveVariables() {
   fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
+// Daily reset at midnight
 const resetDailyStats = async () => {
   stats.todayUsers = [];
   stats.todayMsgs = 0;
@@ -136,6 +146,7 @@ const scheduleDailyReset = () => {
   const timeUntilMidnight = midnight.getTime() - now.getTime();
   setTimeout(() => {
     resetDailyStats();
+    // Schedule for the next day
     setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
   }, timeUntilMidnight);
 };
@@ -152,7 +163,7 @@ function emitStats() {
   });
 }
 
-// Random generation logic [Same as before]
+// Random variable generation logic
 const charSets = {
   lower: 'abcdefghijklmnopqrstuvwxyz',
   upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -191,11 +202,18 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
-// COMPLETELY FIXED: Proper % Tracking and Token Splitting
+// TARGETED: Convert \n to newlines ONLY for specific contexts
+function convertNewlinesInText(text) {
+  if (!text) return '';
+  // Convert literal \n to actual newlines
+  return text.replace(/\\n/g, '\n');
+}
+
+// Smart Token Splitting (NO \n conversion here)
 function smartSplitTokens(tokensString) {
   const tokens = [];
   let current = '';
-  let percentCount = 0; // Track number of % encountered
+  let percentCount = 0;
   
   console.log(`🧩 Splitting tokens from: "${tokensString}"`);
   
@@ -205,13 +223,10 @@ function smartSplitTokens(tokensString) {
     if (char === '%') {
       percentCount++;
       current += char;
-      console.log(`📍 Found % at position ${i}, percentCount: ${percentCount}`);
     }
     else if (char === ',' && percentCount % 2 === 0) {
-      // Split on comma only if we have even number of % (all variables closed)
       if (current.trim().length > 0) {
         tokens.push(current.trim());
-        console.log(`✂️ Split token: "${current.trim()}"`);
       }
       current = '';
     }
@@ -220,15 +235,11 @@ function smartSplitTokens(tokensString) {
     }
   }
   
-  // Add the last token
   if (current.trim().length > 0) {
     tokens.push(current.trim());
-    console.log(`✂️ Final token: "${current.trim()}"`);
   }
   
   console.log(`🎯 Total tokens found: ${tokens.length}`);
-  console.log(`📝 All tokens: [${tokens.join('] | [')}]`);
-  
   return tokens;
 }
 
@@ -259,7 +270,7 @@ function pickNUniqueRandomly(tokens, count) {
   return selectedTokens;
 }
 
-// FIXED: Enhanced Variable Resolution with SINGLE-PASS Processing
+// UPDATED: Selective \n conversion - ONLY in variable values
 function resolveVariablesRecursively(text, maxIterations = 10) {
   let result = text;
   let iterationCount = 0;
@@ -270,26 +281,26 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     
     console.log(`🔄 Variable resolution iteration ${iterationCount + 1}: "${result}"`);
     
-    // 1. Replace static variables first
+    // 1. Replace static variables (CONVERT \n HERE)
     for (const variable of VARIABLES) {
       const varRegex = new RegExp(`%${variable.name}%`, 'g');
       if (varRegex.test(result)) {
-        result = result.replace(varRegex, variable.value);
+        // ✅ APPLY \n CONVERSION ONLY TO VARIABLE VALUES
+        const processedValue = convertNewlinesInText(variable.value);
+        result = result.replace(varRegex, processedValue);
         hasVariables = true;
-        console.log(`✅ Replaced %${variable.name}% with "${variable.value}"`);
+        console.log(`✅ Replaced %${variable.name}% with processed value (with newlines)`);
       }
     }
 
-    // 2. FIXED: Process Custom Random Variables with Single Replace
+    // 2. Process Custom Random Variables (NO \n conversion in regex processing)
     const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
     
-    // Use replace instead of while loop to avoid multiple matches
     result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
       const count = parseInt(countStr, 10);
       
-      console.log(`🎲 Processing custom random: count=${count}, tokensString="${tokensString}"`);
+      console.log(`🎲 Processing custom random: count=${count}`);
       
-      // FIXED: Use smart token splitting with proper % tracking
       const tokens = smartSplitTokens(tokensString);
       
       if (tokens.length === 0) {
@@ -297,7 +308,6 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
         return '';
       }
       
-      // Pick N unique random tokens
       const selectedTokens = pickNUniqueRandomly(tokens, count);
       let finalResult;
       
@@ -307,13 +317,15 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
         finalResult = selectedTokens.join(' ');
       }
       
-      console.log(`✅ Final selected result: "${finalResult}"`);
+      // NO \n conversion here - tokens will be processed when variables inside them are resolved
+      
+      console.log(`✅ Selected result (no newline processing): "${finalResult}"`);
       
       hasVariables = true;
       return finalResult;
     });
 
-    // 3. Handle other random variables
+    // 3. Handle other random variables (NO \n conversion)
     const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
     
     result = result.replace(otherRandomRegex, (match, type, param1, param2) => {
@@ -326,18 +338,15 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       if (type === 'num') {
         const [min, max] = param1.split('_').map(Number);
         value = Math.floor(Math.random() * (max - min + 1)) + min;
-        console.log(`🎲 Random number generated: ${value} (${min}-${max})`);
       } else {
         const length = parseInt(param1);
         value = generateRandom(type, length);
-        console.log(`🎲 Random ${type} generated: "${value}" (length: ${length})`);
       }
       
       hasVariables = true;
       return value;
     });
     
-    // If no changes were made, break the loop
     if (result === previousResult) {
       break;
     }
@@ -345,14 +354,16 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     iterationCount++;
   }
   
-  console.log(`✅ Final resolved result: "${result}"`);
+  // ❌ NO GLOBAL \n CONVERSION AT THE END - only in variable values
+  
+  console.log(`✅ Final resolved result (selective newline processing)`);
   return result;
 }
 
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
-  // Update Stats
+  // -------------------- Update Stats --------------------
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
@@ -364,7 +375,7 @@ async function processMessage(msg, sessionId = "default") {
   saveStats();
   emitStats();
 
-  // Match Rules
+  // -------------------- Match Rules --------------------
   let reply = null;
 
   for (let rule of RULES) {
@@ -425,19 +436,23 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
-  // Enhanced Variable Processing
+  // TARGETED: Apply \n conversion ONLY to reply text
   if (reply) {
-    console.log(`🔧 Processing reply: "${reply}"`);
+    console.log(`🔧 Processing reply with selective newline support`);
+    
+    // ✅ CONVERT \n IN REPLY TEXT BEFORE VARIABLE PROCESSING
+    reply = convertNewlinesInText(reply);
+    
+    // Then process variables (which will have their own \n conversion)
     reply = resolveVariablesRecursively(reply);
   }
 
   return reply || null;
 }
 
-// [Rest of the Express API routes remain the same as before]
-
-// Initial Load
+// -------------------- Initial Load --------------------
 (async () => {
+    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
@@ -449,20 +464,28 @@ async function processMessage(msg, sessionId = "default") {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        [statsPath, welcomedPath, funrulesPath, variablesPath].forEach(filePath => {
-            if (!fs.existsSync(filePath)) {
-                const defaultContent = filePath.includes('stats') ? { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } :
-                                      filePath.includes('rules') ? { rules: [] } : [];
-                fs.writeFileSync(filePath, JSON.stringify(defaultContent, null, 2));
-            }
-        });
+        if (!fs.existsSync(statsPath)) {
+            fs.writeFileSync(statsPath, JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today }, null, 2));
+        }
+
+        if (!fs.existsSync(welcomedPath)) {
+            fs.writeFileSync(welcomedPath, JSON.stringify([], null, 2));
+        }
+
+        if (!fs.existsSync(funrulesPath)) {
+            fs.writeFileSync(funrulesPath, JSON.stringify({ rules: [] }, null, 2));
+        }
+
+        if (!fs.existsSync(variablesPath)) {
+            fs.writeFileSync(variablesPath, JSON.stringify([], null, 2));
+        }
 
         await syncData();
         scheduleDailyReset();
     });
 })();
 
-// API Endpoints
+// -------------------- FIXED: Atomic Bulk Update with Temporary Numbers --------------------
 app.post("/api/rules/bulk-update", async (req, res) => {
   const session = await mongoose.startSession();
   
@@ -476,11 +499,27 @@ app.post("/api/rules/bulk-update", async (req, res) => {
       
       console.log(`📝 Starting ATOMIC bulk update for ${rules.length} rules`);
       
-      // Step 1: Temporary negative numbers
+      // Validate each rule has required fields
+      for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
+        if (!rule._id) {
+          throw new Error(`Rule at index ${i} missing _id field`);
+        }
+        if (!rule.RULE_NUMBER || !rule.RULE_TYPE) {
+          throw new Error(`Rule at index ${i} missing required fields`);
+        }
+      }
+      
+      // STEP 1: Temporarily assign negative numbers to avoid conflicts
+      console.log('🔄 Step 1: Assigning temporary negative numbers to avoid conflicts');
       const tempBulkOps = rules.map((rule, index) => ({
         updateOne: {
           filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-          update: { $set: { RULE_NUMBER: -(index + 1000) } },
+          update: { 
+            $set: { 
+              RULE_NUMBER: -(index + 1000) // Use large negative numbers
+            } 
+          },
           upsert: false
         }
       }));
@@ -490,7 +529,8 @@ app.post("/api/rules/bulk-update", async (req, res) => {
         console.log(`✅ Step 1 complete: ${tempResult.modifiedCount} rules assigned temporary numbers`);
       }
       
-      // Step 2: Final rule numbers
+      // STEP 2: Assign final rule numbers (no conflicts now)
+      console.log('🔄 Step 2: Assigning final rule numbers');
       const finalBulkOps = rules.map(rule => ({
         updateOne: {
           filter: { _id: new mongoose.Types.ObjectId(rule._id) },
@@ -521,12 +561,15 @@ app.post("/api/rules/bulk-update", async (req, res) => {
     
     await session.endSession();
     
+    // Update local data structures
+    console.log(`🔄 Refreshing data structures...`);
     await loadAllRules();
     const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
     fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
     
     console.log(`✅ Successfully updated ${req.body.rules.length} rules atomically`);
+    console.log(`📊 Final rules order: ${RULES.map(r => r.RULE_NUMBER).join(', ')}`);
     
     res.json({ 
       success: true, 
@@ -535,6 +578,7 @@ app.post("/api/rules/bulk-update", async (req, res) => {
       totalCount: req.body.rules.length
     });
     
+    // Emit socket event for real-time updates
     io.emit('rulesUpdated', { 
       action: 'bulk_reorder_atomic', 
       count: req.body.rules.length,
@@ -556,6 +600,7 @@ app.post("/api/rules/bulk-update", async (req, res) => {
   }
 });
 
+// -------------------- API Endpoints for Frontend --------------------
 app.get("/api/rules", async (req, res) => {
   try {
     const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
@@ -626,6 +671,8 @@ app.post("/api/rules/update", async (req, res) => {
     await loadAllRules();
 
     res.json({ success: true, message: "Rule updated successfully!" });
+    
+    // Emit socket event
     io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
     
   } catch (err) {
@@ -659,6 +706,8 @@ app.post("/api/variables/update", async (req, res) => {
     fs.writeFileSync(variablesFilePath, JSON.stringify(variablesFromDB.map(v => v.toObject()), null, 2));
 
     res.json({ success: true, message: "Variable updated successfully!" });
+    
+    // Emit socket event
     io.emit('variablesUpdated', { action: type, variableName: variable.name });
     
   } catch (err) {
@@ -667,7 +716,7 @@ app.post("/api/variables/update", async (req, res) => {
   }
 });
 
-// Webhook
+// -------------------- Webhook --------------------
 app.post("/webhook", async (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
@@ -676,7 +725,7 @@ app.post("/webhook", async (req, res) => {
   res.json({ replies: [{ message: replyText }] });
 });
 
-// Stats API
+// -------------------- Stats API --------------------
 app.get("/stats", (req, res) => {
   res.json({
     totalUsers: stats.totalUsers.length,
@@ -687,17 +736,17 @@ app.get("/stats", (req, res) => {
   });
 });
 
-// Frontend
+// -------------------- Frontend --------------------
 app.use(express.static("public"));
 
-// Health Check
+// -------------------- Ping --------------------
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-// Start server
+// -------------------- Start server --------------------
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// Self-ping every 5 mins
+// -------------------- Self-ping every 5 mins (only once at a time) --------------------
 let pinging = false;
 setInterval(async () => {
   if (pinging) return;
