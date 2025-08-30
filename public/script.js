@@ -46,7 +46,96 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // FIXED: Proper Rule Reordering Function with Correct Index Logic
+    // FIXED: Rule Number Validation with Dynamic Max Values
+    function validateRuleNumber(num, isEditing = false) {
+        const maxAllowed = isEditing ? totalRules : totalRules + 1;
+        
+        if (num > maxAllowed) {
+            ruleNumberError.style.display = 'block';
+            if (isEditing) {
+                ruleNumberError.innerText = `In edit mode, rule number cannot be greater than ${totalRules}`;
+            } else {
+                ruleNumberError.innerText = `In add mode, rule number cannot be greater than ${totalRules + 1}`;
+            }
+            return false;
+        } else if (num < 1) {
+            ruleNumberError.style.display = 'block';
+            ruleNumberError.innerText = `Rule number must be at least 1`;
+            return false;
+        }
+        
+        ruleNumberError.style.display = 'none';
+        return true;
+    }
+
+    // FIXED: Dynamic Input Validation Setup
+    function setupRuleNumberInput(isEditing = false) {
+        const maxAllowed = isEditing ? totalRules : totalRules + 1;
+        
+        // Set HTML attributes
+        ruleNumberInput.setAttribute('max', maxAllowed);
+        ruleNumberInput.setAttribute('min', 1);
+        
+        console.log(`🔢 Rule number input configured: min=1, max=${maxAllowed} (${isEditing ? 'Edit' : 'Add'} mode)`);
+        
+        // Remove previous event listeners to avoid duplicates
+        const newInput = ruleNumberInput.cloneNode(true);
+        ruleNumberInput.parentNode.replaceChild(newInput, ruleNumberInput);
+        
+        // Add new validation event listener
+        newInput.addEventListener('input', function(e) {
+            let value = parseInt(e.target.value);
+            
+            if (isNaN(value)) {
+                return;
+            }
+            
+            // Auto-correct out-of-bounds values
+            if (value < 1) {
+                e.target.value = 1;
+                value = 1;
+            } else if (value > maxAllowed) {
+                e.target.value = maxAllowed;
+                value = maxAllowed;
+                
+                if (isEditing) {
+                    showToast(`Maximum rule number in edit mode is ${totalRules}`, 'warning');
+                } else {
+                    showToast(`Maximum rule number in add mode is ${totalRules + 1}`, 'warning');
+                }
+            }
+            
+            // Validate the corrected value
+            validateRuleNumber(value, isEditing);
+        });
+
+        // Also prevent invalid input on keydown
+        newInput.addEventListener('keydown', function(e) {
+            // Allow backspace, delete, tab, escape, enter
+            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
+                // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                (e.keyCode === 65 && e.ctrlKey === true) ||
+                (e.keyCode === 67 && e.ctrlKey === true) ||
+                (e.keyCode === 86 && e.ctrlKey === true) ||
+                (e.keyCode === 88 && e.ctrlKey === true) ||
+                // Allow home, end, left, right
+                (e.keyCode >= 35 && e.keyCode <= 39)) {
+                return;
+            }
+            
+            // Ensure that it is a number and stop the keypress
+            if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                e.preventDefault();
+            }
+        });
+        
+        // Update the global reference
+        window.ruleNumberInput = newInput;
+        
+        return newInput;
+    }
+
+    // Rule Reordering Function
     function reorderRulesArray(rules, oldRuleNumber, newRuleNumber) {
         if (oldRuleNumber === newRuleNumber) return rules;
         
@@ -89,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return finalRules;
     }
 
-    // IMPROVED Bulk Update with Better Error Handling and Logging
+    // Bulk Update Rules API Call
     async function bulkUpdateRules(reorderedRules) {
         try {
             console.log('📡 Sending bulk update for', reorderedRules.length, 'rules');
@@ -131,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Modal Button Management (FIXED)
+    // Modal Button Management
     function configureModalButtons(modalType, mode) {
         let deleteBtn, buttonContainer;
         
@@ -278,7 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const toastBody = toastElement.querySelector('.toast-body');
         
         toastBody.textContent = message;
-        toastElement.classList.remove('success', 'fail');
+        toastElement.classList.remove('success', 'fail', 'warning');
         toastElement.classList.add(type);
         
         const toastInstance = new bootstrap.Toast(toastElement, {
@@ -286,17 +375,6 @@ document.addEventListener("DOMContentLoaded", () => {
             delay: 4000
         });
         toastInstance.show();
-    }
-
-    // Rule Functions
-    function validateRuleNumber(num) {
-        if (num > totalRules + 1) {
-            ruleNumberError.style.display = 'block';
-            ruleNumberError.innerText = `Rule number cannot be greater than ${totalRules + 1}`;
-            return false;
-        }
-        ruleNumberError.style.display = 'none';
-        return true;
     }
 
     function toggleFormFields(ruleType) {
@@ -420,7 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Add Rule Modal
+    // UPDATED: Add Rule Modal with Dynamic Input Validation
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
@@ -429,18 +507,22 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reset form
             if (ruleForm) ruleForm.reset();
             
+            // FIXED: Setup input validation for ADD mode
+            const ruleNumberInput = setupRuleNumberInput(false); // false = Add mode
+            ruleNumberInput.value = totalRules + 1; // Set to next available number
+            
             // Set default values
-            const ruleNumberInput = document.getElementById('ruleNumber');
             const repliesTypeSelect = document.getElementById('repliesType');
             const targetUsersToggle = document.getElementById('targetUsersToggle');
             
-            if (ruleNumberInput) ruleNumberInput.value = totalRules + 1;
             if (repliesTypeSelect) repliesTypeSelect.value = 'RANDOM';
             if (targetUsersToggle) targetUsersToggle.value = 'ALL';
             
             // Reset field visibility
             toggleFormFields('');
             toggleTargetUsersField();
+            
+            console.log(`➕ Opening ADD modal - Rule number range: 1 to ${totalRules + 1}`);
             
             // Show modal
             ruleModal.show();
@@ -456,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Edit Rule Modal
+    // UPDATED: Edit Rule Modal with Dynamic Input Validation  
     function editRule(rule) {
         try {
             if (!rule) {
@@ -469,9 +551,12 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRuleNumber = rule.RULE_NUMBER;
             formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
             
+            // FIXED: Setup input validation for EDIT mode
+            const ruleNumberInput = setupRuleNumberInput(true); // true = Edit mode
+            ruleNumberInput.value = rule.RULE_NUMBER;
+            
             // Populate form fields safely
             const fields = {
-                'ruleNumber': rule.RULE_NUMBER,
                 'ruleName': rule.RULE_NAME || '',
                 'ruleType': rule.RULE_TYPE,
                 'keywords': rule.KEYWORDS,
@@ -505,6 +590,8 @@ document.addEventListener("DOMContentLoaded", () => {
             toggleFormFields(rule.RULE_TYPE);
             toggleTargetUsersField();
             
+            console.log(`✏️ Opening EDIT modal - Rule number range: 1 to ${totalRules}`);
+            
             // Show modal
             ruleModal.show();
             
@@ -519,11 +606,18 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // UPDATED: Save Rule Function with FIXED Reordering Logic
+    // Save Rule Function
     async function saveRule(event) {
         event.preventDefault();
         
         const newRuleNumber = parseInt(document.getElementById('ruleNumber').value);
+        const isEditing = currentRuleNumber !== null;
+        
+        // FIXED: Validate with correct mode
+        if (!validateRuleNumber(newRuleNumber, isEditing)) {
+            return;
+        }
+        
         const ruleData = {
             ruleNumber: newRuleNumber,
             ruleName: document.getElementById('ruleName').value,
@@ -535,11 +629,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 'ALL' : 
                 document.getElementById('targetUsers').value.split(',').map(u => u.trim()).filter(Boolean)
         };
-        
-        // Validation
-        if (!validateRuleNumber(ruleData.ruleNumber)) {
-            return;
-        }
         
         if (!ruleData.ruleType || !ruleData.replyText.trim()) {
             showToast('Please fill in all required fields', 'fail');
@@ -558,7 +647,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (currentRuleNumber !== newRuleNumber) {
                     console.log(`🔄 Rule number changed: ${currentRuleNumber} → ${newRuleNumber}`);
                     
-                    // FIXED: Reorder all rules based on new number with correct logic
+                    // Reorder all rules based on new number with correct logic
                     const reorderedRules = reorderRulesArray(allRules, currentRuleNumber, newRuleNumber);
                     
                     // Update the specific rule data in reordered array
@@ -940,7 +1029,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Form field listeners
     if (ruleTypeSelect) ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
     if (targetUsersToggle) targetUsersToggle.addEventListener('change', toggleTargetUsersField);
-    if (ruleNumberInput) ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
 
     // Setup search after DOM is loaded
     setupSearch();
