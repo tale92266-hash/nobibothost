@@ -46,49 +46,60 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // Rule Reordering Function
-    function reorderRulesArray(rules, oldNumber, newNumber) {
-        if (oldNumber === newNumber) return rules;
+    // FIXED: Proper Rule Reordering Function with Correct Index Logic
+    function reorderRulesArray(rules, oldRuleNumber, newRuleNumber) {
+        if (oldRuleNumber === newRuleNumber) return rules;
         
-        console.log(`Reordering: Rule ${oldNumber} → Rule ${newNumber}`);
+        console.log(`🔄 Reordering: Rule ${oldRuleNumber} → Rule ${newRuleNumber}`);
         
-        // Create deep copy
-        const newRules = rules.map(rule => ({...rule}));
+        // Find actual array indices (not rule numbers)
+        const fromIndex = rules.findIndex(r => r.RULE_NUMBER === oldRuleNumber);
+        const toIndex = newRuleNumber - 1; // Convert to 0-based index
         
-        // Find the rule being moved
-        const movingRule = newRules.find(rule => rule.RULE_NUMBER === oldNumber);
-        if (!movingRule) {
-            console.error('Rule to move not found');
+        if (fromIndex === -1) {
+            console.error('❌ Rule not found:', oldRuleNumber);
             return rules;
         }
         
-        // Remove moving rule
-        const filteredRules = newRules.filter(rule => rule.RULE_NUMBER !== oldNumber);
+        if (toIndex < 0 || toIndex >= rules.length) {
+            console.error('❌ Invalid target position:', newRuleNumber);
+            return rules;
+        }
         
-        // Update moving rule's number
-        movingRule.RULE_NUMBER = newNumber;
+        console.log(`📍 Moving from array index ${fromIndex} to index ${toIndex}`);
         
-        // Insert at correct position
-        filteredRules.splice(newNumber - 1, 0, movingRule);
+        // Create copy and perform the move
+        const newRules = [...rules];
         
-        // Reassign all rule numbers sequentially
-        const reorderedRules = filteredRules.map((rule, index) => ({
+        // Remove element from original position
+        const [movingRule] = newRules.splice(fromIndex, 1);
+        console.log(`📤 Removed rule: ${movingRule.RULE_NAME || 'Unnamed'} (was #${movingRule.RULE_NUMBER})`);
+        
+        // Insert element at new position
+        newRules.splice(toIndex, 0, movingRule);
+        console.log(`📥 Inserted at position ${toIndex}`);
+        
+        // Reassign rule numbers sequentially (this is critical!)
+        const finalRules = newRules.map((rule, index) => ({
             ...rule,
             RULE_NUMBER: index + 1
         }));
         
-        console.log('Rules reordered successfully');
-        return reorderedRules;
+        console.log('✅ New rule order:', finalRules.map(r => `#${r.RULE_NUMBER}: ${r.RULE_NAME || 'Unnamed'}`));
+        return finalRules;
     }
 
-    // IMPROVED Bulk Update Rules API Call with Better Error Handling
+    // IMPROVED Bulk Update with Better Error Handling and Logging
     async function bulkUpdateRules(reorderedRules) {
         try {
-            console.log('Sending bulk update for', reorderedRules.length, 'rules');
-            console.log('Sample rule ', reorderedRules[0]);
+            console.log('📡 Sending bulk update for', reorderedRules.length, 'rules');
+            console.log('📊 Sample rule ', {
+                _id: reorderedRules[0]._id,
+                RULE_NUMBER: reorderedRules[0].RULE_NUMBER,
+                RULE_NAME: reorderedRules[0].RULE_NAME
+            });
             
-            // Try the main bulk update endpoint first
-            let response = await fetch('/api/rules/bulk-update', {
+            const response = await fetch('/api/rules/bulk-update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -98,45 +109,29 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
             });
             
-            let result = await response.json();
+            const result = await response.json();
             
-            console.log('Bulk update response:', result);
-            
-            // If main endpoint fails, try the simple endpoint
-            if (!result.success) {
-                console.warn('Primary bulk update failed, trying simple method:', result.message);
-                showToast('Primary method failed, trying alternative...', 'warning');
-                
-                response = await fetch('/api/rules/bulk-update-simple', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        rules: reorderedRules
-                    })
-                });
-                
-                result = await response.json();
-                console.log('Simple bulk update response:', result);
-            }
+            console.log('📨 Bulk update response:', result);
             
             if (result.success) {
-                console.log('Bulk update successful');
+                console.log('✅ Bulk update successful');
+                if (result.errors && result.errors.length > 0) {
+                    console.warn('⚠️ Some errors occurred:', result.errors);
+                }
                 return true;
             } else {
-                console.error('Bulk update failed:', result.message);
+                console.error('❌ Bulk update failed:', result.message);
                 showToast(result.message || 'Failed to update rules order', 'fail');
                 return false;
             }
         } catch (error) {
-            console.error('Bulk update error:', error);
+            console.error('❌ Network error during bulk update:', error);
             showToast('Network error during bulk update: ' + error.message, 'fail');
             return false;
         }
     }
 
-    // Modal Button Management
+    // Modal Button Management (FIXED)
     function configureModalButtons(modalType, mode) {
         let deleteBtn, buttonContainer;
         
@@ -153,17 +148,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         
-        console.log(`Configuring ${modalType} modal for ${mode} mode`);
+        console.log(`🔧 Configuring ${modalType} modal for ${mode} mode`);
         
         // Handle delete button visibility
         if (mode === 'add') {
             deleteBtn.style.display = 'none';
             deleteBtn.style.visibility = 'hidden';
             deleteBtn.classList.add('d-none');
+            console.log('🚫 Delete button hidden for add mode');
         } else if (mode === 'edit') {
             deleteBtn.style.display = 'inline-flex';
             deleteBtn.style.visibility = 'visible';
             deleteBtn.classList.remove('d-none');
+            console.log('👁️ Delete button shown for edit mode');
         }
         
         // Apply consistent styling to all buttons
@@ -181,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.marginLeft = '0';
         });
         
-        console.log(`${modalType} modal configured successfully for ${mode} mode`);
+        console.log(`✅ ${modalType} modal configured successfully for ${mode} mode`);
     }
 
     // Bottom Navigation Handler
@@ -340,6 +337,8 @@ document.addEventListener("DOMContentLoaded", () => {
             allRules = data;
             totalRules = data.length;
             
+            console.log(`📋 Loaded ${totalRules} rules from server`);
+            
             loadingMessage.style.display = 'none';
             
             if (data.length === 0) {
@@ -465,6 +464,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             
+            console.log('🔧 Editing rule:', rule.RULE_NUMBER, rule.RULE_NAME);
+            
             currentRuleNumber = rule.RULE_NUMBER;
             formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
             
@@ -518,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // UPDATED: Save Rule Function with Reordering
+    // UPDATED: Save Rule Function with FIXED Reordering Logic
     async function saveRule(event) {
         event.preventDefault();
         
@@ -555,14 +556,15 @@ document.addEventListener("DOMContentLoaded", () => {
             if (currentRuleNumber) {
                 // EDIT MODE: Check if rule number changed
                 if (currentRuleNumber !== newRuleNumber) {
-                    console.log(`Rule number changed: ${currentRuleNumber} → ${newRuleNumber}`);
+                    console.log(`🔄 Rule number changed: ${currentRuleNumber} → ${newRuleNumber}`);
                     
-                    // Reorder all rules based on new number
+                    // FIXED: Reorder all rules based on new number with correct logic
                     const reorderedRules = reorderRulesArray(allRules, currentRuleNumber, newRuleNumber);
                     
                     // Update the specific rule data in reordered array
                     const targetRule = reorderedRules.find(r => r.RULE_NUMBER === newRuleNumber);
                     if (targetRule) {
+                        console.log('🎯 Updating target rule data');
                         Object.assign(targetRule, {
                             RULE_NAME: ruleData.ruleName,
                             RULE_TYPE: ruleData.ruleType,
@@ -573,15 +575,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         });
                     }
                     
+                    console.log('📤 Sending bulk update to server...');
+                    
                     // Send bulk update
                     const bulkSuccess = await bulkUpdateRules(reorderedRules);
                     if (bulkSuccess) {
                         showToast(`Rule moved to position ${newRuleNumber} and all rules reordered successfully!`, 'success');
                         allRules = reorderedRules; // Update local array
+                        console.log('✅ Local rules array updated');
                     } else {
                         throw new Error('Bulk update failed');
                     }
                 } else {
+                    console.log('📝 Normal edit without number change');
                     // Normal edit without number change
                     const response = await fetch('/api/rules/update', {
                         method: 'POST',
@@ -604,6 +610,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             } else {
+                console.log('➕ Adding new rule');
                 // ADD MODE: Regular add
                 const response = await fetch('/api/rules/update', {
                     method: 'POST',
@@ -629,7 +636,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchRules(); // Refresh rules list
             
         } catch (error) {
-            console.error('Error saving rule:', error);
+            console.error('❌ Error saving rule:', error);
             showToast(error.message || 'Failed to save rule', 'fail');
         } finally {
             // Restore button
@@ -966,5 +973,5 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize everything
     init();
 
-    console.log('Chatbot Admin Panel loaded successfully! 🤖');
+    console.log('🤖 Chatbot Admin Panel loaded successfully!');
 });
