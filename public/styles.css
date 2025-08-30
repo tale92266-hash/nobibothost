@@ -274,14 +274,21 @@ body {
     font-size: 1.1rem;
 }
 
-/* FIXED - Add New Rule Button Background */
 .btn-primary {
+    background-color: white !important;
+    background-image: none !important;
+    color: var(--primary) !important;
+    border: 2px solid var(--primary) !important;
+    box-shadow: var(--shadow);
+}
+
+.btn-primary:hover {
     background-color: var(--primary) !important;
     background-image: none !important;
-    color: var(--white) !important;
-    box-shadow: var(--shadow);
-    border: none !important;
+    color: white !important;
+    border: 2px solid var(--primary) !important;
 }
+
 
 .btn-primary:hover {
     background-color: var(--primary-dark) !important;
