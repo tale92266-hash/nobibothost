@@ -59,7 +59,6 @@ const Variable = mongoose.model("Variable", variableSchema);
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const variablesFilePath = path.join(__dirname, "data", "variables.json");
-const chatHistoryFilePath = path.join(__dirname, "data", "chat_history.json"); // New file path
 const today = new Date().toLocaleDateString();
 
 let stats;
@@ -233,97 +232,104 @@ function pickNUniqueRandomly(tokens, count) {
   return selectedTokens;
 }
 
-// NEW and IMPROVED recursive variable resolution function
-function resolveVariablesRecursively(text) {
+// Updated resolveVariablesRecursively function
+function resolveVariablesRecursively(text, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
-    const maxIterations = 10; 
+
+    // Use a Map to store placeholders and original variable names
+    const placeholderMap = new Map();
+    let placeholderCounter = 0;
+
+    // First, find all static and other random variables and replace them with placeholders
+    const staticAndRandomRegex = /%(\w+)%/g;
+    result = result.replace(staticAndRandomRegex, (match) => {
+        const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
+        placeholderMap.set(placeholder, match);
+        return placeholder;
+    });
 
     while (iterationCount < maxIterations) {
         let hasVariables = false;
+        let previousResult = result;
 
-        // Combined regex to match all variable types
-        const combinedRegex = /%(?:(\w+)(?:_num_(\d+)_(\d+))?|(?:(rndm_custom)_(\d+)_([^%]+))|(\w+)(?:_(\d+))?)%/g;
-        
-        const newResult = result.replace(combinedRegex, (fullMatch, staticVarName, numMin, numMax, customType, customCount, customTokens, simpleRandomType, simpleRandomLen) => {
+        // STEP 1: Process Custom Random Variables using placeholders
+        const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
+        result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            
+            console.log(`🎲 Processing custom random FIRST: count=${count}`);
+            console.log(`🎲 Raw tokens string: "${tokensString}"`);
+            
+            const tokens = smartSplitTokens(tokensString);
+            
+            if (tokens.length === 0) {
+                console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
+                return '';
+            }
+            
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            let finalResult = selectedTokens.join(' ');
+            
+            console.log(`✅ Custom random result: "${finalResult}"`);
+            
             hasVariables = true;
-            
-            // Check for a static variable (e.g., %name%)
-            if (staticVarName) {
-                const staticVar = VARIABLES.find(v => v.name === staticVarName);
-                if (staticVar) {
-                    return staticVar.value;
-                }
-            }
-            
-            // Check for a custom random variable (e.g., %rndm_custom_1_a,b%)
-            if (customType === 'rndm_custom') {
-                const count = parseInt(customCount, 10);
-                const tokens = smartSplitTokens(customTokens);
-                
-                if (tokens.length === 0) {
-                    console.warn(`⚠️ No valid tokens found in custom random variable: ${fullMatch}`);
-                    return '';
-                }
-                const selectedTokens = pickNUniqueRandomly(tokens, count);
-                return selectedTokens.join(' ');
-            }
-            
-            // Check for a number range random (e.g., %rndm_num_1_10%)
-            if (numMin && numMax) {
-                const min = parseInt(numMin, 10);
-                const max = parseInt(numMax, 10);
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            }
-            
-            // Check for other simple random variables (e.g., %rndm_abc_5%)
-            if (simpleRandomType) {
-                const length = parseInt(simpleRandomLen, 10);
-                return generateRandom(simpleRandomType, length);
-            }
-
-            // Fallback for unresolved matches
-            return fullMatch;
+            return finalResult;
         });
 
-        if (newResult === result) {
-            break; 
+        if (result === previousResult) {
+            break;
         }
 
-        result = newResult;
         iterationCount++;
+    }
+
+    // Finally, resolve the placeholders with a nested resolution loop
+    for (const [placeholder, originalVariable] of placeholderMap.entries()) {
+        const varName = originalVariable.replace(/%/g, '');
+        let varValue = '';
+
+        // 1) Static variable? pick value
+        const staticVar = VARIABLES.find(v => v.name === varName);
+        if (staticVar) {
+            varValue = staticVar.value ?? '';
+        } else {
+            // 2) Other random variables (e.g. %rndm_num_MIN_MAX% or %rndm_lower_LENGTH%)
+            const rndmMatch = originalVariable.match(/%rndm_(\w+)_([^%]+)%/);
+            if (rndmMatch) {
+                const [, type, rawParams] = rndmMatch;
+                if (type === 'num') {
+                    // supports %rndm_num_MIN_MAX%
+                    const [minStr, maxStr] = rawParams.split('_');
+                    const min = Number(minStr);
+                    const max = Number(maxStr);
+                    const lo = Math.min(min, max);
+                    const hi = Math.max(min, max);
+                    varValue = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+                } else {
+                    // supports %rndm_lower_8%, %rndm_upper_6%, %rndm_abc_10%, etc.
+                    const length = parseInt(rawParams, 10);
+                    varValue = generateRandom(type, length);
+                }
+            }
+        }
+
+        // 3) NEW: resolve nested tokens INSIDE the variable's value (e.g. %rndm_custom_...%)
+        if (typeof varValue === 'string' && /%[^%]+%/.test(varValue)) {
+            let nested = varValue;
+            let safety = 0;
+            while (safety++ < maxIterations && /%[^%]+%/.test(nested)) {
+                // Call resolveVariablesRecursively on the nested value
+                nested = resolveVariablesRecursively(nested, maxIterations - safety);
+            }
+            varValue = nested;
+        }
+
+        result = result.split(placeholder).join(String(varValue));
     }
     
     console.log(`✅ Final resolved result completed`);
     return result;
-}
-
-// Function to save chat messages to a file
-async function saveChatMessageToFile(messageData) {
-    try {
-        const dataDir = path.join(__dirname, "data");
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
-        }
-
-        let chatHistory = [];
-        if (fs.existsSync(chatHistoryFilePath)) {
-            const fileData = fs.readFileSync(chatHistoryFilePath, 'utf8');
-            chatHistory = JSON.parse(fileData);
-        }
-
-        chatHistory.push(messageData);
-
-        // Keep only the last 10 messages
-        if (chatHistory.length > 10) {
-            chatHistory = chatHistory.slice(chatHistory.length - 10);
-        }
-
-        fs.writeFileSync(chatHistoryFilePath, JSON.stringify(chatHistory, null, 2));
-        console.log("📝 Chat message saved to history.");
-    } catch (error) {
-        console.error("❌ Failed to save chat message to file:", error);
-    }
 }
 
 async function processMessage(msg, sessionId = "default") {
@@ -423,8 +429,7 @@ async function processMessage(msg, sessionId = "default") {
             { path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
             { path: path.join(dataDir, "welcomed_users.json"), content: [] },
             { path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
-            { path: path.join(dataDir, "variables.json"), content: [] },
-            { path: chatHistoryFilePath, content: [] } // Ensure chat history file exists
+            { path: path.join(dataDir, "variables.json"), content: [] }
         ];
         
         files.forEach(file => {
@@ -639,21 +644,6 @@ app.post("/api/variables/update", async (req, res) => {
   }
 });
 
-// New API endpoint to serve chat history
-app.get("/api/chat-history", (req, res) => {
-    try {
-        if (fs.existsSync(chatHistoryFilePath)) {
-            const fileData = fs.readFileSync(chatHistoryFilePath, 'utf8');
-            res.json(JSON.parse(fileData));
-        } else {
-            res.json([]);
-        }
-    } catch (error) {
-        console.error("❌ Failed to read chat history file:", error);
-        res.status(500).json({ error: "Failed to fetch chat history" });
-    }
-});
-
 app.post("/webhook", async (req, res) => {
     const sessionId = req.body.session_id || "default_session";
     const msg = req.body.query?.message || "";
@@ -661,18 +651,15 @@ app.post("/webhook", async (req, res) => {
 
     const replyText = await processMessage(msg, sessionId);
     
-    // Create message object to save to file
-    const messageData = {
+    // Emit real-time chat message with resolved reply
+    io.emit('newMessage', {
         sessionId: sessionId,
         senderName: senderName,
         userMessage: msg,
         botReply: replyText,
         timestamp: new Date().toISOString()
-    };
-
-    // Save the message to a file instead of emitting via socket.io
-    await saveChatMessageToFile(messageData);
-
+    });
+    
     if (!replyText) return res.json({ replies: [] });
     res.json({ replies: [{ message: replyText }] });
 });
