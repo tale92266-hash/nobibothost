@@ -152,18 +152,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function getUserDisplayName(sessionId) {
-        if (!sessionId || sessionId === 'unknown') return 'Anonymous';
-        
-        // Create a readable name from session ID
-        const shortId = sessionId.substring(sessionId.length - 6).toUpperCase();
-        return `User-${shortId}`;
+        // Updated to show a more user-friendly name
+        const prefix = 'User';
+        const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
+        return `${prefix}-${shortId}`;
     }
 
     function getUserAvatar(sessionId) {
         if (!sessionId || sessionId === 'unknown') return '?';
         
-        // Use first character of session ID
-        return sessionId.charAt(0).toUpperCase();
+        // Use first two letters of a formatted name
+        const name = getUserDisplayName(sessionId);
+        return name.substring(0, 2).toUpperCase();
     }
 
     function formatTime(timestamp) {
