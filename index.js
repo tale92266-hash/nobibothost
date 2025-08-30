@@ -202,6 +202,51 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
+// UPDATED: Smart Token Splitting Function
+function smartSplitTokens(tokensString) {
+  const tokens = [];
+  let current = '';
+  let insideVariable = false;
+  let bracketCount = 0;
+  
+  for (let i = 0; i < tokensString.length; i++) {
+    const char = tokensString[i];
+    
+    // Check for variable start/end %variableName%
+    if (char === '%') {
+      insideVariable = !insideVariable;
+      current += char;
+    }
+    // Check for brackets ( and )
+    else if (char === '(' && !insideVariable) {
+      bracketCount++;
+      current += char;
+    }
+    else if (char === ')' && !insideVariable) {
+      bracketCount--;
+      current += char;
+    }
+    // Split on comma only if we're not inside variables or brackets
+    else if (char === ',' && !insideVariable && bracketCount === 0) {
+      if (current.trim().length > 0) {
+        tokens.push(current.trim());
+      }
+      current = '';
+    }
+    else {
+      current += char;
+    }
+  }
+  
+  // Add the last token
+  if (current.trim().length > 0) {
+    tokens.push(current.trim());
+  }
+  
+  console.log(`🧩 Smart split result: [${tokens.join('] | [')}]`);
+  return tokens;
+}
+
 // UPDATED: Smart N Unique Random Picker Function
 function pickNUniqueRandomly(tokens, count) {
   // If count is more than available tokens, use all available tokens
@@ -225,6 +270,7 @@ function pickNUniqueRandomly(tokens, count) {
     availableTokens.splice(randomIndex, 1); // Remove to avoid duplicates
   }
   
+  console.log(`🎯 Picked ${selectedTokens.length} unique tokens: [${selectedTokens.join('] | [')}]`);
   return selectedTokens;
 }
 
@@ -249,7 +295,7 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       }
     }
 
-    // 2. UPDATED: Smart Random Custom Variables - %rndm_custom_NUMBER_tokens%
+    // 2. FIXED: Smart Random Custom Variables - %rndm_custom_NUMBER_tokens%
     const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
     let customMatch;
     
@@ -258,21 +304,28 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       const count = parseInt(customMatch[1], 10);
       const tokensString = customMatch[2];
       
-      // Split tokens and clean them
-      const tokens = tokensString.split(',').map(token => token.trim()).filter(token => token.length > 0);
+      console.log(`🎲 Processing custom random: count=${count}, tokensString="${tokensString}"`);
       
-      console.log(`🎲 Processing custom random: count=${count}, tokens=[${tokens.join(', ')}]`);
+      // FIXED: Use smart token splitting instead of simple split
+      const tokens = smartSplitTokens(tokensString);
+      
+      console.log(`📝 Extracted ${tokens.length} tokens: [${tokens.join('] | [')}]`);
       
       if (tokens.length === 0) {
         console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
-        // Replace with empty string if no tokens
         result = result.replace(fullMatch, '');
       } else {
         // Pick N unique random tokens
         const selectedTokens = pickNUniqueRandomly(tokens, count);
-        const finalResult = selectedTokens.join(' ');
+        let finalResult;
         
-        console.log(`✅ Selected tokens: [${selectedTokens.join(', ')}] → "${finalResult}"`);
+        if (count === 1) {
+          finalResult = selectedTokens[0] || '';
+        } else {
+          finalResult = selectedTokens.join(' ');
+        }
+        
+        console.log(`✅ Selected ${selectedTokens.length} token(s): "${finalResult}"`);
         
         // Replace the custom random variable with selected tokens
         result = result.replace(fullMatch, finalResult);
