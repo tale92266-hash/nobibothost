@@ -2,9 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
     const addRuleBtn = document.getElementById("addRuleBtn");
-    const settingsBtn = document.getElementById("settingsBtn");
     const ruleModal = new bootstrap.Modal(document.getElementById("ruleModal"));
-    const settingsModal = new bootstrap.Modal(document.getElementById("settingsModal"));
     const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
     const ruleForm = document.getElementById("ruleForm");
     const variableForm = document.getElementById("variableForm");
@@ -24,8 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteVariableBtn = document.getElementById('deleteVariableBtn');
     const variableFormContainer = document.getElementById('variableFormContainer');
     const variablesMenuBtn = document.getElementById('variablesMenuBtn');
-    const variablesMenuBtn2 = document.getElementById('variablesMenuBtn2');
-    const backToSettingsBtn = document.getElementById('backToSettingsBtn');
     const toastLiveExample = document.getElementById('liveToast');
     const toastBody = document.querySelector('#liveToast .toast-body');
     const toast = new bootstrap.Toast(toastLiveExample);
@@ -50,14 +46,54 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // Initialize
-    init();
+    // Bottom Navigation Handler
+    function initBottomNavigation() {
+        const navItems = document.querySelectorAll('.nav-item');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        
+        // Set first tab as active
+        if (navItems.length > 0) {
+            navItems[0].classList.add('active');
+        }
+        
+        navItems.forEach(navItem => {
+            navItem.addEventListener('click', () => {
+                const tabName = navItem.getAttribute('data-tab');
+                
+                // Remove active class from all nav items
+                navItems.forEach(item => item.classList.remove('active'));
+                
+                // Add active class to clicked nav item
+                navItem.classList.add('active');
+                
+                // Hide all tab panes
+                tabPanes.forEach(pane => {
+                    pane.classList.remove('show', 'active');
+                });
+                
+                // Show selected tab pane
+                const targetPane = document.getElementById(`${tabName}-pane`);
+                if (targetPane) {
+                    targetPane.classList.add('show', 'active');
+                }
+                
+                // Load data based on tab
+                if (tabName === 'rules' && allRules.length === 0) {
+                    fetchRules();
+                } else if (tabName === 'settings' && allVariables.length === 0) {
+                    fetchVariables();
+                }
+            });
+        });
+    }
 
+    // Initialize
     async function init() {
         try {
+            initBottomNavigation();
+            await fetchStats();
             await fetchRules();
             await fetchVariables();
-            await fetchStats();
         } catch (error) {
             console.error('Initialization error:', error);
             showToast('Failed to initialize application', 'fail');
@@ -67,16 +103,28 @@ document.addEventListener("DOMContentLoaded", () => {
     // Stats Functions
     function updateStatsDisplay(data) {
         // Update main stats cards
-        document.getElementById('totalUsers').textContent = data.totalUsers || 0;
-        document.getElementById('todayUsers').textContent = data.todayUsers || 0;
-        document.getElementById('totalMsgs').textContent = (data.totalMsgs || 0).toLocaleString();
-        document.getElementById('todayMsgs').textContent = (data.todayMsgs || 0).toLocaleString();
+        const totalUsers = document.getElementById('totalUsers');
+        const todayUsers = document.getElementById('todayUsers');
+        const totalMsgs = document.getElementById('totalMsgs');
+        const todayMsgs = document.getElementById('todayMsgs');
+        
+        if (totalUsers) totalUsers.textContent = data.totalUsers || 0;
+        if (todayUsers) todayUsers.textContent = data.todayUsers || 0;
+        if (totalMsgs) totalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
+        if (todayMsgs) todayMsgs.textContent = (data.todayMsgs || 0).toLocaleString();
         
         // Update header mini stats
         const headerTotalUsers = document.getElementById('headerTotalUsers');
         const headerTotalMsgs = document.getElementById('headerTotalMsgs');
         if (headerTotalUsers) headerTotalUsers.textContent = data.totalUsers || 0;
         if (headerTotalMsgs) headerTotalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
+        
+        // Update last update time
+        const lastUpdate = document.getElementById('lastUpdate');
+        if (lastUpdate) {
+            const now = new Date();
+            lastUpdate.textContent = now.toLocaleTimeString();
+        }
     }
 
     async function fetchStats() {
@@ -153,6 +201,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function fetchRules() {
+        if (!loadingMessage) return;
+        
         loadingMessage.style.display = 'block';
         rulesList.innerHTML = '';
         
@@ -185,6 +235,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function renderRules(rules) {
+        if (!rulesList) return;
+        
         rulesList.innerHTML = '';
         
         rules.forEach((rule, index) => {
@@ -293,7 +345,6 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveRule(event) {
         event.preventDefault();
         
-        const formData = new FormData(ruleForm);
         const ruleData = {
             ruleNumber: parseInt(document.getElementById('ruleNumber').value),
             ruleName: document.getElementById('ruleName').value,
@@ -397,12 +448,16 @@ document.addEventListener("DOMContentLoaded", () => {
             renderVariables(data);
         } catch (error) {
             console.error('Error fetching variables:', error);
-            variablesList.innerHTML = '<div class="alert alert-danger">Failed to load variables.</div>';
+            if (variablesList) {
+                variablesList.innerHTML = '<div class="alert alert-danger">Failed to load variables.</div>';
+            }
             showToast("Failed to fetch variables.", "fail");
         }
     }
 
     function renderVariables(variables) {
+        if (!variablesList) return;
+        
         variablesList.innerHTML = '';
         
         if (variables.length === 0) {
@@ -621,32 +676,20 @@ document.addEventListener("DOMContentLoaded", () => {
     window.clearSearch = clearSearch;
 
     // Event Listeners
-    addRuleBtn?.addEventListener('click', openAddRuleModal);
-    settingsBtn?.addEventListener('click', () => settingsModal.show());
-    variablesMenuBtn?.addEventListener('click', () => {
-        settingsModal.hide();
-        variableModal.show();
-    });
-    variablesMenuBtn2?.addEventListener('click', () => {
-        settingsModal.hide();
-        variableModal.show();
-    });
-    backToSettingsBtn?.addEventListener('click', () => {
-        variableModal.hide();
-        settingsModal.show();
-    });
+    if (addRuleBtn) addRuleBtn.addEventListener('click', openAddRuleModal);
+    if (variablesMenuBtn) variablesMenuBtn.addEventListener('click', () => variableModal.show());
     
     // Form event listeners
-    ruleForm?.addEventListener('submit', saveRule);
-    variableForm?.addEventListener('submit', saveVariable);
-    deleteRuleBtn?.addEventListener('click', deleteRule);
-    deleteVariableBtn?.addEventListener('click', deleteVariable);
-    addVariableBtn?.addEventListener('click', openAddVariableModal);
+    if (ruleForm) ruleForm.addEventListener('submit', saveRule);
+    if (variableForm) variableForm.addEventListener('submit', saveVariable);
+    if (deleteRuleBtn) deleteRuleBtn.addEventListener('click', deleteRule);
+    if (deleteVariableBtn) deleteVariableBtn.addEventListener('click', deleteVariable);
+    if (addVariableBtn) addVariableBtn.addEventListener('click', openAddVariableModal);
     
     // Form field listeners
-    ruleTypeSelect?.addEventListener('change', (e) => toggleFormFields(e.target.value));
-    targetUsersToggle?.addEventListener('change', toggleTargetUsersField);
-    ruleNumberInput?.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
+    if (ruleTypeSelect) ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
+    if (targetUsersToggle) targetUsersToggle.addEventListener('change', toggleTargetUsersField);
+    if (ruleNumberInput) ruleNumberInput.addEventListener('input', (e) => validateRuleNumber(parseInt(e.target.value)));
 
     // Setup search after DOM is loaded
     setupSearch();
@@ -675,6 +718,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Auto-refresh stats every 30 seconds
     setInterval(fetchStats, 30000);
+
+    // Initialize everything
+    init();
 
     console.log('Chatbot Admin Panel loaded successfully! 🤖');
 });
