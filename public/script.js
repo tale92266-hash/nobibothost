@@ -46,64 +46,54 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // BEST APPROACH: Modal Button Management
-    function configureModalButtons(modalType, mode, container = null) {
-        let buttonContainer, deleteBtn, saveBtn, cancelBtn;
+    // FIXED: Better Modal Button Management - Without DOM innerHTML Clearing
+    function configureModalButtons(modalType, mode) {
+        let deleteBtn, buttonContainer;
         
         if (modalType === 'rule') {
-            buttonContainer = document.querySelector('#ruleModal .modal-footer');
             deleteBtn = document.getElementById('deleteRuleBtn');
-            saveBtn = buttonContainer?.querySelector('.btn-primary');
-            cancelBtn = buttonContainer?.querySelector('.btn-secondary');
+            buttonContainer = document.querySelector('#ruleModal .modal-footer');
         } else if (modalType === 'variable') {
-            buttonContainer = container || document.querySelector('.form-actions');
             deleteBtn = document.getElementById('deleteVariableBtn');
-            saveBtn = buttonContainer?.querySelector('.btn-primary');
-            cancelBtn = buttonContainer?.querySelector('.btn-secondary');
+            buttonContainer = document.querySelector('.form-actions');
         }
         
-        if (!buttonContainer || !deleteBtn || !saveBtn || !cancelBtn) {
-            console.error('Modal buttons not found:', modalType);
+        if (!deleteBtn || !buttonContainer) {
+            console.error('Modal elements not found:', modalType);
             return;
         }
         
-        // Clear existing buttons
-        buttonContainer.innerHTML = '';
+        console.log(`Configuring ${modalType} modal for ${mode} mode`);
         
-        // Configure delete button visibility
+        // Handle delete button visibility WITHOUT DOM manipulation
         if (mode === 'add') {
             deleteBtn.style.display = 'none';
+            deleteBtn.style.visibility = 'hidden';
             deleteBtn.classList.add('d-none');
+            console.log('Delete button hidden for add mode');
         } else if (mode === 'edit') {
             deleteBtn.style.display = 'inline-flex';
+            deleteBtn.style.visibility = 'visible';
             deleteBtn.classList.remove('d-none');
+            console.log('Delete button shown for edit mode');
         }
         
-        // Add buttons in correct order: Save, Delete (if edit), Cancel
-        buttonContainer.appendChild(saveBtn);
-        
-        if (mode === 'edit') {
-            buttonContainer.appendChild(deleteBtn);
-        }
-        
-        buttonContainer.appendChild(cancelBtn);
-        
-        // Apply consistent styling
-        [saveBtn, deleteBtn, cancelBtn].forEach(btn => {
-            if (btn) {
-                btn.style.display = (btn === deleteBtn && mode === 'add') ? 'none' : 'inline-flex';
-                btn.style.alignItems = 'center';
-                btn.style.justifyContent = 'center';
-                btn.style.minWidth = '100px';
-                btn.style.minHeight = '38px';
-                btn.style.padding = '0.625rem 1.25rem';
-                btn.style.lineHeight = '1.5';
-                btn.style.whiteSpace = 'nowrap';
-                btn.style.marginLeft = '0';
-            }
+        // Apply consistent styling to all buttons without DOM manipulation
+        const allButtons = buttonContainer.querySelectorAll('.btn');
+        allButtons.forEach(btn => {
+            btn.style.display = btn === deleteBtn && mode === 'add' ? 'none' : 'inline-flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.minWidth = '100px';
+            btn.style.minHeight = '38px';
+            btn.style.padding = '0.625rem 1.25rem';
+            btn.style.lineHeight = '1.5';
+            btn.style.whiteSpace = 'nowrap';
+            btn.style.verticalAlign = 'middle';
+            btn.style.marginLeft = '0';
         });
         
-        console.log(`${modalType} modal configured for ${mode} mode`);
+        console.log(`${modalType} modal configured successfully for ${mode} mode`);
     }
 
     // Bottom Navigation Handler
@@ -353,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED - Add Rule Modal with Best Button Approach
+    // FIXED - Add Rule Modal
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
@@ -378,10 +368,10 @@ document.addEventListener("DOMContentLoaded", () => {
             // Show modal
             ruleModal.show();
             
-            // Configure buttons after modal is shown
+            // Configure buttons - NO DOM MANIPULATION
             setTimeout(() => {
                 configureModalButtons('rule', 'add');
-            }, 150);
+            }, 100);
             
         } catch (error) {
             console.error('Error opening add rule modal:', error);
@@ -389,7 +379,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // FIXED - Edit Rule Modal with Best Button Approach
+    // FIXED - Edit Rule Modal
     function editRule(rule) {
         try {
             if (!rule) {
@@ -439,10 +429,10 @@ document.addEventListener("DOMContentLoaded", () => {
             // Show modal
             ruleModal.show();
             
-            // Configure buttons after modal is shown
+            // Configure buttons - NO DOM MANIPULATION  
             setTimeout(() => {
                 configureModalButtons('rule', 'edit');
-            }, 150);
+            }, 100);
             
         } catch (error) {
             console.error('Error editing rule:', error);
@@ -600,7 +590,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED - Add Variable Modal with Best Button Approach
+    // FIXED - Add Variable Modal
     function openAddVariableModal() {
         currentVariableName = null;
         document.getElementById('variableFormContainer').style.display = 'block';
@@ -608,13 +598,13 @@ document.addEventListener("DOMContentLoaded", () => {
         variableForm.reset();
         document.getElementById('variableName').focus();
         
-        // Configure buttons after form is visible
+        // Configure buttons
         setTimeout(() => {
             configureModalButtons('variable', 'add');
-        }, 150);
+        }, 100);
     }
 
-    // FIXED - Edit Variable Modal with Best Button Approach
+    // FIXED - Edit Variable Modal  
     function editVariable(variable) {
         currentVariableName = variable.name;
         document.getElementById('variableFormContainer').style.display = 'block';
@@ -624,10 +614,10 @@ document.addEventListener("DOMContentLoaded", () => {
         
         document.getElementById('variableName').focus();
         
-        // Configure buttons after form is visible
+        // Configure buttons
         setTimeout(() => {
             configureModalButtons('variable', 'edit');
-        }, 150);
+        }, 100);
     }
 
     async function saveVariable(event) {
