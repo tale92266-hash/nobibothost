@@ -125,7 +125,7 @@ body {
 
 /* Main Content */
 .main-content {
-    padding: 2rem 0 100px 0; /* Added bottom padding for bottom```v */
+    padding: 2rem 0 100px 0;
 }
 
 /* Bottom Navigation */
@@ -251,7 +251,7 @@ body {
     margin-top: 0.25rem;
 }
 
-/* Action Buttons */
+/* Action Buttons - FIXED */
 .action-buttons {
     display: flex;
     gap: 1rem;
@@ -274,16 +274,21 @@ body {
     font-size: 1.1rem;
 }
 
+/* FIXED - Add New Rule Button Background */
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    color: var(--white);
+    background-color: var(--primary) !important;
+    background-image: none !important;
+    color: var(--white) !important;
     box-shadow: var(--shadow);
+    border: none !important;
 }
 
 .btn-primary:hover {
+    background-color: var(--primary-dark) !important;
+    background-image: none !important;
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
-    background: linear-gradient(135deg, var(--primary-dark), #4c51bf);
+    color: var(--white) !important;
 }
 
 .btn-outline-primary {
@@ -725,7 +730,7 @@ body {
     border-color: rgba(102, 126, 234, 0.2);
 }
 
-/* Settings Card Icons - Different Colors and Better Contrast```
+/* Settings Card Icons - Different Colors and Better Contrast */
 .settings-card:nth-child(1) .settings-card-icon {
     background: linear-gradient(135deg, #10b981, #059669); /* Emerald Green for Variables */
 }
@@ -948,7 +953,7 @@ body {
     animation: fadeInUp 0.5s ease-out;
 }
 
-/* Remove top tab navigation styles```
+/* Remove top tab navigation styles */
 .tab-navigation {
     display: none;
 }
