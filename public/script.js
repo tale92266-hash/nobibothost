@@ -37,244 +37,18 @@ document.addEventListener("DOMContentLoaded", () => {
     let allRules = [];
     let allVariables = [];
 
-    // Socket connection removed
-    // const socket = io();
+    // Socket connection for real-time stats
+    const socket = io();
     
-    // socket.on('connect', () => {
-    //     console.log('Connected to server');
-    // });
+    socket.on('connect', () => {
+        console.log('Connected to server');
+    });
 
-    // socket.on('statsUpdate', (data) => {
-    //     updateStatsDisplay(data);
-    // });
+    socket.on('statsUpdate', (data) => {
+        updateStatsDisplay(data);
+    });
 
-    // Chat functionality
-    let chatMessages = [];
-    let maxMessages = 10;
-    let chatPaused = false;
-    const chatMessagesContainer = document.getElementById('chatMessages');
-    const clearChatBtn = document.getElementById('clearChatBtn');
-    const pauseChatBtn = document.getElementById('pauseChatBtn');
-
-    // Socket listeners for chat are removed and replaced with API polling
-    // socket.on('newMessage', (data) => {
-    //     if (!chatPaused) {
-    //         addChatMessage(data);
-    //     }
-    // });
-
-    // Clear chat button
-    if (clearChatBtn) {
-        clearChatBtn.addEventListener('click', () => {
-            clearChat();
-        });
-    }
-
-    // Pause/Resume chat button
-    if (pauseChatBtn) {
-        pauseChatBtn.addEventListener('click', () => {
-            toggleChatPause();
-        });
-    }
-
-    // Add chat tab to navigation
-    addChatNavigation();
-
-    // New function to fetch chat history from the API
-    async function fetchChatHistory() {
-        if (chatPaused) return;
-        try {
-            const response = await fetch('/api/chat-history');
-            const data = await response.json();
-            // Assuming the server returns the messages in the correct order (most recent last)
-            chatMessages = data.reverse(); // Display most recent message first
-            updateChatDisplay();
-        } catch (error) {
-            console.error('❌ Failed to fetch chat history:', error);
-        }
-    }
-
-    function addChatMessage(messageData) {
-        // This function is now redundant as we are fetching history from API
-        // Keeping it for consistency but it's not used in the new flow
-        const { sessionId, userMessage, botReply, timestamp, senderName } = messageData;
-        
-        // Create message object
-        const message = {
-            id: Date.now() + Math.random(),
-            sessionId: sessionId || 'unknown',
-            senderName: senderName || '',
-            userMessage: userMessage || '',
-            botReply: botReply || '',
-            timestamp: timestamp || new Date().toISOString()
-        };
-
-        // Add to messages array
-        chatMessages.unshift(message);
-
-        // Keep only last 10 messages
-        if (chatMessages.length > maxMessages) {
-            chatMessages = chatMessages.slice(0, maxMessages);
-        }
-
-        // Update chat display
-        updateChatDisplay();
-        
-        // Auto scroll to latest message
-        scrollToLatest();
-    }
-
-    function updateChatDisplay() {
-        const chatContainer = document.getElementById('chatMessages');
-        if (!chatContainer) return;
-
-        chatContainer.innerHTML = '';
-
-        chatMessages.forEach((message, index) => {
-            const messageElement = createMessageElement(message, index);
-            chatContainer.appendChild(messageElement);
-        });
-    }
-
-    function createMessageElement(message, index) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'chat-message';
-        messageDiv.style.animationDelay = `${index * 0.1}s`;
-
-        const userName = getUserDisplayName(message.sessionId, message.senderName);
-        const userAvatar = getUserAvatar(userName);
-        const timeDisplay = formatTime(message.timestamp);
-
-        // Replace newlines with <br> for proper display
-        const botReplyWithBreaks = message.botReply.replace(/\n/g, '<br>');
-
-        messageDiv.innerHTML = `
-            <div class="message-header">
-                <div class="user-info">
-                    <div class="user-avatar">${userAvatar}</div>
-                    <span class="user-name">${userName}</span>
-                </div>
-                <span class="message-time">${timeDisplay}</span>
-            </div>
-            <div class="message-content">
-                ${message.userMessage ? `
-                    <div class="user-message">
-                        <strong>User:</strong> ${escapeHtml(message.userMessage)}
-                    </div>
-                ` : ''}
-                ${message.botReply ? `
-                    <div class="bot-reply">
-                        <strong>🤖 Bot:</strong> ${botReplyWithBreaks}
-                    </div>
-                ` : ''}
-            </div>
-        `;
-
-        return messageDiv;
-    }
-
-    function getUserDisplayName(sessionId, senderName) {
-        if (senderName && senderName.trim() !== '') {
-            return senderName;
-        }
-        // Updated to show a more user-friendly name
-        const prefix = 'User';
-        const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
-        return `${prefix}-${shortId}`;
-    }
-
-    function getUserAvatar(userName) {
-        if (!userName || userName === 'unknown') return '?';
-        
-        // Use first two letters of a formatted name
-        return userName.substring(0, 2).toUpperCase();
-    }
-
-    function formatTime(timestamp) {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) return 'अभी';
-        if (diffMins < 60) return `${diffMins} मिनट पहले`;
-        if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घंटे पहले`;
-        
-        return date.toLocaleTimeString('hi-IN', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    function scrollToLatest() {
-        const chatContainer = document.getElementById('chatMessages');
-        if (!chatContainer) return;
-
-        chatContainer.classList.add('scrolling');
-        chatContainer.scrollTop = 0; // Scroll to top since we're adding new messages at top
-        
-        setTimeout(() => {
-            chatContainer.classList.remove('scrolling');
-        }, 500);
-    }
-
-    function clearChat() {
-        chatMessages = [];
-        updateChatDisplay();
-        showToast('Chat cleared successfully', 'success');
-    }
-
-    function toggleChatPause() {
-        const pauseBtn = document.getElementById('pauseChatBtn');
-        if (!pauseBtn) return;
-
-        chatPaused = !chatPaused;
-        
-        if (chatPaused) {
-            pauseBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
-            pauseBtn.classList.remove('btn-outline-secondary');
-            pauseBtn.classList.add('btn-outline-warning');
-            showToast('Chat paused', 'warning');
-        } else {
-            pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
-            pauseBtn.classList.remove('btn-outline-warning');
-            pauseBtn.classList.add('btn-outline-secondary');
-            showToast('Chat resumed', 'success');
-        }
-    }
-
-    function addChatNavigation() {
-        // Add chat tab to bottom navigation if it doesn't exist
-        const navContainer = document.querySelector('.bottom-navigation');
-        if (!navContainer) return;
-
-        const chatNavExists = document.querySelector('[data-tab="chat"]');
-        if (chatNavExists) return;
-
-        const chatNavItem = document.createElement('div');
-        chatNavItem.className = 'nav-item';
-        chatNavItem.setAttribute('data-tab', 'chat');
-        chatNavItem.innerHTML = `
-            <i class="fas fa-comments"></i>
-            <span>Chat</span>
-        `;
-
-        // Insert before settings tab
-        const settingsTab = document.querySelector('[data-tab="settings"]');
-        if (settingsTab) {
-            navContainer.insertBefore(chatNavItem, settingsTab);
-        } else {
-            navContainer.appendChild(chatNavItem);
-        }
-    }
-
-    // FIXED: Rule Number Validation - NO DOM MANIPULATION
+    // Rule Number Validation
     function validateRuleNumber(num, isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
         
@@ -296,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
-    // FIXED: Safe Input Setup WITHOUT DOM Recreation
+    // Safe Input Setup
     function setupRuleNumberValidation(isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
         
@@ -538,9 +312,6 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetchRules();
                 } else if (tabName === 'settings' && allVariables.length === 0) {
                     fetchVariables();
-                } else if (tabName === 'chat') {
-                    // Start fetching chat history when chat tab is opened
-                    fetchChatHistory();
                 }
             });
         });
@@ -733,7 +504,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED: Add Rule Modal with Safe Input Validation
+    // Add Rule Modal with Safe Input Validation
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
@@ -742,7 +513,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reset form
             if (ruleForm) ruleForm.reset();
             
-            // FIXED: Setup input validation for ADD mode WITHOUT DOM recreation
+            // Setup input validation for ADD mode
             setupRuleNumberValidation(false); // false = Add mode
             ruleNumberInput.value = totalRules + 1; // Set to next available number
             
@@ -773,7 +544,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // FIXED: Edit Rule Modal with Safe Input Validation  
+    // Edit Rule Modal with Safe Input Validation  
     function editRule(rule) {
         try {
             if (!rule) {
@@ -786,7 +557,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRuleNumber = rule.RULE_NUMBER;
             formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
             
-            // FIXED: Setup input validation for EDIT mode WITHOUT DOM recreation
+            // Setup input validation for EDIT mode
             setupRuleNumberValidation(true); // true = Edit mode
             ruleNumberInput.value = rule.RULE_NUMBER;
             
@@ -848,7 +619,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const newRuleNumber = parseInt(document.getElementById('ruleNumber').value);
         const isEditing = currentRuleNumber !== null;
         
-        // FIXED: Validate with correct mode
+        // Validate with correct mode
         if (!validateRuleNumber(newRuleNumber, isEditing)) {
             return;
         }
@@ -1292,9 +1063,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Auto-refresh stats every 30 seconds
     setInterval(fetchStats, 30000);
-    
-    // Start polling for chat history
-    setInterval(fetchChatHistory, 5000);
 
     // Initialize everything
     init();
