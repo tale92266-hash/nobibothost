@@ -16,7 +16,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
-// -------------------- MongoDB Connection & Models --------------------
+// MongoDB Connection & Models [Same as before]
 mongoose.connect(MONGODB_URI)
   .then(() => console.log("⚡ MongoDB connected successfully!"))
   .catch(err => console.error("❌ MongoDB connection error:", err));
@@ -53,7 +53,7 @@ const variableSchema = new mongoose.Schema({
 });
 const Variable = mongoose.model("Variable", variableSchema);
 
-// -------------------- Persistent Stats --------------------
+// Persistent Stats & Variables
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
 const variablesFilePath = path.join(__dirname, "data", "variables.json");
@@ -64,7 +64,7 @@ let welcomedUsers;
 let RULES = [];
 let VARIABLES = [];
 
-// -------------------- Rules Functions --------------------
+// [Same helper functions as before - saveStats, loadAllRules, etc.]
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
@@ -75,10 +75,8 @@ async function loadAllVariables() {
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
-// Data Sync Function
 const syncData = async () => {
   try {
-    // Restore Stats from MongoDB
     stats = await Stats.findOne();
     if (!stats) {
         stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
@@ -86,19 +84,14 @@ const syncData = async () => {
     fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
     console.log("⚡ Stats restored from MongoDB.");
 
-    // Restore Welcomed Users from MongoDB
     const dbWelcomedUsers = await User.find({}, 'sessionId');
     welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
     fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
     console.log("⚡ Welcomed users restored from MongoDB.");
 
-    // Restore Rules from MongoDB
     await loadAllRules();
-
-    // Restore Variables from MongoDB
     await loadAllVariables();
 
-    // Check if a new day has started on server restart
     if (stats.lastResetDate !== today) {
         stats.todayUsers = [];
         stats.todayMsgs = 0;
@@ -109,13 +102,11 @@ const syncData = async () => {
     }
 
     emitStats();
-
   } catch (err) {
     console.error("❌ Data sync error:", err);
   }
 };
 
-// -------------------- Helpers --------------------
 function saveStats() {
   fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
@@ -128,7 +119,6 @@ function saveVariables() {
   fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
-// Daily reset at midnight
 const resetDailyStats = async () => {
   stats.todayUsers = [];
   stats.todayMsgs = 0;
@@ -146,7 +136,6 @@ const scheduleDailyReset = () => {
   const timeUntilMidnight = midnight.getTime() - now.getTime();
   setTimeout(() => {
     resetDailyStats();
-    // Schedule for the next day
     setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
   }, timeUntilMidnight);
 };
@@ -163,7 +152,7 @@ function emitStats() {
   });
 }
 
-// Random variable generation logic
+// Random generation logic [Same as before]
 const charSets = {
   lower: 'abcdefghijklmnopqrstuvwxyz',
   upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
@@ -202,7 +191,7 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
-// FIXED: Proper % Tracking Smart Token Splitting Function
+// COMPLETELY FIXED: Proper % Tracking and Token Splitting
 function smartSplitTokens(tokensString) {
   const tokens = [];
   let current = '';
@@ -219,7 +208,7 @@ function smartSplitTokens(tokensString) {
       console.log(`📍 Found % at position ${i}, percentCount: ${percentCount}`);
     }
     else if (char === ',' && percentCount % 2 === 0) {
-      // Split on comma only if we have even number of % (i.e., all variables are closed)
+      // Split on comma only if we have even number of % (all variables closed)
       if (current.trim().length > 0) {
         tokens.push(current.trim());
         console.log(`✂️ Split token: "${current.trim()}"`);
@@ -238,24 +227,24 @@ function smartSplitTokens(tokensString) {
   }
   
   console.log(`🎯 Total tokens found: ${tokens.length}`);
-  console.log(`📝 Tokens: [${tokens.join('] | [')}]`);
+  console.log(`📝 All tokens: [${tokens.join('] | [')}]`);
   
   return tokens;
 }
 
-// UPDATED: Smart N Unique Random Picker Function
 function pickNUniqueRandomly(tokens, count) {
-  // If count is more than available tokens, use all available tokens
   const actualCount = Math.min(count, tokens.length);
   
   if (actualCount === 0) return [];
-  if (actualCount === 1) return [pick(tokens)];
+  if (actualCount === 1) {
+    const selected = pick(tokens);
+    console.log(`🎯 Single token picked: "${selected}"`);
+    return [selected];
+  }
   
-  // Create a copy to avoid modifying original array
   const availableTokens = [...tokens];
   const selectedTokens = [];
   
-  // Pick unique tokens
   for (let i = 0; i < actualCount; i++) {
     if (availableTokens.length === 0) break;
     
@@ -263,14 +252,14 @@ function pickNUniqueRandomly(tokens, count) {
     const selectedToken = availableTokens[randomIndex];
     
     selectedTokens.push(selectedToken);
-    availableTokens.splice(randomIndex, 1); // Remove to avoid duplicates
+    availableTokens.splice(randomIndex, 1);
   }
   
-  console.log(`🎯 Picked ${selectedTokens.length} unique tokens: [${selectedTokens.join('] | [')}]`);
+  console.log(`🎯 Picked ${selectedTokens.length} tokens: [${selectedTokens.join('] | [')}]`);
   return selectedTokens;
 }
 
-// UPDATED: Enhanced Variable Resolution with Smart Random Custom Support
+// FIXED: Enhanced Variable Resolution with SINGLE-PASS Processing
 function resolveVariablesRecursively(text, maxIterations = 10) {
   let result = text;
   let iterationCount = 0;
@@ -291,75 +280,62 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       }
     }
 
-    // 2. FIXED: Smart Random Custom Variables with Proper % Tracking
+    // 2. FIXED: Process Custom Random Variables with Single Replace
     const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
-    let customMatch;
     
-    while ((customMatch = customRandomRegex.exec(result)) !== null) {
-      const fullMatch = customMatch[0];
-      const count = parseInt(customMatch[1], 10);
-      const tokensString = customMatch[2];
+    // Use replace instead of while loop to avoid multiple matches
+    result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
+      const count = parseInt(countStr, 10);
       
       console.log(`🎲 Processing custom random: count=${count}, tokensString="${tokensString}"`);
       
       // FIXED: Use smart token splitting with proper % tracking
       const tokens = smartSplitTokens(tokensString);
       
-      console.log(`📝 Extracted ${tokens.length} tokens from custom random`);
-      
       if (tokens.length === 0) {
         console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
-        result = result.replace(fullMatch, '');
+        return '';
+      }
+      
+      // Pick N unique random tokens
+      const selectedTokens = pickNUniqueRandomly(tokens, count);
+      let finalResult;
+      
+      if (count === 1) {
+        finalResult = selectedTokens[0] || '';
       } else {
-        // Pick N unique random tokens
-        const selectedTokens = pickNUniqueRandomly(tokens, count);
-        let finalResult;
-        
-        if (count === 1) {
-          finalResult = selectedTokens[0] || '';
-        } else {
-          finalResult = selectedTokens.join(' ');
-        }
-        
-        console.log(`✅ Selected ${selectedTokens.length} token(s): "${finalResult}"`);
-        
-        // Replace the custom random variable with selected tokens
-        result = result.replace(fullMatch, finalResult);
+        finalResult = selectedTokens.join(' ');
+      }
+      
+      console.log(`✅ Final selected result: "${finalResult}"`);
+      
+      hasVariables = true;
+      return finalResult;
+    });
+
+    // 3. Handle other random variables
+    const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
+    
+    result = result.replace(otherRandomRegex, (match, type, param1, param2) => {
+      if (type === 'custom') {
+        return match; // Skip custom (already handled)
+      }
+      
+      let value;
+      
+      if (type === 'num') {
+        const [min, max] = param1.split('_').map(Number);
+        value = Math.floor(Math.random() * (max - min + 1)) + min;
+        console.log(`🎲 Random number generated: ${value} (${min}-${max})`);
+      } else {
+        const length = parseInt(param1);
+        value = generateRandom(type, length);
+        console.log(`🎲 Random ${type} generated: "${value}" (length: ${length})`);
       }
       
       hasVariables = true;
-    }
-    
-    // Reset regex lastIndex to ensure proper matching in next iteration
-    customRandomRegex.lastIndex = 0;
-
-    // 3. Handle other random variables (existing logic)
-    const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
-    const otherRandomMatches = result.match(otherRandomRegex);
-
-    if (otherRandomMatches) {
-      result = result.replace(otherRandomRegex, (match, type, param1, param2) => {
-        // Skip custom random variables (already handled above)
-        if (type === 'custom') {
-          return match;
-        }
-        
-        let value;
-        
-        if (type === 'num') {
-          const [min, max] = param1.split('_').map(Number);
-          value = Math.floor(Math.random() * (max - min + 1)) + min;
-          console.log(`🎲 Random number generated: ${value} (${min}-${max})`);
-        } else {
-          const length = parseInt(param1);
-          value = generateRandom(type, length);
-          console.log(`🎲 Random ${type} generated: "${value}" (length: ${length})`);
-        }
-        
-        hasVariables = true;
-        return value;
-      });
-    }
+      return value;
+    });
     
     // If no changes were made, break the loop
     if (result === previousResult) {
@@ -376,7 +352,7 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
 async function processMessage(msg, sessionId = "default") {
   msg = msg.toLowerCase();
 
-  // -------------------- Update Stats --------------------
+  // Update Stats
   if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
   if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
   stats.totalMsgs++;
@@ -388,7 +364,7 @@ async function processMessage(msg, sessionId = "default") {
   saveStats();
   emitStats();
 
-  // -------------------- Match Rules --------------------
+  // Match Rules
   let reply = null;
 
   for (let rule of RULES) {
@@ -437,9 +413,8 @@ async function processMessage(msg, sessionId = "default") {
 
     if (match) {
       let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-      // Logic to limit replies to 20 for 'ALL' type
       if (rule.REPLIES_TYPE === "ALL") {
-        replies = replies.slice(0, 20); // Limit to first 20 replies
+        replies = replies.slice(0, 20);
         reply = replies.join(" ");
       } else if (rule.REPLIES_TYPE === "ONE") {
         reply = replies[0];
@@ -450,7 +425,7 @@ async function processMessage(msg, sessionId = "default") {
     }
   }
 
-  // Enhanced Variable Processing with Recursive Support
+  // Enhanced Variable Processing
   if (reply) {
     console.log(`🔧 Processing reply: "${reply}"`);
     reply = resolveVariablesRecursively(reply);
@@ -459,9 +434,10 @@ async function processMessage(msg, sessionId = "default") {
   return reply || null;
 }
 
-// -------------------- Initial Load --------------------
+// [Rest of the Express API routes remain the same as before]
+
+// Initial Load
 (async () => {
-    // Wait for MongoDB connection before syncing data and starting server
     await mongoose.connection.once('open', async () => {
         const dataDir = path.join(__dirname, "data");
         const funrulesPath = path.join(dataDir, "funrules.json");
@@ -473,28 +449,20 @@ async function processMessage(msg, sessionId = "default") {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        if (!fs.existsSync(statsPath)) {
-            fs.writeFileSync(statsPath, JSON.stringify({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today }, null, 2));
-        }
-
-        if (!fs.existsSync(welcomedPath)) {
-            fs.writeFileSync(welcomedPath, JSON.stringify([], null, 2));
-        }
-
-        if (!fs.existsSync(funrulesPath)) {
-            fs.writeFileSync(funrulesPath, JSON.stringify({ rules: [] }, null, 2));
-        }
-
-        if (!fs.existsSync(variablesPath)) {
-            fs.writeFileSync(variablesPath, JSON.stringify([], null, 2));
-        }
+        [statsPath, welcomedPath, funrulesPath, variablesPath].forEach(filePath => {
+            if (!fs.existsSync(filePath)) {
+                const defaultContent = filePath.includes('stats') ? { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } :
+                                      filePath.includes('rules') ? { rules: [] } : [];
+                fs.writeFileSync(filePath, JSON.stringify(defaultContent, null, 2));
+            }
+        });
 
         await syncData();
         scheduleDailyReset();
     });
 })();
 
-// -------------------- FIXED: Atomic Bulk Update with Temporary Numbers --------------------
+// API Endpoints
 app.post("/api/rules/bulk-update", async (req, res) => {
   const session = await mongoose.startSession();
   
@@ -508,16 +476,11 @@ app.post("/api/rules/bulk-update", async (req, res) => {
       
       console.log(`📝 Starting ATOMIC bulk update for ${rules.length} rules`);
       
-      // STEP 1: Temporarily assign negative numbers to avoid conflicts
-      console.log('🔄 Step 1: Assigning temporary negative numbers to avoid conflicts');
+      // Step 1: Temporary negative numbers
       const tempBulkOps = rules.map((rule, index) => ({
         updateOne: {
           filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-          update: { 
-            $set: { 
-              RULE_NUMBER: -(index + 1000) // Use large negative numbers
-            } 
-          },
+          update: { $set: { RULE_NUMBER: -(index + 1000) } },
           upsert: false
         }
       }));
@@ -527,8 +490,7 @@ app.post("/api/rules/bulk-update", async (req, res) => {
         console.log(`✅ Step 1 complete: ${tempResult.modifiedCount} rules assigned temporary numbers`);
       }
       
-      // STEP 2: Assign final rule numbers (no conflicts now)
-      console.log('🔄 Step 2: Assigning final rule numbers');
+      // Step 2: Final rule numbers
       const finalBulkOps = rules.map(rule => ({
         updateOne: {
           filter: { _id: new mongoose.Types.ObjectId(rule._id) },
@@ -559,15 +521,12 @@ app.post("/api/rules/bulk-update", async (req, res) => {
     
     await session.endSession();
     
-    // Update local data structures
-    console.log(`🔄 Refreshing data structures...`);
     await loadAllRules();
     const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
     fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
     
     console.log(`✅ Successfully updated ${req.body.rules.length} rules atomically`);
-    console.log(`📊 Final rules order: ${RULES.map(r => r.RULE_NUMBER).join(', ')}`);
     
     res.json({ 
       success: true, 
@@ -576,7 +535,6 @@ app.post("/api/rules/bulk-update", async (req, res) => {
       totalCount: req.body.rules.length
     });
     
-    // Emit socket event for real-time updates
     io.emit('rulesUpdated', { 
       action: 'bulk_reorder_atomic', 
       count: req.body.rules.length,
@@ -598,7 +556,6 @@ app.post("/api/rules/bulk-update", async (req, res) => {
   }
 });
 
-// -------------------- API Endpoints for Frontend --------------------
 app.get("/api/rules", async (req, res) => {
   try {
     const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
@@ -669,8 +626,6 @@ app.post("/api/rules/update", async (req, res) => {
     await loadAllRules();
 
     res.json({ success: true, message: "Rule updated successfully!" });
-    
-    // Emit socket event
     io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
     
   } catch (err) {
@@ -704,8 +659,6 @@ app.post("/api/variables/update", async (req, res) => {
     fs.writeFileSync(variablesFilePath, JSON.stringify(variablesFromDB.map(v => v.toObject()), null, 2));
 
     res.json({ success: true, message: "Variable updated successfully!" });
-    
-    // Emit socket event
     io.emit('variablesUpdated', { action: type, variableName: variable.name });
     
   } catch (err) {
@@ -714,7 +667,7 @@ app.post("/api/variables/update", async (req, res) => {
   }
 });
 
-// -------------------- Webhook --------------------
+// Webhook
 app.post("/webhook", async (req, res) => {
   const sessionId = req.body.session_id || "default_session";
   const msg = req.body.query?.message || "";
@@ -723,7 +676,7 @@ app.post("/webhook", async (req, res) => {
   res.json({ replies: [{ message: replyText }] });
 });
 
-// -------------------- Stats API --------------------
+// Stats API
 app.get("/stats", (req, res) => {
   res.json({
     totalUsers: stats.totalUsers.length,
@@ -734,17 +687,17 @@ app.get("/stats", (req, res) => {
   });
 });
 
-// -------------------- Frontend --------------------
+// Frontend
 app.use(express.static("public"));
 
-// -------------------- Ping --------------------
+// Health Check
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-// -------------------- Start server --------------------
+// Start server
 server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// -------------------- Self-ping every 5 mins (only once at a time) --------------------
+// Self-ping every 5 mins
 let pinging = false;
 setInterval(async () => {
   if (pinging) return;
