@@ -13,6 +13,9 @@ const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, { cors: { origin: "*" } });
 
+// LIVE MESSAGES STORAGE - Keep last 10 messages
+let liveMessages = [];
+
 // MongoDB Connection & Models
 mongoose.connect(MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
@@ -146,6 +149,30 @@ totalMsgs: stats.totalMsgs,
 todayUsers: stats.todayUsers.length,
 todayMsgs: stats.todayMsgs,
 nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
+});
+}
+
+// ADD MESSAGE TO LIVE FEED FUNCTION
+function addToLiveFeed(sessionId, message, reply) {
+const timestamp = new Date().toLocaleTimeString();
+const newMessage = {
+id: Date.now(),
+sessionId: sessionId,
+message: message,
+reply: reply,
+timestamp: timestamp
+};
+
+// Add to beginning of array and keep only last 10
+liveMessages.unshift(newMessage);
+if (liveMessages.length > 10) {
+liveMessages = liveMessages.slice(0, 10);
+}
+
+// Emit to all connected clients
+io.emit("newLiveMessage", {
+messages: liveMessages,
+latest: newMessage
 });
 }
 
@@ -287,29 +314,21 @@ return result;
 }
 
 async function processMessage(msg, sessionId = "default") {
-console.log(`🔄 PROCESSING MESSAGE START - Session: ${sessionId}, Message: "${msg}"`);
-
 const originalMsg = msg;
 msg = msg.toLowerCase();
-console.log(`🔄 Message converted to lowercase: "${msg}"`);
 
 // Update Stats
-console.log(`📊 Updating stats for session: ${sessionId}`);
 if (!stats.totalUsers.includes(sessionId)) {
 stats.totalUsers.push(sessionId);
-console.log(`➕ New user added: ${sessionId}`);
 }
 if (!stats.todayUsers.includes(sessionId)) {
 stats.todayUsers.push(sessionId);
-console.log(`➕ Today's new user: ${sessionId}`);
 }
 stats.totalMsgs++;
 stats.todayMsgs++;
-console.log(`📈 Stats updated - Total: ${stats.totalMsgs}, Today: ${stats.todayMsgs}`);
 
 if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) {
 stats.nobiPapaHideMeUsers.push(sessionId);
-console.log(`🙈 User hidden: ${sessionId}`);
 }
 
 const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
@@ -318,28 +337,21 @@ saveStats();
 emitStats();
 
 // Match Rules
-console.log(`🔍 Checking ${RULES.length} rules for matches`);
 let reply = null;
 
 for (let rule of RULES) {
-console.log(`🔍 Checking Rule #${rule.RULE_NUMBER}: ${rule.RULE_NAME || 'Unnamed'}`);
-console.log(`📋 Rule Type: ${rule.RULE_TYPE}, Keywords: ${rule.KEYWORDS}`);
-
 let userMatch = false;
 const targetUsers = rule.TARGET_USERS || "ALL";
 
 if (rule.RULE_TYPE === "IGNORED") {
 if (Array.isArray(targetUsers) && !targetUsers.includes(sessionId)) {
 userMatch = true;
-console.log(`✅ IGNORED rule matched for user: ${sessionId}`);
 }
 } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(sessionId))) {
 userMatch = true;
-console.log(`✅ User permission matched: ${sessionId}`);
 }
 
 if (!userMatch) {
-console.log(`❌ User permission not matched for Rule #${rule.RULE_NUMBER}`);
 continue;
 }
 
@@ -352,34 +364,25 @@ match = true;
 welcomedUsers.push(sessionId);
 saveWelcomedUsers();
 await User.create({ sessionId });
-console.log(`🎉 WELCOME rule matched for new user: ${sessionId}`);
-} else {
-console.log(`⏭️ User already welcomed: ${sessionId}`);
 }
 } else if (rule.RULE_TYPE === "DEFAULT") {
 match = true;
-console.log(`📝 DEFAULT rule matched`);
 } else {
 for (let pattern of patterns) {
-console.log(`🔍 Testing pattern: "${pattern}" against message: "${msg}"`);
-
 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) {
 match = true;
-console.log(`✅ EXACT match found: "${pattern}" === "${msg}"`);
 } else if (rule.RULE_TYPE === "PATTERN") {
 let regexStr = pattern.replace(/\*/g, ".*");
 if (new RegExp(`^${regexStr}$`, "i").test(msg)) {
 match = true;
-console.log(`✅ PATTERN match found: regex "${regexStr}" matched "${msg}"`);
 }
 } else if (rule.RULE_TYPE === "EXPERT") {
 try {
 if (new RegExp(pattern, "i").test(msg)) {
 match = true;
-console.log(`✅ EXPERT regex match found: "${pattern}" matched "${msg}"`);
 }
 } catch (error) {
-console.log(`❌ Invalid EXPERT regex: "${pattern}"`);
+// Invalid regex
 }
 }
 
@@ -388,35 +391,28 @@ if (match) break;
 }
 
 if (match) {
-console.log(`🎯 RULE MATCHED! Rule #${rule.RULE_NUMBER}: ${rule.RULE_NAME || 'Unnamed'}`);
 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-console.log(`📝 Available replies: ${replies.length}`);
 
 if (rule.REPLIES_TYPE === "ALL") {
 replies = replies.slice(0, 20);
 reply = replies.join(" ");
-console.log(`📝 Using ALL replies (${replies.length})`);
 } else if (rule.REPLIES_TYPE === "ONE") {
 reply = replies[0];
-console.log(`📝 Using FIRST reply: "${reply}"`);
 } else {
 reply = pick(replies);
-console.log(`📝 Using RANDOM reply: "${reply}"`);
 }
 break;
-} else {
-console.log(`❌ No match for Rule #${rule.RULE_NUMBER}`);
 }
 }
 
-// Process reply with variables (REMOVED DETAILED VARIABLE LOGS)
+// Process reply with variables
 if (reply) {
 reply = resolveVariablesRecursively(reply);
-} else {
-console.log(`❌ No matching rule found for message: "${originalMsg}"`);
 }
 
-console.log(`🔄 PROCESSING MESSAGE END - Final Reply: ${reply || 'null'}`);
+// ADD TO LIVE FEED
+addToLiveFeed(sessionId, originalMsg, reply || "No reply");
+
 return reply || null;
 }
 
@@ -432,36 +428,16 @@ body += chunk.toString();
 req.on('end', async () => {
 try {
 const parsedBody = JSON.parse(body);
-console.log("📨 INCOMING WEBHOOK REQUEST:", JSON.stringify(parsedBody, null, 2));
-console.log("🕐 Request Timestamp:", new Date().toISOString());
-
 const sessionId = parsedBody.session_id || "default_session";
 const msg = parsedBody.query?.message || "";
-
-console.log("🔑 Session ID:", sessionId);
-console.log("💬 Raw Message:", msg);
-console.log("📏 Message Length:", msg.length);
 
 const replyText = await processMessage(msg, sessionId);
 
 if (!replyText) {
-console.log("❌ NO REPLY GENERATED");
-const emptyResponse = { replies: [] };
-console.log("📤 SENDING EMPTY RESPONSE:", JSON.stringify(emptyResponse, null, 2));
-console.log("🕐 Response Timestamp:", new Date().toISOString());
-console.log("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-return res.json(emptyResponse);
+return res.json({ replies: [] });
 }
 
-console.log("✅ REPLY GENERATED:", replyText);
-console.log("📏 Reply Length:", replyText.length);
-
-const responsePayload = { replies: [{ message: replyText }] };
-console.log("📤 SENDING RESPONSE:", JSON.stringify(responsePayload, null, 2));
-console.log("🕐 Response Timestamp:", new Date().toISOString());
-console.log("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-
-res.json(responsePayload);
+res.json({ replies: [{ message: replyText }] });
 
 } catch (error) {
 console.error("❌ JSON Parse Error:", error);
@@ -469,13 +445,32 @@ res.status(400).json({ error: "Invalid JSON" });
 }
 });
 } else {
-console.log("❌ Content-Type is not application/json");
 res.status(400).json({ error: "Content-Type must be application/json" });
 }
 });
 
 // EXPRESS JSON MIDDLEWARE - MOVED AFTER webhook route
 app.use(express.json({ limit: "1mb" }));
+
+// GET LIVE MESSAGES ENDPOINT
+app.get("/api/live-messages", (req, res) => {
+res.json({ messages: liveMessages });
+});
+
+// SOCKET.IO CONNECTION
+io.on('connection', (socket) => {
+console.log('🔌 New client connected:', socket.id);
+
+// Send current live messages to new client
+socket.emit('newLiveMessage', {
+messages: liveMessages,
+latest: null
+});
+
+socket.on('disconnect', () => {
+console.log('🔌 Client disconnected:', socket.id);
+});
+});
 
 // Initial Load
 (async () => {
@@ -503,7 +498,7 @@ scheduleDailyReset();
 });
 })();
 
-// Bulk Update Rules API Call with \n conversion
+// ALL OTHER ROUTES (same as before)
 app.post("/api/rules/bulk-update", async (req, res) => {
 const session = await mongoose.startSession();
 try {
@@ -728,4 +723,4 @@ console.log("🔁 Self-ping sent!");
 console.log("❌ Ping failed:", err.message);
 }
 pinging = false;
-}, 5 * 60 * 60 * 1000);
+}, 5 * 60 * 1000);
