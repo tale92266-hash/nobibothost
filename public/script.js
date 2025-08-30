@@ -37,16 +37,16 @@ document.addEventListener("DOMContentLoaded", () => {
     let allRules = [];
     let allVariables = [];
 
-    // Socket connection for real-time stats
-    const socket = io();
+    // Socket connection removed
+    // const socket = io();
     
-    socket.on('connect', () => {
-        console.log('Connected to server');
-    });
+    // socket.on('connect', () => {
+    //     console.log('Connected to server');
+    // });
 
-    socket.on('statsUpdate', (data) => {
-        updateStatsDisplay(data);
-    });
+    // socket.on('statsUpdate', (data) => {
+    //     updateStatsDisplay(data);
+    // });
 
     // Chat functionality
     let chatMessages = [];
@@ -56,12 +56,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const clearChatBtn = document.getElementById('clearChatBtn');
     const pauseChatBtn = document.getElementById('pauseChatBtn');
 
-    // Socket listeners for chat
-    socket.on('newMessage', (data) => {
-        if (!chatPaused) {
-            addChatMessage(data);
-        }
-    });
+    // Socket listeners for chat are removed and replaced with API polling
+    // socket.on('newMessage', (data) => {
+    //     if (!chatPaused) {
+    //         addChatMessage(data);
+    //     }
+    // });
 
     // Clear chat button
     if (clearChatBtn) {
@@ -80,7 +80,23 @@ document.addEventListener("DOMContentLoaded", () => {
     // Add chat tab to navigation
     addChatNavigation();
 
+    // New function to fetch chat history from the API
+    async function fetchChatHistory() {
+        if (chatPaused) return;
+        try {
+            const response = await fetch('/api/chat-history');
+            const data = await response.json();
+            // Assuming the server returns the messages in the correct order (most recent last)
+            chatMessages = data.reverse(); // Display most recent message first
+            updateChatDisplay();
+        } catch (error) {
+            console.error('❌ Failed to fetch chat history:', error);
+        }
+    }
+
     function addChatMessage(messageData) {
+        // This function is now redundant as we are fetching history from API
+        // Keeping it for consistency but it's not used in the new flow
         const { sessionId, userMessage, botReply, timestamp, senderName } = messageData;
         
         // Create message object
@@ -522,6 +538,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetchRules();
                 } else if (tabName === 'settings' && allVariables.length === 0) {
                     fetchVariables();
+                } else if (tabName === 'chat') {
+                    // Start fetching chat history when chat tab is opened
+                    fetchChatHistory();
                 }
             });
         });
@@ -1273,6 +1292,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Auto-refresh stats every 30 seconds
     setInterval(fetchStats, 30000);
+    
+    // Start polling for chat history
+    setInterval(fetchChatHistory, 5000);
 
     // Initialize everything
     init();
