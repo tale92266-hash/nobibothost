@@ -81,12 +81,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return reorderedRules;
     }
 
-    // Bulk Update Rules API Call
+    // IMPROVED Bulk Update Rules API Call with Better Error Handling
     async function bulkUpdateRules(reorderedRules) {
         try {
             console.log('Sending bulk update for', reorderedRules.length, 'rules');
+            console.log('Sample rule ', reorderedRules[0]);
             
-            const response = await fetch('/api/rules/bulk-update', {
+            // Try the main bulk update endpoint first
+            let response = await fetch('/api/rules/bulk-update', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -96,7 +98,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
             });
             
-            const result = await response.json();
+            let result = await response.json();
+            
+            console.log('Bulk update response:', result);
+            
+            // If main endpoint fails, try the simple endpoint
+            if (!result.success) {
+                console.warn('Primary bulk update failed, trying simple method:', result.message);
+                showToast('Primary method failed, trying alternative...', 'warning');
+                
+                response = await fetch('/api/rules/bulk-update-simple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rules: reorderedRules
+                    })
+                });
+                
+                result = await response.json();
+                console.log('Simple bulk update response:', result);
+            }
             
             if (result.success) {
                 console.log('Bulk update successful');
@@ -108,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error('Bulk update error:', error);
-            showToast('Failed to update rules order', 'fail');
+            showToast('Network error during bulk update: ' + error.message, 'fail');
             return false;
         }
     }
