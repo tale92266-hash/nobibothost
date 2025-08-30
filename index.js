@@ -1,4 +1,4 @@
-// file: nobibothost-main (2).zip/nobibothost-main/index.js
+// file: nobibothost-main (1).zip/nobibothost-main/index.js
 
 require("dotenv").config();
 const express = require("express");
@@ -284,48 +284,32 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
         iterationCount++;
     }
 
-    // Finally, resolve the placeholders with a nested resolution loop
+    // Finally, resolve the placeholders
     for (const [placeholder, originalVariable] of placeholderMap.entries()) {
         const varName = originalVariable.replace(/%/g, '');
         let varValue = '';
-
-        // 1) Static variable? pick value
+        
+        // Find the actual value for the original variable name
         const staticVar = VARIABLES.find(v => v.name === varName);
         if (staticVar) {
-            varValue = staticVar.value ?? '';
+            varValue = staticVar.value;
         } else {
-            // 2) Other random variables (e.g. %rndm_num_MIN_MAX% or %rndm_lower_LENGTH%)
-            const rndmMatch = originalVariable.match(/%rndm_(\w+)_([^%]+)%/);
-            if (rndmMatch) {
-                const [, type, rawParams] = rndmMatch;
+            // Check for other random variables here, since they were also replaced by placeholders
+            const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
+            const match = originalVariable.match(otherRandomRegex);
+            if (match) {
+                const [fullMatch, type, param1, param2] = match;
                 if (type === 'num') {
-                    // supports %rndm_num_MIN_MAX%
-                    const [minStr, maxStr] = rawParams.split('_');
-                    const min = Number(minStr);
-                    const max = Number(maxStr);
-                    const lo = Math.min(min, max);
-                    const hi = Math.max(min, max);
-                    varValue = Math.floor(Math.random() * (hi - lo + 1)) + lo;
+                    const [min, max] = param1.split('_').map(Number);
+                    varValue = Math.floor(Math.random() * (max - min + 1)) + min;
                 } else {
-                    // supports %rndm_lower_8%, %rndm_upper_6%, %rndm_abc_10%, etc.
-                    const length = parseInt(rawParams, 10);
+                    const length = parseInt(param1);
                     varValue = generateRandom(type, length);
                 }
             }
         }
-
-        // 3) NEW: resolve nested tokens INSIDE the variable's value (e.g. %rndm_custom_...%)
-        if (typeof varValue === 'string' && /%[^%]+%/.test(varValue)) {
-            let nested = varValue;
-            let safety = 0;
-            while (safety++ < maxIterations && /%[^%]+%/.test(nested)) {
-                // Call resolveVariablesRecursively on the nested value
-                nested = resolveVariablesRecursively(nested, maxIterations - safety);
-            }
-            varValue = nested;
-        }
-
-        result = result.split(placeholder).join(String(varValue));
+        
+        result = result.split(placeholder).join(varValue);
     }
     
     console.log(`✅ Final resolved result completed`);
