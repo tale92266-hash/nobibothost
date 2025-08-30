@@ -237,32 +237,35 @@ function pickNUniqueRandomly(tokens, count) {
 function resolveVariablesRecursively(text) {
     let result = text;
     let iterationCount = 0;
-    const maxIterations = 10; // To prevent infinite loops with self-referencing variables
+    const maxIterations = 10;
 
-    // Loop to handle nested variables
+    // Loop until no more variables can be resolved
     while (iterationCount < maxIterations) {
         let hasVariables = false;
-
-        // Regular expression to match all types of variables: static, simple random, and custom random
-        const allVariablesRegex = /%(\w+)(?:_([^%]+))?(?:_([^%]+))?%/g;
-
-        // Replace all variables in one pass
-        const newResult = result.replace(allVariablesRegex, (fullMatch, type, param1, param2) => {
+        
+        // Regex to capture all variable types correctly
+        const variableRegex = /%(?:(\w+)(?:_num_(\d+)_(\d+))?|(?:(rndm_custom)_(\d+)_([^%]+))|(\w+)(?:_(\d+))?)%/g;
+        
+        const newResult = result.replace(variableRegex, (fullMatch, name, numMin, numMax, customType, customCount, customTokens, simpleType, simpleLen) => {
             hasVariables = true;
             
-            // Check for simple static variables first
-            const staticVar = VARIABLES.find(v => v.name === type);
-            if (staticVar) {
-                return staticVar.value;
+            // Handle static variable first (e.g., %name%)
+            if (name) {
+                const staticVar = VARIABLES.find(v => v.name === name);
+                return staticVar ? staticVar.value : fullMatch;
             }
-
-            // Check for custom random variables
-            if (type === 'rndm_custom') {
-                const count = parseInt(param1, 10);
-                const tokensString = param2;
-                
-                console.log(`🎲 Processing custom random variable: ${fullMatch}`);
-                const tokens = smartSplitTokens(tokensString);
+            
+            // Handle simple number random (e.g., %rndm_num_1_10%)
+            if (numMin && numMax) {
+                const min = parseInt(numMin, 10);
+                const max = parseInt(numMax, 10);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+            
+            // Handle custom random (e.g., %rndm_custom_1_a,b,c%)
+            if (customType === 'rndm_custom') {
+                const count = parseInt(customCount, 10);
+                const tokens = smartSplitTokens(customTokens);
                 
                 if (tokens.length === 0) {
                     console.warn(`⚠️ No valid tokens found in custom random variable: ${fullMatch}`);
@@ -272,23 +275,17 @@ function resolveVariablesRecursively(text) {
                 return selectedTokens.join(' ');
             }
             
-            // Check for other simple random variables
-            if (type === 'rndm') {
-                if (param1 === 'num') {
-                    const [min, max] = param2.split('_').map(Number);
-                    return Math.floor(Math.random() * (max - min + 1)) + min;
-                } else {
-                    const length = parseInt(param1);
-                    return generateRandom(param1, length);
-                }
+            // Handle other simple randoms (e.g., %rndm_abc_5%)
+            if (simpleType) {
+                const length = parseInt(simpleLen, 10);
+                return generateRandom(simpleType, length);
             }
 
             // Fallback for unresolved variables
             return fullMatch;
         });
 
-        // If no variables were replaced, break the loop
-        if (!hasVariables) {
+        if (newResult === result) {
             break;
         }
 
