@@ -202,7 +202,33 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
-// Enhanced Variable Resolution with Nesting Support
+// UPDATED: Smart N Unique Random Picker Function
+function pickNUniqueRandomly(tokens, count) {
+  // If count is more than available tokens, use all available tokens
+  const actualCount = Math.min(count, tokens.length);
+  
+  if (actualCount === 0) return [];
+  if (actualCount === 1) return [pick(tokens)];
+  
+  // Create a copy to avoid modifying original array
+  const availableTokens = [...tokens];
+  const selectedTokens = [];
+  
+  // Pick unique tokens
+  for (let i = 0; i < actualCount; i++) {
+    if (availableTokens.length === 0) break;
+    
+    const randomIndex = Math.floor(Math.random() * availableTokens.length);
+    const selectedToken = availableTokens[randomIndex];
+    
+    selectedTokens.push(selectedToken);
+    availableTokens.splice(randomIndex, 1); // Remove to avoid duplicates
+  }
+  
+  return selectedTokens;
+}
+
+// UPDATED: Enhanced Variable Resolution with Smart Random Custom Support
 function resolveVariablesRecursively(text, maxIterations = 10) {
   let result = text;
   let iterationCount = 0;
@@ -223,21 +249,55 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       }
     }
 
-    // 2. Then replace random variables
-    const randomVarRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
-    const randomMatches = result.match(randomVarRegex);
+    // 2. UPDATED: Smart Random Custom Variables - %rndm_custom_NUMBER_tokens%
+    const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
+    let customMatch;
+    
+    while ((customMatch = customRandomRegex.exec(result)) !== null) {
+      const fullMatch = customMatch[0];
+      const count = parseInt(customMatch[1], 10);
+      const tokensString = customMatch[2];
+      
+      // Split tokens and clean them
+      const tokens = tokensString.split(',').map(token => token.trim()).filter(token => token.length > 0);
+      
+      console.log(`🎲 Processing custom random: count=${count}, tokens=[${tokens.join(', ')}]`);
+      
+      if (tokens.length === 0) {
+        console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
+        // Replace with empty string if no tokens
+        result = result.replace(fullMatch, '');
+      } else {
+        // Pick N unique random tokens
+        const selectedTokens = pickNUniqueRandomly(tokens, count);
+        const finalResult = selectedTokens.join(' ');
+        
+        console.log(`✅ Selected tokens: [${selectedTokens.join(', ')}] → "${finalResult}"`);
+        
+        // Replace the custom random variable with selected tokens
+        result = result.replace(fullMatch, finalResult);
+      }
+      
+      hasVariables = true;
+    }
+    
+    // Reset regex lastIndex to ensure proper matching in next iteration
+    customRandomRegex.lastIndex = 0;
 
-    if (randomMatches) {
-      result = result.replace(randomVarRegex, (match, type, param1, param2) => {
+    // 3. Handle other random variables (existing logic)
+    const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
+    const otherRandomMatches = result.match(otherRandomRegex);
+
+    if (otherRandomMatches) {
+      result = result.replace(otherRandomRegex, (match, type, param1, param2) => {
+        // Skip custom random variables (already handled above)
+        if (type === 'custom') {
+          return match;
+        }
+        
         let value;
         
-        if (type === 'custom') {
-          // Handle custom random with comma-separated values
-          const tokens = param2 ? param2.split(',') : [param1];
-          const cleanTokens = tokens.map(token => token.trim());
-          value = pick(cleanTokens);
-          console.log(`🎲 Random custom picked "${value}" from [${cleanTokens.join(', ')}]`);
-        } else if (type === 'num') {
+        if (type === 'num') {
           const [min, max] = param1.split('_').map(Number);
           value = Math.floor(Math.random() * (max - min + 1)) + min;
           console.log(`🎲 Random number generated: ${value} (${min}-${max})`);
