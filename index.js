@@ -13,8 +13,6 @@ const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, { cors: { origin: "*" } });
 
-app.use(express.json({ limit: "1mb" }));
-
 // MongoDB Connection & Models
 mongoose.connect(MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
@@ -422,6 +420,63 @@ console.log(`🔄 PROCESSING MESSAGE END - Final Reply: ${reply || 'null'}`);
 return reply || null;
 }
 
+// WEBHOOK ROUTE - MOVED BEFORE express.json() middleware
+app.post("/webhook", async (req, res) => {
+if (req.is('application/json')) {
+let body = '';
+    
+req.on('data', chunk => {
+body += chunk.toString();
+});
+    
+req.on('end', async () => {
+try {
+const parsedBody = JSON.parse(body);
+console.log("📨 INCOMING WEBHOOK REQUEST:", JSON.stringify(parsedBody, null, 2));
+console.log("🕐 Request Timestamp:", new Date().toISOString());
+
+const sessionId = parsedBody.session_id || "default_session";
+const msg = parsedBody.query?.message || "";
+
+console.log("🔑 Session ID:", sessionId);
+console.log("💬 Raw Message:", msg);
+console.log("📏 Message Length:", msg.length);
+
+const replyText = await processMessage(msg, sessionId);
+
+if (!replyText) {
+console.log("❌ NO REPLY GENERATED");
+const emptyResponse = { replies: [] };
+console.log("📤 SENDING EMPTY RESPONSE:", JSON.stringify(emptyResponse, null, 2));
+console.log("🕐 Response Timestamp:", new Date().toISOString());
+console.log("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+return res.json(emptyResponse);
+}
+
+console.log("✅ REPLY GENERATED:", replyText);
+console.log("📏 Reply Length:", replyText.length);
+
+const responsePayload = { replies: [{ message: replyText }] };
+console.log("📤 SENDING RESPONSE:", JSON.stringify(responsePayload, null, 2));
+console.log("🕐 Response Timestamp:", new Date().toISOString());
+console.log("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+
+res.json(responsePayload);
+
+} catch (error) {
+console.error("❌ JSON Parse Error:", error);
+res.status(400).json({ error: "Invalid JSON" });
+}
+});
+} else {
+console.log("❌ Content-Type is not application/json");
+res.status(400).json({ error: "Content-Type must be application/json" });
+}
+});
+
+// EXPRESS JSON MIDDLEWARE - MOVED AFTER webhook route
+app.use(express.json({ limit: "1mb" }));
+
 // Initial Load
 (async () => {
 await mongoose.connection.once('open', async () => {
@@ -644,40 +699,6 @@ res.status(500).json({ success: false, message: "Server error" });
 }
 });
 
-// UPDATED WEBHOOK WITH DETAILED LOGGING
-app.post("/webhook", async (req, res) => {
-console.log("📨 INCOMING WEBHOOK REQUEST:", JSON.stringify(req.body, null, 2));
-console.log("🕐 Request Timestamp:", new Date().toISOString());
-
-const sessionId = req.body.session_id || "default_session";
-const msg = req.body.query?.message || "";
-
-console.log("🔑 Session ID:", sessionId);
-console.log("💬 Raw Message:", msg);
-console.log("📏 Message Length:", msg.length);
-
-const replyText = await processMessage(msg, sessionId);
-
-if (!replyText) {
-console.log("❌ NO REPLY GENERATED");
-const emptyResponse = { replies: [] };
-console.log("📤 SENDING EMPTY RESPONSE:", JSON.stringify(emptyResponse, null, 2));
-console.log("🕐 Response Timestamp:", new Date().toISOString());
-console.log("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-return res.json(emptyResponse);
-}
-
-console.log("✅ REPLY GENERATED:", replyText);
-console.log("📏 Reply Length:", replyText.length);
-
-const responsePayload = { replies: [{ message: replyText }] };
-console.log("📤 SENDING RESPONSE:", JSON.stringify(responsePayload, null, 2));
-console.log("🕐 Response Timestamp:", new Date().toISOString());
-console.log("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-
-res.json(responsePayload);
-});
-
 app.get("/stats", (req, res) => {
 res.json({
 totalUsers: stats.totalUsers.length,
@@ -707,4 +728,4 @@ console.log("🔁 Self-ping sent!");
 console.log("❌ Ping failed:", err.message);
 }
 pinging = false;
-}, 5 * 60 * 1000);
+}, 5 * 60 * 60 * 1000);
