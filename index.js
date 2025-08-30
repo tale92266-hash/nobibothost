@@ -634,7 +634,7 @@ app.post("/webhook", async (req, res) => {
     
     const replyText = await processMessage(msg, sessionId);
     
-    // Emit real-time chat message
+    // Emit real-time chat message with resolved reply
     io.emit('newMessage', {
         sessionId: sessionId,
         userMessage: msg,
