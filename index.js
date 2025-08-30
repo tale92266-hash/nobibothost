@@ -233,36 +233,30 @@ function pickNUniqueRandomly(tokens, count) {
   return selectedTokens;
 }
 
-// Updated and fixed resolveVariablesRecursively function
+// NEW and IMPROVED recursive variable resolution function
 function resolveVariablesRecursively(text) {
     let result = text;
     let iterationCount = 0;
-    const maxIterations = 10;
+    const maxIterations = 10; 
 
-    // Loop until no more variables can be resolved
     while (iterationCount < maxIterations) {
         let hasVariables = false;
+
+        // Combined regex to match all variable types
+        const combinedRegex = /%(?:(\w+)(?:_num_(\d+)_(\d+))?|(?:(rndm_custom)_(\d+)_([^%]+))|(\w+)(?:_(\d+))?)%/g;
         
-        // Regex to capture all variable types correctly
-        const variableRegex = /%(?:(\w+)(?:_num_(\d+)_(\d+))?|(?:(rndm_custom)_(\d+)_([^%]+))|(\w+)(?:_(\d+))?)%/g;
-        
-        const newResult = result.replace(variableRegex, (fullMatch, name, numMin, numMax, customType, customCount, customTokens, simpleType, simpleLen) => {
+        const newResult = result.replace(combinedRegex, (fullMatch, staticVarName, numMin, numMax, customType, customCount, customTokens, simpleRandomType, simpleRandomLen) => {
             hasVariables = true;
             
-            // Handle static variable first (e.g., %name%)
-            if (name) {
-                const staticVar = VARIABLES.find(v => v.name === name);
-                return staticVar ? staticVar.value : fullMatch;
+            // Check for a static variable (e.g., %name%)
+            if (staticVarName) {
+                const staticVar = VARIABLES.find(v => v.name === staticVarName);
+                if (staticVar) {
+                    return staticVar.value;
+                }
             }
             
-            // Handle simple number random (e.g., %rndm_num_1_10%)
-            if (numMin && numMax) {
-                const min = parseInt(numMin, 10);
-                const max = parseInt(numMax, 10);
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            }
-            
-            // Handle custom random (e.g., %rndm_custom_1_a,b,c%)
+            // Check for a custom random variable (e.g., %rndm_custom_1_a,b%)
             if (customType === 'rndm_custom') {
                 const count = parseInt(customCount, 10);
                 const tokens = smartSplitTokens(customTokens);
@@ -275,18 +269,25 @@ function resolveVariablesRecursively(text) {
                 return selectedTokens.join(' ');
             }
             
-            // Handle other simple randoms (e.g., %rndm_abc_5%)
-            if (simpleType) {
-                const length = parseInt(simpleLen, 10);
-                return generateRandom(simpleType, length);
+            // Check for a number range random (e.g., %rndm_num_1_10%)
+            if (numMin && numMax) {
+                const min = parseInt(numMin, 10);
+                const max = parseInt(numMax, 10);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+            
+            // Check for other simple random variables (e.g., %rndm_abc_5%)
+            if (simpleRandomType) {
+                const length = parseInt(simpleRandomLen, 10);
+                return generateRandom(simpleRandomType, length);
             }
 
-            // Fallback for unresolved variables
+            // Fallback for unresolved matches
             return fullMatch;
         });
 
         if (newResult === result) {
-            break;
+            break; 
         }
 
         result = newResult;
