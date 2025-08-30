@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -42,74 +42,162 @@
     <!-- Main Content -->
     <main class="main-content">
         <div class="container-fluid">
-            <!-- Dashboard Stats -->
-            <div class="stats-grid" id="statsGrid">
-                <div class="stat-card stat-primary">
-                    <div class="stat-icon">
-                        <i class="fas fa-users-gear"></i>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="totalUsers">0</div>
-                        <div class="stat-label">Total Users</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-success">
-                    <div class="stat-icon">
-                        <i class="fas fa-user-plus"></i>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="todayUsers">0</div>
-                        <div class="stat-label">Today's Users</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-info">
-                    <div class="stat-icon">
-                        <i class="fas fa-comments"></i>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="totalMsgs">0</div>
-                        <div class="stat-label">Total Messages</div>
-                    </div>
-                </div>
-                <div class="stat-card stat-warning">
-                    <div class="stat-icon">
-                        <i class="fas fa-message"></i>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value" id="todayMsgs">0</div>
-                        <div class="stat-label">Today's Messages</div>
-                    </div>
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <div class="nav nav-tabs" id="mainTabs" role="tablist">
+                    <button class="nav-link active" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats-pane" type="button" role="tab">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules-pane" type="button" role="tab">
+                        <i class="fas fa-list-check"></i>
+                        <span>Rules Management</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="action-buttons">
-                <button class="btn btn-primary btn-lg" id="addRuleBtn">
-                    <i class="fas fa-plus-circle"></i>
-                    Add New Rule
-                </button>
-                <button class="btn btn-outline-primary btn-lg" id="variablesMenuBtn">
-                    <i class="fas fa-code"></i>
-                    Manage Variables
-                </button>
-            </div>
+            <!-- Tab Content -->
+            <div class="tab-content" id="mainTabContent">
+                <!-- Stats Tab -->
+                <div class="tab-pane fade show active" id="stats-pane" role="tabpanel">
+                    <div class="tab-content-wrapper">
+                        <!-- Dashboard Stats -->
+                        <div class="stats-grid" id="statsGrid">
+                            <div class="stat-card stat-primary">
+                                <div class="stat-icon">
+                                    <i class="fas fa-users-gear"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="totalUsers">0</div>
+                                    <div class="stat-label">Total Users</div>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-success">
+                                <div class="stat-icon">
+                                    <i class="fas fa-user-plus"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="todayUsers">0</div>
+                                    <div class="stat-label">Today's Users</div>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-info">
+                                <div class="stat-icon">
+                                    <i class="fas fa-comments"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="totalMsgs">0</div>
+                                    <div class="stat-label">Total Messages</div>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-warning">
+                                <div class="stat-icon">
+                                    <i class="fas fa-message"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <div class="stat-value" id="todayMsgs">0</div>
+                                    <div class="stat-label">Today's Messages</div>
+                                </div>
+                            </div>
+                        </div>
 
-            <!-- Rules Section -->
-            <div class="content-section">
-                <div class="section-header">
-                    <h2><i class="fas fa-list-check"></i> Rules Management</h2>
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="searchRules" placeholder="Search rules...">
+                        <!-- Additional Stats Section -->
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <div class="info-card-header">
+                                        <i class="fas fa-clock"></i>
+                                        <h5>Recent Activity</h5>
+                                    </div>
+                                    <div class="info-card-body">
+                                        <div class="activity-item">
+                                            <div class="activity-dot stat-success"></div>
+                                            <div class="activity-content">
+                                                <p>System started successfully</p>
+                                                <small class="text-muted">Just now</small>
+                                            </div>
+                                        </div>
+                                        <div class="activity-item">
+                                            <div class="activity-dot stat-info"></div>
+                                            <div class="activity-content">
+                                                <p>Rules loaded from database</p>
+                                                <small class="text-muted">Few seconds ago</small>
+                                            </div>
+                                        </div>
+                                        <div class="activity-item">
+                                            <div class="activity-dot stat-warning"></div>
+                                            <div class="activity-content">
+                                                <p>Variables synchronized</p>
+                                                <small class="text-muted">1 minute ago</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <div class="info-card-header">
+                                        <i class="fas fa-info-circle"></i>
+                                        <h5>System Status</h5>
+                                    </div>
+                                    <div class="info-card-body">
+                                        <div class="status-item">
+                                            <span class="status-label">Database</span>
+                                            <span class="status-badge status-online">Online</span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="status-label">WebSocket</span>
+                                            <span class="status-badge status-online">Connected</span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="status-label">Rules Engine</span>
+                                            <span class="status-badge status-online">Active</span>
+                                        </div>
+                                        <div class="status-item">
+                                            <span class="status-label">Last Update</span>
+                                            <span class="text-muted" id="lastUpdate">Just now</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div id="loadingMessage" class="loading-state">
-                    <div class="spinner"></div>
-                    <p>Loading rules...</p>
+
+                <!-- Rules Tab -->
+                <div class="tab-pane fade" id="rules-pane" role="tabpanel">
+                    <div class="tab-content-wrapper">
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <button class="btn btn-primary btn-lg" id="addRuleBtn">
+                                <i class="fas fa-plus-circle"></i>
+                                Add New Rule
+                            </button>
+                            <button class="btn btn-outline-primary btn-lg" id="variablesMenuBtn">
+                                <i class="fas fa-code"></i>
+                                Manage Variables
+                            </button>
+                        </div>
+
+                        <!-- Rules Section -->
+                        <div class="content-section">
+                            <div class="section-header">
+                                <h2><i class="fas fa-list-check"></i> All Rules</h2>
+                                <div class="search-box">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" id="searchRules" placeholder="Search rules...">
+                                </div>
+                            </div>
+                            
+                            <div id="loadingMessage" class="loading-state">
+                                <div class="spinner"></div>
+                                <p>Loading rules...</p>
+                            </div>
+                            
+                            <div id="rulesList" class="rules-list"></div>
+                        </div>
+                    </div>
                 </div>
-                
-                <div id="rulesList" class="rules-list"></div>
             </div>
         </div>
     </main>
