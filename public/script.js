@@ -46,7 +46,74 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // FIXED: Better Modal Button Management - Without DOM innerHTML Clearing
+    // NEW: Rule Reordering Function
+    function reorderRulesArray(rules, oldNumber, newNumber) {
+        if (oldNumber === newNumber) return rules;
+        
+        console.log(`Reordering: Rule ${oldNumber} → Rule ${newNumber}`);
+        
+        // Create a deep copy to avoid mutating original
+        const newRules = rules.map(rule => ({...rule}));
+        
+        // Find the rule being moved
+        const movingRule = newRules.find(rule => rule.RULE_NUMBER === oldNumber);
+        if (!movingRule) {
+            console.error('Rule to move not found');
+            return rules;
+        }
+        
+        // Remove moving rule from array
+        const filteredRules = newRules.filter(rule => rule.RULE_NUMBER !== oldNumber);
+        
+        // Update moving rule's number
+        movingRule.RULE_NUMBER = newNumber;
+        
+        // Insert moving rule at correct position (newNumber - 1 for 0-based index)
+        filteredRules.splice(newNumber - 1, 0, movingRule);
+        
+        // Reassign all rule numbers to maintain sequence
+        const reorderedRules = filteredRules.map((rule, index) => ({
+            ...rule,
+            RULE_NUMBER: index + 1
+        }));
+        
+        console.log('Rules reordered successfully');
+        return reorderedRules;
+    }
+
+    // NEW: Bulk Update Rules API Call
+    async function bulkUpdateRules(reorderedRules) {
+        try {
+            console.log('Sending bulk update for', reorderedRules.length, 'rules');
+            
+            const response = await fetch('/api/rules/bulk-update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    rules: reorderedRules
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log('Bulk update successful');
+                return true;
+            } else {
+                console.error('Bulk update failed:', result.message);
+                showToast(result.message || 'Failed to update rules order', 'fail');
+                return false;
+            }
+        } catch (error) {
+            console.error('Bulk update error:', error);
+            showToast('Failed to update rules order', 'fail');
+            return false;
+        }
+    }
+
+    // Modal Button Management
     function configureModalButtons(modalType, mode) {
         let deleteBtn, buttonContainer;
         
@@ -70,15 +137,13 @@ document.addEventListener("DOMContentLoaded", () => {
             deleteBtn.style.display = 'none';
             deleteBtn.style.visibility = 'hidden';
             deleteBtn.classList.add('d-none');
-            console.log('Delete button hidden for add mode');
         } else if (mode === 'edit') {
             deleteBtn.style.display = 'inline-flex';
             deleteBtn.style.visibility = 'visible';
             deleteBtn.classList.remove('d-none');
-            console.log('Delete button shown for edit mode');
         }
         
-        // Apply consistent styling to all buttons without DOM manipulation
+        // Apply consistent styling to all buttons
         const allButtons = buttonContainer.querySelectorAll('.btn');
         allButtons.forEach(btn => {
             btn.style.display = btn === deleteBtn && mode === 'add' ? 'none' : 'inline-flex';
@@ -284,7 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // UPDATED renderRules Function - NEW FORMAT
+    // UPDATED renderRules Function
     function renderRules(rules) {
         if (!rulesList) return;
         
@@ -343,7 +408,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED - Add Rule Modal
+    // Add Rule Modal
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
@@ -368,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Show modal
             ruleModal.show();
             
-            // Configure buttons - NO DOM MANIPULATION
+            // Configure buttons
             setTimeout(() => {
                 configureModalButtons('rule', 'add');
             }, 100);
@@ -379,7 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // FIXED - Edit Rule Modal
+    // Edit Rule Modal
     function editRule(rule) {
         try {
             if (!rule) {
@@ -429,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Show modal
             ruleModal.show();
             
-            // Configure buttons - NO DOM MANIPULATION  
+            // Configure buttons  
             setTimeout(() => {
                 configureModalButtons('rule', 'edit');
             }, 100);
@@ -440,11 +505,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // UPDATED: Save Rule Function with Reordering
     async function saveRule(event) {
         event.preventDefault();
         
+        const newRuleNumber = parseInt(document.getElementById('ruleNumber').value);
         const ruleData = {
-            ruleNumber: parseInt(document.getElementById('ruleNumber').value),
+            ruleNumber: newRuleNumber,
             ruleName: document.getElementById('ruleName').value,
             ruleType: document.getElementById('ruleType').value,
             keywords: document.getElementById('keywords').value,
@@ -472,30 +539,87 @@ document.addEventListener("DOMContentLoaded", () => {
         saveBtn.disabled = true;
         
         try {
-            const response = await fetch('/api/rules/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    type: currentRuleNumber ? 'edit' : 'add',
-                    rule: ruleData,
-                    oldRuleNumber: currentRuleNumber
-                })
-            });
+            let rulesToUpdate = [];
             
-            const result = await response.json();
-            
-            if (result.success) {
-                showToast(result.message, 'success');
-                ruleModal.hide();
-                await fetchRules();
+            if (currentRuleNumber) {
+                // EDIT MODE: Check if rule number changed
+                if (currentRuleNumber !== newRuleNumber) {
+                    console.log(`Rule number changed: ${currentRuleNumber} → ${newRuleNumber}`);
+                    
+                    // Reorder all rules based on new number
+                    const reorderedRules = reorderRulesArray(allRules, currentRuleNumber, newRuleNumber);
+                    
+                    // Update the specific rule data in reordered array
+                    const targetRule = reorderedRules.find(r => r.RULE_NUMBER === newRuleNumber);
+                    if (targetRule) {
+                        Object.assign(targetRule, {
+                            RULE_NAME: ruleData.ruleName,
+                            RULE_TYPE: ruleData.ruleType,
+                            KEYWORDS: ruleData.keywords,
+                            REPLIES_TYPE: ruleData.repliesType,
+                            REPLY_TEXT: ruleData.replyText,
+                            TARGET_USERS: ruleData.targetUsers
+                        });
+                    }
+                    
+                    // Send bulk update
+                    const bulkSuccess = await bulkUpdateRules(reorderedRules);
+                    if (bulkSuccess) {
+                        showToast(`Rule moved to position ${newRuleNumber} and all rules reordered successfully!`, 'success');
+                        allRules = reorderedRules; // Update local array
+                    } else {
+                        throw new Error('Bulk update failed');
+                    }
+                } else {
+                    // Normal edit without number change
+                    const response = await fetch('/api/rules/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            type: 'edit',
+                            rule: ruleData,
+                            oldRuleNumber: currentRuleNumber
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast(result.message, 'success');
+                    } else {
+                        throw new Error(result.message || 'Failed to save rule');
+                    }
+                }
             } else {
-                showToast(result.message || 'Failed to save rule', 'fail');
+                // ADD MODE: Regular add
+                const response = await fetch('/api/rules/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        type: 'add',
+                        rule: ruleData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.message, 'success');
+                } else {
+                    throw new Error(result.message || 'Failed to save rule');
+                }
             }
+            
+            ruleModal.hide();
+            await fetchRules(); // Refresh rules list
+            
         } catch (error) {
             console.error('Error saving rule:', error);
-            showToast('Failed to save rule', 'fail');
+            showToast(error.message || 'Failed to save rule', 'fail');
         } finally {
             // Restore button
             saveBtn.innerHTML = originalText;
@@ -590,7 +714,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // FIXED - Add Variable Modal
+    // Add Variable Modal
     function openAddVariableModal() {
         currentVariableName = null;
         document.getElementById('variableFormContainer').style.display = 'block';
@@ -604,7 +728,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 100);
     }
 
-    // FIXED - Edit Variable Modal  
+    // Edit Variable Modal  
     function editVariable(variable) {
         currentVariableName = variable.name;
         document.getElementById('variableFormContainer').style.display = 'block';
