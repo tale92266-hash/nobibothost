@@ -1,4 +1,4 @@
-// file: nobibothost-main (2).zip/nobibothost-main/public/script.js
+// file: nobibothost-main (1).zip/nobibothost-main/public/script.js
 
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
@@ -48,7 +48,214 @@ document.addEventListener("DOMContentLoaded", () => {
         updateStatsDisplay(data);
     });
 
-    // Rule Number Validation
+    // Chat functionality
+    let chatMessages = [];
+    let maxMessages = 10;
+    let chatPaused = false;
+    const chatMessagesContainer = document.getElementById('chatMessages');
+    const clearChatBtn = document.getElementById('clearChatBtn');
+    const pauseChatBtn = document.getElementById('pauseChatBtn');
+
+    // Socket listeners for chat
+    socket.on('newMessage', (data) => {
+        if (!chatPaused) {
+            addChatMessage(data);
+        }
+    });
+
+    // Clear chat button
+    if (clearChatBtn) {
+        clearChatBtn.addEventListener('click', () => {
+            clearChat();
+        });
+    }
+
+    // Pause/Resume chat button
+    if (pauseChatBtn) {
+        pauseChatBtn.addEventListener('click', () => {
+            toggleChatPause();
+        });
+    }
+
+    // Add chat tab to navigation
+    addChatNavigation();
+
+    function addChatMessage(messageData) {
+        const { sessionId, userMessage, botReply, timestamp, senderName } = messageData;
+        
+        // Create message object
+        const message = {
+            id: Date.now() + Math.random(),
+            sessionId: sessionId || 'unknown',
+            senderName: senderName || '',
+            userMessage: userMessage || '',
+            botReply: botReply || '',
+            timestamp: timestamp || new Date().toISOString()
+        };
+
+        // Add to messages array
+        chatMessages.unshift(message);
+
+        // Keep only last 10 messages
+        if (chatMessages.length > maxMessages) {
+            chatMessages = chatMessages.slice(0, maxMessages);
+        }
+
+        // Update chat display
+        updateChatDisplay();
+        
+        // Auto scroll to latest message
+        scrollToLatest();
+    }
+
+    function updateChatDisplay() {
+        const chatContainer = document.getElementById('chatMessages');
+        if (!chatContainer) return;
+
+        chatContainer.innerHTML = '';
+
+        chatMessages.forEach((message, index) => {
+            const messageElement = createMessageElement(message, index);
+            chatContainer.appendChild(messageElement);
+        });
+    }
+
+    function createMessageElement(message, index) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'chat-message';
+        messageDiv.style.animationDelay = `${index * 0.1}s`;
+
+        const userName = getUserDisplayName(message.sessionId, message.senderName);
+        const userAvatar = getUserAvatar(userName);
+        const timeDisplay = formatTime(message.timestamp);
+
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <div class="user-info">
+                    <div class="user-avatar">${userAvatar}</div>
+                    <span class="user-name">${userName}</span>
+                </div>
+                <span class="message-time">${timeDisplay}</span>
+            </div>
+            <div class="message-content">
+                ${message.userMessage ? `
+                    <div class="user-message">
+                        <strong>User:</strong> ${escapeHtml(message.userMessage)}
+                    </div>
+                ` : ''}
+                ${message.botReply ? `
+                    <div class="bot-reply">
+                        <strong>🤖 Bot:</strong> ${escapeHtml(message.botReply)}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        return messageDiv;
+    }
+
+    function getUserDisplayName(sessionId, senderName) {
+        if (senderName && senderName.trim() !== '') {
+            return senderName;
+        }
+        // Updated to show a more user-friendly name
+        const prefix = 'User';
+        const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
+        return `${prefix}-${shortId}`;
+    }
+
+    function getUserAvatar(userName) {
+        if (!userName || userName === 'unknown') return '?';
+        
+        // Use first two letters of a formatted name
+        return userName.substring(0, 2).toUpperCase();
+    }
+
+    function formatTime(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) return 'अभी';
+        if (diffMins < 60) return `${diffMins} मिनट पहले`;
+        if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घंटे पहले`;
+        
+        return date.toLocaleTimeString('hi-IN', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function scrollToLatest() {
+        const chatContainer = document.getElementById('chatMessages');
+        if (!chatContainer) return;
+
+        chatContainer.classList.add('scrolling');
+        chatContainer.scrollTop = 0; // Scroll to top since we're adding new messages at top
+        
+        setTimeout(() => {
+            chatContainer.classList.remove('scrolling');
+        }, 500);
+    }
+
+    function clearChat() {
+        chatMessages = [];
+        updateChatDisplay();
+        showToast('Chat cleared successfully', 'success');
+    }
+
+    function toggleChatPause() {
+        const pauseBtn = document.getElementById('pauseChatBtn');
+        if (!pauseBtn) return;
+
+        chatPaused = !chatPaused;
+        
+        if (chatPaused) {
+            pauseBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
+            pauseBtn.classList.remove('btn-outline-secondary');
+            pauseBtn.classList.add('btn-outline-warning');
+            showToast('Chat paused', 'warning');
+        } else {
+            pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            pauseBtn.classList.remove('btn-outline-warning');
+            pauseBtn.classList.add('btn-outline-secondary');
+            showToast('Chat resumed', 'success');
+        }
+    }
+
+    function addChatNavigation() {
+        // Add chat tab to bottom navigation if it doesn't exist
+        const navContainer = document.querySelector('.bottom-navigation');
+        if (!navContainer) return;
+
+        const chatNavExists = document.querySelector('[data-tab="chat"]');
+        if (chatNavExists) return;
+
+        const chatNavItem = document.createElement('div');
+        chatNavItem.className = 'nav-item';
+        chatNavItem.setAttribute('data-tab', 'chat');
+        chatNavItem.innerHTML = `
+            <i class="fas fa-comments"></i>
+            <span>Chat</span>
+        `;
+
+        // Insert before settings tab
+        const settingsTab = document.querySelector('[data-tab="settings"]');
+        if (settingsTab) {
+            navContainer.insertBefore(chatNavItem, settingsTab);
+        } else {
+            navContainer.appendChild(chatNavItem);
+        }
+    }
+
+    // FIXED: Rule Number Validation - NO DOM MANIPULATION
     function validateRuleNumber(num, isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
         
@@ -70,7 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
-    // Safe Input Setup
+    // FIXED: Safe Input Setup WITHOUT DOM Recreation
     function setupRuleNumberValidation(isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
         
@@ -504,7 +711,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Add Rule Modal with Safe Input Validation
+    // FIXED: Add Rule Modal with Safe Input Validation
     function openAddRuleModal() {
         try {
             currentRuleNumber = null;
@@ -513,7 +720,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Reset form
             if (ruleForm) ruleForm.reset();
             
-            // Setup input validation for ADD mode
+            // FIXED: Setup input validation for ADD mode WITHOUT DOM recreation
             setupRuleNumberValidation(false); // false = Add mode
             ruleNumberInput.value = totalRules + 1; // Set to next available number
             
@@ -544,7 +751,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Edit Rule Modal with Safe Input Validation  
+    // FIXED: Edit Rule Modal with Safe Input Validation  
     function editRule(rule) {
         try {
             if (!rule) {
@@ -557,7 +764,7 @@ document.addEventListener("DOMContentLoaded", () => {
             currentRuleNumber = rule.RULE_NUMBER;
             formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
             
-            // Setup input validation for EDIT mode
+            // FIXED: Setup input validation for EDIT mode WITHOUT DOM recreation
             setupRuleNumberValidation(true); // true = Edit mode
             ruleNumberInput.value = rule.RULE_NUMBER;
             
@@ -619,7 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const newRuleNumber = parseInt(document.getElementById('ruleNumber').value);
         const isEditing = currentRuleNumber !== null;
         
-        // Validate with correct mode
+        // FIXED: Validate with correct mode
         if (!validateRuleNumber(newRuleNumber, isEditing)) {
             return;
         }
