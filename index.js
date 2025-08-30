@@ -195,52 +195,14 @@ function convertNewlinesBeforeSave(text) {
   return text.replace(/\\n/g, '\n');
 }
 
-// FIXED: Smart Token Splitting with Enhanced % Tracking
+// Updated smartSplitTokens logic
 function smartSplitTokens(tokensString) {
-  const tokens = [];
-  let current = '';
-  let percentCount = 0;
-  let insideVariable = false;
-  
-  console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
-  
-  for (let i = 0; i < tokensString.length; i++) {
-    const char = tokensString[i];
-    
-    if (char === '%') {
-      percentCount++;
-      current += char;
-      
-      // Toggle variable state based on odd/even count
-      if (percentCount % 2 === 1) {
-        insideVariable = true;
-        console.log(`📍 Variable START at position ${i}`);
-      } else {
-        insideVariable = false;
-        console.log(`📍 Variable END at position ${i}`);
-      }
-    }
-    else if (char === ',' && !insideVariable) {
-      // Only split on comma when NOT inside any variable
-      if (current.trim().length > 0) {
-        tokens.push(current.trim());
-        console.log(`✂️ Token split: "${current.trim()}"`);
-      }
-      current = '';
-    }
-    else {
-      current += char;
-    }
-  }
-  
-  // Add the final token
-  if (current.trim().length > 0) {
-    tokens.push(current.trim());
-    console.log(`✂️ Final token: "${current.trim()}"`);
-  }
-  
-  console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
-  return tokens;
+    console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
+    // Split by comma followed by any whitespace, but only if not inside a variable.
+    // This is handled by a simple regex now that the nested variables are placeholders.
+    const tokens = tokensString.split(/,(?![^%]*%)/g).map(t => t.trim());
+    console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
+    return tokens.filter(t => t !== '');
 }
 
 function pickNUniqueRandomly(tokens, count) {
@@ -270,90 +232,88 @@ function pickNUniqueRandomly(tokens, count) {
   return selectedTokens;
 }
 
-// FIXED: Proper Variable Resolution Order - Process Custom Random BEFORE Static Variables
+// Updated resolveVariablesRecursively function
 function resolveVariablesRecursively(text, maxIterations = 10) {
-  let result = text;
-  let iterationCount = 0;
+    let result = text;
+    let iterationCount = 0;
 
-  while (iterationCount < maxIterations) {
-    let hasVariables = false;
-    let previousResult = result;
-    
-    console.log(`🔄 Variable resolution iteration ${iterationCount + 1}`);
-    
-    // ✅ STEP 1: Process Custom Random Variables FIRST (before static variables)
-    const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
-    
-    result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
-      const count = parseInt(countStr, 10);
-      
-      console.log(`🎲 Processing custom random FIRST: count=${count}`);
-      console.log(`🎲 Raw tokens string: "${tokensString}"`);
-      
-      // Split tokens BEFORE variable replacement
-      const tokens = smartSplitTokens(tokensString);
-      
-      if (tokens.length === 0) {
-        console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
-        return '';
-      }
-      
-      const selectedTokens = pickNUniqueRandomly(tokens, count);
-      let finalResult;
-      
-      if (count === 1) {
-        finalResult = selectedTokens[0] || '';
-      } else {
-        finalResult = selectedTokens.join(' ');
-      }
-      
-      console.log(`✅ Custom random result: "${finalResult}"`);
-      
-      hasVariables = true;
-      return finalResult;
+    // Use a Map to store placeholders and original variable names
+    const placeholderMap = new Map();
+    let placeholderCounter = 0;
+
+    // First, find all static and other random variables and replace them with placeholders
+    const staticAndRandomRegex = /%(\w+)%/g;
+    result = result.replace(staticAndRandomRegex, (match) => {
+        const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
+        placeholderMap.set(placeholder, match);
+        return placeholder;
     });
 
-    // ✅ STEP 2: Process Static Variables AFTER Custom Random (so variables inside selected tokens get replaced)
-    for (const variable of VARIABLES) {
-      const varRegex = new RegExp(`%${variable.name}%`, 'g');
-      if (varRegex.test(result)) {
-        result = result.replace(varRegex, variable.value);
-        hasVariables = true;
-        console.log(`✅ Replaced %${variable.name}% with "${variable.value}"`);
-      }
+    while (iterationCount < maxIterations) {
+        let hasVariables = false;
+        let previousResult = result;
+
+        // STEP 1: Process Custom Random Variables using placeholders
+        const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
+        result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            
+            console.log(`🎲 Processing custom random FIRST: count=${count}`);
+            console.log(`🎲 Raw tokens string: "${tokensString}"`);
+            
+            const tokens = smartSplitTokens(tokensString);
+            
+            if (tokens.length === 0) {
+                console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
+                return '';
+            }
+            
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            let finalResult = selectedTokens.join(' ');
+            
+            console.log(`✅ Custom random result: "${finalResult}"`);
+            
+            hasVariables = true;
+            return finalResult;
+        });
+
+        if (result === previousResult) {
+            break;
+        }
+
+        iterationCount++;
     }
 
-    // ✅ STEP 3: Process Other Random Variables
-    const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g;
-    
-    result = result.replace(otherRandomRegex, (match, type, param1, param2) => {
-      if (type === 'custom') {
-        return match; // Skip custom (already handled)
-      }
-      
-      let value;
-      
-      if (type === 'num') {
-        const [min, max] = param1.split('_').map(Number);
-        value = Math.floor(Math.random() * (max - min + 1)) + min;
-      } else {
-        const length = parseInt(param1);
-        value = generateRandom(type, length);
-      }
-      
-      hasVariables = true;
-      return value;
-    });
-    
-    if (result === previousResult) {
-      break;
+    // Finally, resolve the placeholders
+    for (const [placeholder, originalVariable] of placeholderMap.entries()) {
+        const varName = originalVariable.replace(/%/g, '');
+        let varValue = '';
+        
+        // Find the actual value for the original variable name
+        const staticVar = VARIABLES.find(v => v.name === varName);
+        if (staticVar) {
+            varValue = staticVar.value;
+        } else {
+            // Check for other random variables here, since they were also replaced by placeholders
+            const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
+            const match = originalVariable.match(otherRandomRegex);
+            if (match) {
+                const [fullMatch, type, param1, param2] = match;
+                if (type === 'num') {
+                    const [min, max] = param1.split('_').map(Number);
+                    varValue = Math.floor(Math.random() * (max - min + 1)) + min;
+                } else {
+                    const length = parseInt(param1);
+                    varValue = generateRandom(type, length);
+                }
+            }
+        }
+        
+        result = result.split(placeholder).join(varValue);
     }
     
-    iterationCount++;
-  }
-  
-  console.log(`✅ Final resolved result completed`);
-  return result;
+    console.log(`✅ Final resolved result completed`);
+    return result;
 }
 
 async function processMessage(msg, sessionId = "default") {
@@ -466,8 +426,6 @@ async function processMessage(msg, sessionId = "default") {
         scheduleDailyReset();
     });
 })();
-
-// [Rest of the API endpoints remain exactly the same as before - rules CRUD, variables CRUD, webhook, etc.]
 
 // Bulk Update Rules API Call with \n conversion
 app.post("/api/rules/bulk-update", async (req, res) => {
