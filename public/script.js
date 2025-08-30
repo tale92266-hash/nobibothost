@@ -1043,6 +1043,101 @@ document.addEventListener("DOMContentLoaded", () => {
     window.editVariable = editVariable;
     window.cancelVariableEdit = cancelVariableEdit;
 
+// ADD THIS SECTION TO YOUR EXISTING script.js
+
+// Live Messages Functionality
+let messagesContainer;
+let liveMessagesSocket;
+
+// Initialize Live Messages
+function initLiveMessages() {
+  messagesContainer = document.getElementById('messagesContainer');
+  
+  // Connect to socket for live messages
+  liveMessagesSocket = io();
+  
+  liveMessagesSocket.on('connect', () => {
+    console.log('📡 Connected to live messages socket');
+  });
+  
+  liveMessagesSocket.on('newLiveMessage', (data) => {
+    console.log('📨 New live message received:', data);
+    updateLiveMessages(data.messages);
+  });
+  
+  liveMessagesSocket.on('disconnect', () => {
+    console.log('📡 Disconnected from live messages socket');
+  });
+}
+
+// Update Live Messages Display
+function updateLiveMessages(messages) {
+  if (!messagesContainer) return;
+  
+  if (!messages || messages.length === 0) {
+    messagesContainer.innerHTML = `
+      <div style="text-align: center; color: #666; padding: 2rem;">
+        <i class="fas fa-inbox"></i>
+        <p>No messages yet...</p>
+      </div>
+    `;
+    return;
+  }
+  
+  messagesContainer.innerHTML = messages.map(msg => `
+    <div class="message-item" style="
+      background: white;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border-left: 4px solid #667eea;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    ">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+        <div style="font-weight: 600; color: #667eea; font-size: 0.875rem;">
+          <i class="fas fa-user"></i> ${msg.sessionId}
+        </div>
+        <div style="font-size: 0.75rem; color: #666;">
+          <i class="fas fa-clock"></i> ${msg.timestamp}
+        </div>
+      </div>
+      <div style="margin-bottom: 0.5rem;">
+        <strong style="color: #333; font-size: 0.875rem;">Message:</strong>
+        <div style="background: #f8f9fa; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; font-size: 0.875rem;">
+          ${msg.message}
+        </div>
+      </div>
+      <div>
+        <strong style="color: #333; font-size: 0.875rem;">Reply:</strong>
+        <div style="background: #e8f4fd; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; font-size: 0.875rem; color: #0066cc;">
+          ${msg.reply}
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  // Auto scroll to top for latest message
+  const liveArea = document.getElementById('liveMessagesArea');
+  if (liveArea) {
+    liveArea.scrollTop = 0;
+  }
+}
+
+// ADD TO YOUR EXISTING init() FUNCTION
+async function init() {
+  try {
+    initBottomNavigation();
+    initLiveMessages(); // ADD THIS LINE
+    await fetchStats();
+    await fetchRules();
+    await fetchVariables();
+  } catch (error) {
+    console.error('Initialization error:', error);
+    showToast('Failed to initialize application', 'fail');
+  }
+}
+
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         // Ctrl/Cmd + N for new rule
