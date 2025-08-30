@@ -1,3 +1,5 @@
+// file: nobibothost-main (1).zip/nobibothost-main/public/script.js
+
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
@@ -79,12 +81,13 @@ document.addEventListener("DOMContentLoaded", () => {
     addChatNavigation();
 
     function addChatMessage(messageData) {
-        const { sessionId, userMessage, botReply, timestamp } = messageData;
+        const { sessionId, userMessage, botReply, timestamp, senderName } = messageData;
         
         // Create message object
         const message = {
             id: Date.now() + Math.random(),
             sessionId: sessionId || 'unknown',
+            senderName: senderName || '',
             userMessage: userMessage || '',
             botReply: botReply || '',
             timestamp: timestamp || new Date().toISOString()
@@ -122,8 +125,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.className = 'chat-message';
         messageDiv.style.animationDelay = `${index * 0.1}s`;
 
-        const userName = getUserDisplayName(message.sessionId);
-        const userAvatar = getUserAvatar(message.sessionId);
+        const userName = getUserDisplayName(message.sessionId, message.senderName);
+        const userAvatar = getUserAvatar(userName);
         const timeDisplay = formatTime(message.timestamp);
 
         messageDiv.innerHTML = `
@@ -151,19 +154,21 @@ document.addEventListener("DOMContentLoaded", () => {
         return messageDiv;
     }
 
-    function getUserDisplayName(sessionId) {
+    function getUserDisplayName(sessionId, senderName) {
+        if (senderName && senderName.trim() !== '') {
+            return senderName;
+        }
         // Updated to show a more user-friendly name
         const prefix = 'User';
         const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
         return `${prefix}-${shortId}`;
     }
 
-    function getUserAvatar(sessionId) {
-        if (!sessionId || sessionId === 'unknown') return '?';
+    function getUserAvatar(userName) {
+        if (!userName || userName === 'unknown') return '?';
         
         // Use first two letters of a formatted name
-        const name = getUserDisplayName(sessionId);
-        return name.substring(0, 2).toUpperCase();
+        return userName.substring(0, 2).toUpperCase();
     }
 
     function formatTime(timestamp) {
