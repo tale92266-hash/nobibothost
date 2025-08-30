@@ -202,34 +202,27 @@ function generateRandom(type, length, customSet) {
   return result;
 }
 
-// UPDATED: Smart Token Splitting Function
+// FIXED: Proper % Tracking Smart Token Splitting Function
 function smartSplitTokens(tokensString) {
   const tokens = [];
   let current = '';
-  let insideVariable = false;
-  let bracketCount = 0;
+  let percentCount = 0; // Track number of % encountered
+  
+  console.log(`🧩 Splitting tokens from: "${tokensString}"`);
   
   for (let i = 0; i < tokensString.length; i++) {
     const char = tokensString[i];
     
-    // Check for variable start/end %variableName%
     if (char === '%') {
-      insideVariable = !insideVariable;
+      percentCount++;
       current += char;
+      console.log(`📍 Found % at position ${i}, percentCount: ${percentCount}`);
     }
-    // Check for brackets ( and )
-    else if (char === '(' && !insideVariable) {
-      bracketCount++;
-      current += char;
-    }
-    else if (char === ')' && !insideVariable) {
-      bracketCount--;
-      current += char;
-    }
-    // Split on comma only if we're not inside variables or brackets
-    else if (char === ',' && !insideVariable && bracketCount === 0) {
+    else if (char === ',' && percentCount % 2 === 0) {
+      // Split on comma only if we have even number of % (i.e., all variables are closed)
       if (current.trim().length > 0) {
         tokens.push(current.trim());
+        console.log(`✂️ Split token: "${current.trim()}"`);
       }
       current = '';
     }
@@ -241,9 +234,12 @@ function smartSplitTokens(tokensString) {
   // Add the last token
   if (current.trim().length > 0) {
     tokens.push(current.trim());
+    console.log(`✂️ Final token: "${current.trim()}"`);
   }
   
-  console.log(`🧩 Smart split result: [${tokens.join('] | [')}]`);
+  console.log(`🎯 Total tokens found: ${tokens.length}`);
+  console.log(`📝 Tokens: [${tokens.join('] | [')}]`);
+  
   return tokens;
 }
 
@@ -295,7 +291,7 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       }
     }
 
-    // 2. FIXED: Smart Random Custom Variables - %rndm_custom_NUMBER_tokens%
+    // 2. FIXED: Smart Random Custom Variables with Proper % Tracking
     const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
     let customMatch;
     
@@ -306,10 +302,10 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
       
       console.log(`🎲 Processing custom random: count=${count}, tokensString="${tokensString}"`);
       
-      // FIXED: Use smart token splitting instead of simple split
+      // FIXED: Use smart token splitting with proper % tracking
       const tokens = smartSplitTokens(tokensString);
       
-      console.log(`📝 Extracted ${tokens.length} tokens: [${tokens.join('] | [')}]`);
+      console.log(`📝 Extracted ${tokens.length} tokens from custom random`);
       
       if (tokens.length === 0) {
         console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
