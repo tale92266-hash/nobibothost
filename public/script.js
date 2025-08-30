@@ -293,54 +293,95 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // FIXED - Add Rule Modal - Hide Delete Button
     function openAddRuleModal() {
-        currentRuleNumber = null;
-        formTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Add New Rule';
-        deleteRuleBtn.style.display = 'none';
-        ruleForm.reset();
-        
-        // Set default values
-        document.getElementById('ruleNumber').value = totalRules + 1;
-        document.getElementById('repliesType').value = 'RANDOM';
-        document.getElementById('targetUsersToggle').value = 'ALL';
-        
-        // Reset field visibility
-        toggleFormFields('');
-        toggleTargetUsersField();
-        
-        ruleModal.show();
+        try {
+            currentRuleNumber = null;
+            formTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Add New Rule';
+            
+            // FIXED: Hide delete button for new rules
+            if (deleteRuleBtn) deleteRuleBtn.style.display = 'none';
+            
+            // Reset form
+            if (ruleForm) ruleForm.reset();
+            
+            // Set default values
+            const ruleNumberInput = document.getElementById('ruleNumber');
+            const repliesTypeSelect = document.getElementById('repliesType');
+            const targetUsersToggle = document.getElementById('targetUsersToggle');
+            
+            if (ruleNumberInput) ruleNumberInput.value = totalRules + 1;
+            if (repliesTypeSelect) repliesTypeSelect.value = 'RANDOM';
+            if (targetUsersToggle) targetUsersToggle.value = 'ALL';
+            
+            // Reset field visibility
+            toggleFormFields('');
+            toggleTargetUsersField();
+            
+            // Show modal
+            ruleModal.show();
+        } catch (error) {
+            console.error('Error opening add rule modal:', error);
+            showToast('Failed to open add rule form', 'fail');
+        }
     }
 
+    // FIXED - Edit Rule Modal - Show Delete Button
     function editRule(rule) {
-        currentRuleNumber = rule.RULE_NUMBER;
-        formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
-        deleteRuleBtn.style.display = 'inline-block';
-        
-        // Populate form fields
-        document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
-        document.getElementById('ruleName').value = rule.RULE_NAME || '';
-        document.getElementById('ruleType').value = rule.RULE_TYPE;
-        document.getElementById('keywords').value = rule.KEYWORDS;
-        document.getElementById('repliesType').value = rule.REPLIES_TYPE;
-        document.getElementById('replyText').value = rule.REPLY_TEXT;
-        
-        // Handle target users
-        if (rule.TARGET_USERS === 'ALL' || !rule.TARGET_USERS) {
-            document.getElementById('targetUsersToggle').value = 'ALL';
-            document.getElementById('targetUsers').value = 'ALL';
-        } else if (Array.isArray(rule.TARGET_USERS)) {
-            document.getElementById('targetUsersToggle').value = 'TARGET';
-            document.getElementById('targetUsers').value = rule.TARGET_USERS.join(', ');
-        } else {
-            document.getElementById('targetUsersToggle').value = 'TARGET';
-            document.getElementById('targetUsers').value = rule.TARGET_USERS;
+        try {
+            if (!rule) {
+                showToast('Invalid rule data', 'fail');
+                return;
+            }
+            
+            currentRuleNumber = rule.RULE_NUMBER;
+            formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
+            
+            // FIXED: Show delete button for existing rules
+            if (deleteRuleBtn) deleteRuleBtn.style.display = 'inline-block';
+            
+            // Populate form fields safely
+            const fields = {
+                'ruleNumber': rule.RULE_NUMBER,
+                'ruleName': rule.RULE_NAME || '',
+                'ruleType': rule.RULE_TYPE,
+                'keywords': rule.KEYWORDS,
+                'repliesType': rule.REPLIES_TYPE,
+                'replyText': rule.REPLY_TEXT
+            };
+            
+            Object.keys(fields).forEach(fieldId => {
+                const element = document.getElementById(fieldId);
+                if (element) {
+                    element.value = fields[fieldId];
+                }
+            });
+            
+            // Handle target users properly
+            const targetUsersToggleEl = document.getElementById('targetUsersToggle');
+            const targetUsersEl = document.getElementById('targetUsers');
+            
+            if (rule.TARGET_USERS === 'ALL' || !rule.TARGET_USERS) {
+                if (targetUsersToggleEl) targetUsersToggleEl.value = 'ALL';
+                if (targetUsersEl) targetUsersEl.value = 'ALL';
+            } else if (Array.isArray(rule.TARGET_USERS)) {
+                if (targetUsersToggleEl) targetUsersToggleEl.value = 'TARGET';
+                if (targetUsersEl) targetUsersEl.value = rule.TARGET_USERS.join(', ');
+            } else {
+                if (targetUsersToggleEl) targetUsersToggleEl.value = 'TARGET';
+                if (targetUsersEl) targetUsersEl.value = rule.TARGET_USERS;
+            }
+            
+            // Update field visibility
+            toggleFormFields(rule.RULE_TYPE);
+            toggleTargetUsersField();
+            
+            // Show modal
+            ruleModal.show();
+        } catch (error) {
+            console.error('Error editing rule:', error);
+            showToast('Failed to load rule for editing', 'fail');
         }
-        
-        // Update field visibility
-        toggleFormFields(rule.RULE_TYPE);
-        toggleTargetUsersField();
-        
-        ruleModal.show();
     }
 
     async function saveRule(event) {
@@ -493,18 +534,25 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // FIXED - Add Variable Modal - Hide Delete Button
     function openAddVariableModal() {
         currentVariableName = null;
         document.getElementById('variableFormContainer').style.display = 'block';
-        document.getElementById('deleteVariableBtn').style.display = 'none';
+        
+        // FIXED: Hide delete button for new variables
+        if (deleteVariableBtn) deleteVariableBtn.style.display = 'none';
+        
         variableForm.reset();
         document.getElementById('variableName').focus();
     }
 
+    // FIXED - Edit Variable Modal - Show Delete Button
     function editVariable(variable) {
         currentVariableName = variable.name;
         document.getElementById('variableFormContainer').style.display = 'block';
-        document.getElementById('deleteVariableBtn').style.display = 'inline-block';
+        
+        // FIXED: Show delete button for existing variables
+        if (deleteVariableBtn) deleteVariableBtn.style.display = 'inline-block';
         
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
