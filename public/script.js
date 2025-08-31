@@ -49,6 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEW: Bot Status DOM elements
     const botStatusBtn = document.getElementById('botStatusBtn');
     const botStatusText = document.getElementById('botStatusText');
+    const botStatusContainer = document.querySelector('.bot-status-container');
+
 
     // Variables
     let currentRuleNumber = null;
@@ -1241,6 +1243,8 @@ document.addEventListener("DOMContentLoaded", () => {
             botStatusBtn.classList.remove('bot-on');
             botStatusText.textContent = 'Bot Off';
         }
+         // NEW: Show the button after the status is updated
+        botStatusContainer.style.display = 'block';
     }
     
     // NEW: Function to toggle bot status
