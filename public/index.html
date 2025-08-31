@@ -218,6 +218,30 @@
                             </div>
 
                             <div class="settings-grid">
+                                <div class="settings-card" data-setting="ignored-override-card">
+                                    <div class="settings-card-icon">
+                                        <i class="fas fa-user-slash"></i>
+                                    </div>
+                                    <div class="settings-card-content">
+                                        <h5>Ignored Contact Override</h5>
+                                        <p>Globally ignore these users for ALL rules.</p>
+                                        <button class="btn btn-primary" id="ignoredOverrideBtn">
+                                            <i class="fas fa-arrow-right"></i> Manage
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="settings-card" data-setting="specific-override-card">
+                                    <div class="settings-card-icon">
+                                        <i class="fas fa-user-check"></i>
+                                    </div>
+                                    <div class="settings-card-content">
+                                        <h5>Specific Contact Override</h5>
+                                        <p>Apply ALL rules to these users, regardless of other settings.</p>
+                                        <button class="btn btn-primary" id="specificOverrideBtn">
+                                            <i class="fas fa-arrow-right"></i> Manage
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="settings-card" data-setting="export">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-download"></i>
@@ -434,6 +458,33 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="overrideModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="overrideModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="overrideModalDescription"></p>
+                    <div class="form-group mt-3">
+                        <label for="overrideUsersList">Enter Usernames (comma-separated)</label>
+                        <textarea class="form-control" id="overrideUsersList" rows="5" placeholder="e.g., user1, user2, *test*"></textarea>
+                        <small class="form-text text-muted">Use * for wildcard pattern matching (e.g., *nobita* will match "I am nobita").</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveOverrideBtn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
                 </div>
             </div>
         </div>
