@@ -772,84 +772,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // NEW: Full Screen Modal Functions
-    function openFullScreenModal(modalId, title, showTabs = false) {
-        const modal = document.getElementById(modalId);
-        const modalDialog = modal.querySelector('.modal-dialog');
-        const modalHeader = modal.querySelector('.modal-header');
-        const modalTitle = modal.querySelector('.modal-title');
-        
-        // Add fullscreen classes
-        modalDialog.classList.add('fullscreen-modal');
-        modal.classList.add('modal-slide-in');
-        
-        // Update title
-        if (modalTitle) {
-            modalTitle.textContent = title;
-        }
-        
-        // Add back button if not exists
-        let backButton = modalHeader.querySelector('.back-button');
-        if (!backButton) {
-            backButton = document.createElement('button');
-            backButton.className = 'back-button';
-            backButton.innerHTML = '<i class="fas fa-arrow-left"></i>';
-            backButton.onclick = () => closeFullScreenModal(modalId);
-            modalHeader.insertBefore(backButton, modalTitle);
-        }
-        
-        // Show/hide tabs based on modal type
-        const navTabs = modal.querySelector('.nav-tabs');
-        if (navTabs) {
-            navTabs.style.display = showTabs ? 'flex' : 'none';
-        }
-        
-        // Hide bottom navigation
-        const bottomNav = document.querySelector('.bottom-navigation');
-        if (bottomNav) {
-            bottomNav.style.display = 'none';
-        }
-        
-        // Show modal
-        const bootstrapModal = new bootstrap.Modal(modal);
-        bootstrapModal.show();
-        
-        // Prevent body scroll
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeFullScreenModal(modalId) {
-        const modal = document.getElementById(modalId);
-        const modalDialog = modal.querySelector('.modal-dialog');
-        const bottomNav = document.querySelector('.bottom-navigation');
-        
-        // Add slide out animation
-        modal.classList.remove('modal-slide-in');
-        modal.classList.add('modal-slide-out');
-        
-        setTimeout(() => {
-            // Remove fullscreen classes
-            modalDialog.classList.remove('fullscreen-modal');
-            modal.classList.remove('modal-slide-out');
-            
-            // Show bottom navigation
-            if (bottomNav) {
-                bottomNav.style.display = 'flex';
-            }
-            
-            // Restore body scroll
-            document.body.style.overflow = 'auto';
-            
-            // Hide modal
-            const bootstrapModal = bootstrap.Modal.getInstance(modal);
-            if (bootstrapModal) {
-                bootstrapModal.hide();
-            }
-        }, 300);
-    }
-    // END: NEW Full Screen Modal Functions
-
-
     // Rule Modal Functions
     function openAddRuleModal() {
         currentRuleNumber = null;
@@ -867,7 +789,7 @@ document.addEventListener("DOMContentLoaded", () => {
         toggleTargetUsersField();
         
         configureModalButtons('rule', 'add');
-        openFullScreenModal('ruleModal', 'Add New Rule');
+        ruleModal.show();
     }
 
     function openEditRuleModal(rule) {
@@ -876,12 +798,12 @@ document.addEventListener("DOMContentLoaded", () => {
         
         formTitle.textContent = 'Edit Rule';
         
-        document.getElementById('ruleNumber').value = rule.RULE_NUMBER || '';
+        document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
         document.getElementById('ruleName').value = rule.RULE_NAME || '';
-        document.getElementById('ruleType').value = rule.RULE_TYPE || '';
-        document.getElementById('keywords').value = rule.KEYWORDS || '';
-        document.getElementById('repliesType').value = rule.REPLIES_TYPE || '';
-        document.getElementById('replyText').value = rule.REPLY_TEXT || '';
+        document.getElementById('ruleType').value = rule.RULE_TYPE;
+        document.getElementById('keywords').value = rule.KEYWORDS;
+        document.getElementById('repliesType').value = rule.REPLIES_TYPE;
+        document.getElementById('replyText').value = rule.REPLY_TEXT;
         
         if (Array.isArray(rule.TARGET_USERS)) {
             document.getElementById('targetUsersToggle').value = 'TARGET';
@@ -895,7 +817,7 @@ document.addEventListener("DOMContentLoaded", () => {
         toggleTargetUsersField();
         
         configureModalButtons('rule', 'edit');
-        openFullScreenModal('ruleModal', `Edit Rule #${rule.RULE_NUMBER}`);
+        ruleModal.show();
     }
 
     async function saveRule() {
@@ -934,7 +856,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result.success) {
                 showToast(result.message, 'success');
-                closeFullScreenModal('ruleModal');
+                ruleModal.hide();
                 await fetchRules();
             } else {
                 showToast(result.message || 'Failed to save rule', 'fail');
@@ -964,7 +886,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result.success) {
                 showToast('Rule deleted successfully', 'success');
-                closeFullScreenModal('ruleModal');
+                ruleModal.hide();
                 await fetchRules();
             } else {
                 showToast(result.message || 'Failed to delete rule', 'fail');
@@ -1012,7 +934,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function createVariableElement(variable) {
         const div = document.createElement('div');
         div.className = 'variable-item';
-        div.onclick = () => openEditVariableModal(variable.name);
+        div.onclick = () => openEditVariableModal(variable);
 
         div.innerHTML = `
             <div class="variable-header">
@@ -1024,58 +946,27 @@ document.addEventListener("DOMContentLoaded", () => {
         return div;
     }
 
-    // NEW: Updated Variable Modal Functions
-    function openVariablesManagement() {
-        fetchVariables();
-        openFullScreenModal('variableModal', 'Manage Variables', true);
-    }
-
     function openAddVariableModal() {
         currentVariableName = null;
-        variableForm.reset();
         
-        // Show form
         variableFormContainer.style.display = 'block';
-        configureModalButtons('variable', 'add');
         
-        // If already in fullscreen, just show form
-        const modal = document.getElementById('variableModal');
-        if (modal.querySelector('.fullscreen-modal')) {
-            // Already fullscreen, just update title and switch tab
-            modal.querySelector('.modal-title').textContent = 'Add Variable';
-            const addTabBtn = document.querySelector('[data-bs-target="#addVariableTab"]');
-            if (addTabBtn) {
-                bootstrap.Tab.getInstance(addTabBtn).show();
-            }
-        } else {
-            openFullScreenModal('variableModal', 'Add Variable', true);
-        }
+        // Reset form for new data
+        document.getElementById('variableName').value = '';
+        document.getElementById('variableValue').value = '';
+        
+        configureModalButtons('variable', 'add');
     }
 
-    function openEditVariableModal(variableName) {
-        const variable = allVariables.find(v => v.name === variableName);
-        if (!variable) {
-            showToast('Variable not found', 'fail');
-            return;
-        }
-
-        currentVariableName = variableName;
+    function openEditVariableModal(variable) {
+        currentVariableName = variable.name;
         
-        // Populate form
-        document.getElementById('variableName').value = variable.name || '';
-        document.getElementById('variableValue').value = variable.value || '';
-        
-        // Show form and configure buttons
         variableFormContainer.style.display = 'block';
-        configureModalButtons('variable', 'edit');
         
-        // Update title and switch to form tab
-        const modal = document.getElementById('variableModal');
-        modal.querySelector('.modal-title').textContent = `Edit Variable: ${variableName}`;
-        const addTabBtn = document.querySelector('[data-bs-target="#addVariableTab"]');
-        if (addTabBtn) {
-            bootstrap.Tab.getInstance(addTabBtn).show();
-        }
+        document.getElementById('variableName').value = variable.name;
+        document.getElementById('variableValue').value = variable.value;
+
+        configureModalButtons('variable', 'edit');
     }
 
     // Global function for cancel variable edit
@@ -1083,19 +974,7 @@ document.addEventListener("DOMContentLoaded", () => {
         variableFormContainer.style.display = 'none';
         variableForm.reset();
         currentVariableName = null;
-        
-        // Switch back to list tab
-        const listTabBtn = document.querySelector('[data-bs-target="#variablesListTab"]');
-        if (listTabBtn) {
-            bootstrap.Tab.getInstance(listTabBtn).show();
-        }
-        
-        // Update title
-        const modal = document.getElementById('variableModal');
-        modal.querySelector('.modal-title').textContent = 'Manage Variables';
     }
-    // END: Updated Variable Modal Functions
-
 
     async function saveVariable() {
         const variableName = document.getElementById('variableName').value.trim();
@@ -1164,7 +1043,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 showToast(result.message || 'Failed to delete variable', 'fail');
             }
         } catch (error) {
-                console.error('Error deleting variable:', error);
+            console.error('Error deleting variable:', error);
             showToast('Network error occurred', 'fail');
         }
     }
@@ -1193,7 +1072,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (variablesMenuBtn) {
-        variablesMenuBtn.addEventListener('click', openVariablesManagement);
+        variablesMenuBtn.addEventListener('click', () => {
+            fetchVariables();
+            variableModal.show();
+        });
     }
 
     if (addVariableBtn) {
