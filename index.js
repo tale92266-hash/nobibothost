@@ -1,4 +1,4 @@
-// file: nobibothost-main (1).zip/nobibothost-main/index.js
+// file: index.js
 
 require("dotenv").config();
 
@@ -27,7 +27,8 @@ mongoose.connect(MONGODB_URI)
 .catch(err => console.error("❌ MongoDB connection error:", err));
 
 const userSchema = new mongoose.Schema({
-sessionId: { type: String, required: true, unique: true }
+sessionId: { type: String, required: true, unique: false },
+senderName: { type: String, required: false, unique: true }
 });
 
 const User = mongoose.model("User", userSchema);
@@ -93,8 +94,8 @@ stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, today
 
 fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 
-const dbWelcomedUsers = await User.find({}, 'sessionId');
-welcomedUsers = dbWelcomedUsers.map(u => u.sessionId);
+const dbWelcomedUsers = await User.find({}, 'senderName');
+welcomedUsers = dbWelcomedUsers.map(u => u.senderName);
 fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 
 await loadAllRules();
@@ -321,7 +322,7 @@ console.log(`✅ Final resolved result completed`);
 return result;
 }
 
-async function processMessage(msg, sessionId = "default") {
+async function processMessage(msg, sessionId = "default", senderName) {
 msg = msg.toLowerCase();
 
 // Update Stats
@@ -344,11 +345,12 @@ for (let rule of RULES) {
 let userMatch = false;
 const targetUsers = rule.TARGET_USERS || "ALL";
 
+// Check if user is in the "ignored" list
 if (rule.RULE_TYPE === "IGNORED") {
-if (Array.isArray(targetUsers) && !targetUsers.includes(sessionId)) {
+if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
 userMatch = true;
 }
-} else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(sessionId))) {
+} else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
 userMatch = true;
 }
 
@@ -360,11 +362,11 @@ let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
 let match = false;
 
 if (rule.RULE_TYPE === "WELCOME") {
-if (!welcomedUsers.includes(sessionId)) {
+if (senderName && !welcomedUsers.includes(senderName)) {
 match = true;
-welcomedUsers.push(sessionId);
+welcomedUsers.push(senderName);
 saveWelcomedUsers();
-await User.create({ sessionId });
+await User.create({ senderName, sessionId });
 }
 } else if (rule.RULE_TYPE === "DEFAULT") {
 match = true;
@@ -660,7 +662,7 @@ app.post("/webhook", async (req, res) => {
 const sessionId = req.body.session_id || "default_session";
 const msg = req.body.query?.message || "";
 const senderName = req.body.query?.sender || "";
-const replyText = await processMessage(msg, sessionId);
+const replyText = await processMessage(msg, sessionId, senderName);
 
 // Create message object for history
 const messageData = {
