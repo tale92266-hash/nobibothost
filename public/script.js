@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const ruleModal = new bootstrap.Modal(document.getElementById("ruleModal"));
     const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
     const overrideModal = new bootstrap.Modal(document.getElementById("overrideModal"));
+    const preventRepeatingModal = new bootstrap.Modal(document.getElementById("preventRepeatingModal"));
     const ruleForm = document.getElementById("ruleForm");
     const variableForm = document.getElementById("variableForm");
     const formTitle = document.getElementById("formTitle");
@@ -39,6 +40,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const overrideModalDescription = document.getElementById('overrideModalDescription');
     const overrideUsersList = document.getElementById('overrideUsersList');
     const saveOverrideBtn = document.getElementById('saveOverrideBtn');
+    const preventRepeatingBtn = document.getElementById('preventRepeatingBtn');
+    const preventRepeatingToggle = document.getElementById('preventRepeatingToggle');
+    const cooldownTimeInput = document.getElementById('cooldownTime');
+    const cooldownField = document.getElementById('cooldownField');
+    const saveRepeatingBtn = document.getElementById('saveRepeatingBtn');
 
     // Variables
     let currentRuleNumber = null;
@@ -51,6 +57,12 @@ document.addEventListener("DOMContentLoaded", () => {
     let ignoredOverrideUsers = [];
     let specificOverrideUsers = [];
     let currentOverrideType = null;
+    let currentSettings = {
+        preventRepeatingRule: {
+            enabled: false,
+            cooldown: 2
+        }
+    };
 
     // Socket connection for real-time stats
     const socket = io();
@@ -571,6 +583,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchStats();
             await fetchRules();
             await fetchVariables();
+            await fetchSettings();
         } catch (error) {
             console.error('Initialization error:', error);
             showToast('Failed to initialize application', 'fail');
@@ -1141,6 +1154,73 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Failed to save settings.', 'fail');
         }
     }
+    
+    // NEW Repeating Rule Modal Functions
+    function openPreventRepeatingModal() {
+        document.getElementById('preventRepeatingToggle').checked = currentSettings.preventRepeatingRule.enabled;
+        document.getElementById('cooldownTime').value = currentSettings.preventRepeatingRule.cooldown;
+        
+        toggleCooldownField();
+        
+        preventRepeatingModal.show();
+    }
+
+    function toggleCooldownField() {
+        if (preventRepeatingToggle.checked) {
+            cooldownField.style.display = 'block';
+        } else {
+            cooldownField.style.display = 'none';
+        }
+    }
+
+    async function saveRepeatingRuleSettings() {
+        const enabled = document.getElementById('preventRepeatingToggle').checked;
+        const cooldown = parseInt(document.getElementById('cooldownTime').value, 10);
+        
+        if (enabled && (isNaN(cooldown) || cooldown < 1)) {
+            showToast('Please enter a valid cooldown period (minimum 1 second).', 'warning');
+            return;
+        }
+
+        const payload = { enabled, cooldown };
+        
+        try {
+            const response = await fetch('/api/settings/prevent-repeating-rule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                currentSettings.preventRepeatingRule.enabled = enabled;
+                currentSettings.preventRepeatingRule.cooldown = cooldown;
+                preventRepeatingModal.hide();
+            } else {
+                showToast(result.message, 'fail');
+            }
+        } catch (error) {
+            showToast('Failed to save repeating rule settings.', 'fail');
+        }
+    }
+
+    // NEW: Function to fetch all settings
+    async function fetchSettings() {
+        try {
+            const response = await fetch('/api/settings');
+            const data = await response.json();
+            
+            ignoredOverrideUsers = data.ignoredOverrideUsers || [];
+            specificOverrideUsers = data.specificOverrideUsers || [];
+            currentSettings.preventRepeatingRule = data.preventRepeatingRule || { enabled: false, cooldown: 2 };
+            console.log('⚙️ All settings fetched successfully.');
+            
+        } catch (error) {
+            console.error('Failed to fetch settings:', error);
+            showToast('Failed to load settings', 'fail');
+        }
+    }
 
     // Event Listeners
     if (addRuleBtn) {
@@ -1190,6 +1270,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (saveOverrideBtn) {
         saveOverrideBtn.addEventListener('click', saveOverrideSettings);
+    }
+    
+    // NEW Event Listeners for repeating rule
+    if (preventRepeatingBtn) {
+        preventRepeatingBtn.addEventListener('click', openPreventRepeatingModal);
+    }
+    if (preventRepeatingToggle) {
+        preventRepeatingToggle.addEventListener('change', toggleCooldownField);
+    }
+    if (saveRepeatingBtn) {
+        saveRepeatingBtn.addEventListener('click', saveRepeatingRuleSettings);
     }
     
     // Initialize the app
