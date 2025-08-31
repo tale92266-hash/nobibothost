@@ -941,12 +941,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const div = document.createElement('div');
         div.className = 'variable-item';
         div.onclick = () => openEditVariableModal(variable);
+        
+        const truncatedValue = variable.value.length > 150 ?
+            variable.value.substring(0, 150) + '...' :
+            variable.value;
 
         div.innerHTML = `
             <div class="variable-header">
                 <span class="variable-name">%${variable.name}%</span>
             </div>
-            <div class="variable-value">${variable.value}</div>
+            <div class="variable-value">${truncatedValue}</div>
         `;
 
         return div;
