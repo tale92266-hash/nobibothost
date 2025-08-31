@@ -1,4 +1,3 @@
-// file: nobibothost-main.zip/nobibothost-main/public/script.js
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
@@ -970,6 +969,7 @@ document.addEventListener("DOMContentLoaded", () => {
         configureModalButtons('variable', 'edit');
     }
 
+    // Global function for cancel variable edit
     window.cancelVariableEdit = function() {
         variableFormContainer.style.display = 'none';
         variableForm.reset();
