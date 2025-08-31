@@ -754,30 +754,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Search functionality
     function setupSearch() {
-        const searchInput = document.getElementById('searchRules');
-        if (!searchInput) return;
-
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase().trim();
-            
-            if (!searchTerm) {
-                renderRules(allRules);
-                return;
-            }
-
-            const filteredRules = allRules.filter(rule => {
-                return (
-                    (rule.RULE_NAME || '').toLowerCase().includes(searchTerm) ||
-                    rule.RULE_TYPE.toLowerCase().includes(searchTerm) ||
-                    rule.KEYWORDS.toLowerCase().includes(searchTerm) ||
-                    rule.REPLY_TEXT.toLowerCase().includes(searchTerm) ||
-                    rule.REPLIES_TYPE.toLowerCase().includes(searchTerm)
-                );
+        const rulesSearchInput = document.getElementById('searchRules');
+        const variablesSearchInput = document.getElementById('searchVariables');
+    
+        if (rulesSearchInput) {
+            rulesSearchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const filteredRules = allRules.filter(rule => {
+                    return (
+                        (rule.RULE_NAME || '').toLowerCase().includes(searchTerm) ||
+                        rule.RULE_TYPE.toLowerCase().includes(searchTerm) ||
+                        (rule.KEYWORDS || '').toLowerCase().includes(searchTerm) ||
+                        (rule.REPLY_TEXT || '').toLowerCase().includes(searchTerm) ||
+                        (rule.REPLIES_TYPE || '').toLowerCase().includes(searchTerm)
+                    );
+                });
+                renderRules(filteredRules, searchTerm);
             });
-
-            renderRules(filteredRules, searchTerm);
-        });
+        }
+    
+        if (variablesSearchInput) {
+            variablesSearchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const filteredVariables = allVariables.filter(variable => {
+                    return (
+                        (variable.name || '').toLowerCase().includes(searchTerm) ||
+                        (variable.value || '').toLowerCase().includes(searchTerm)
+                    );
+                });
+                renderVariables(filteredVariables, searchTerm);
+            });
+        }
     }
+    
 
     // Rule Modal Functions
     function openAddRuleModal() {
@@ -916,12 +925,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function renderVariables(variables) {
+    function renderVariables(variables, searchTerm = '') {
         if (!variablesList) return;
 
         variablesList.innerHTML = '';
-
-        if (variables.length === 0) {
+        const filteredVariables = searchTerm ? variables.filter(variable => 
+            (variable.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (variable.value || '').toLowerCase().includes(searchTerm.toLowerCase())
+        ) : variables;
+    
+        if (filteredVariables.length === 0) {
             variablesList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-code fa-3x"></i>
@@ -932,7 +945,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        variables.forEach(variable => {
+        filteredVariables.forEach(variable => {
             const variableElement = createVariableElement(variable);
             variablesList.appendChild(variableElement);
         });
