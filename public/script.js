@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
 
-        if (diffMins < 1) return 'अभी';
+        if (diffMins < 1) return 'Now';
         if (diffMins < 60) return `${diffMins} मिनट पहले`;
         if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घंटे पहले`;
         return date.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' });
