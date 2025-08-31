@@ -8,7 +8,7 @@ const path = require("path");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.env || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
@@ -66,6 +66,14 @@ const variableSchema = new mongoose.Schema({
 
 const Variable = mongoose.model("Variable", variableSchema);
 
+// NEW: Mongoose model for global settings
+const settingsSchema = new mongoose.Schema({
+    settings_type: { type: String, required: true, unique: true }, // 'override_lists' or 'global_settings'
+    settings_data: mongoose.Schema.Types.Mixed
+});
+
+const Settings = mongoose.model("Settings", settingsSchema);
+
 // Persistent Stats
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
@@ -104,32 +112,57 @@ async function loadAllVariables() {
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
-// NEW: Function to load override lists
-function loadOverrideUsers() {
-    if (fs.existsSync(ignoredOverrideUsersFile)) {
-        IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8'));
-    }
-    if (fs.existsSync(specificOverrideUsersFile)) {
-        SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8'));
+// NEW: Function to load override lists from MongoDB
+async function loadOverrideUsers() {
+    const overrideSettings = await Settings.findOne({ settings_type: 'override_lists' });
+    if (overrideSettings) {
+        IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
+        SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
     }
     console.log(`🔍 Loaded ${IGNORED_OVERRIDE_USERS.length} ignored override users.`);
     console.log(`🔍 Loaded ${SPECIFIC_OVERRIDE_USERS.length} specific override users.`);
 }
 
-// NEW: Function to load global settings
-function loadSettings() {
-    if (fs.existsSync(settingsFilePath)) {
-        const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
-        try {
-            const loadedSettings = JSON.parse(fileContent);
-            settings = { ...settings, ...loadedSettings };
-            console.log('⚙️ Settings loaded successfully.');
-        } catch (e) {
-            console.error('❌ Failed to parse settings.json:', e);
-        }
+// NEW: Function to load global settings from MongoDB
+async function loadSettings() {
+    const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
+    if (globalSettings) {
+        settings = { ...settings, ...globalSettings.settings_data };
     }
     console.log('⚙️ Current Repeating Rule settings:', settings.preventRepeatingRule);
 }
+
+// NEW: Migration function to move old settings from files to DB
+const migrateOldSettings = async () => {
+    // Migrate override users
+    if (fs.existsSync(ignoredOverrideUsersFile) || fs.existsSync(specificOverrideUsersFile)) {
+        const ignored = fs.existsSync(ignoredOverrideUsersFile) ? JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8')) : [];
+        const specific = fs.existsSync(specificOverrideUsersFile) ? JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8')) : [];
+
+        await Settings.findOneAndUpdate(
+            { settings_type: 'override_lists' },
+            { settings_data: { ignored, specific } },
+            { upsert: true, new: true }
+        );
+        console.log('✅ Old override lists migrated to MongoDB.');
+        // Clean up old files
+        fs.unlinkSync(ignoredOverrideUsersFile);
+        fs.unlinkSync(specificOverrideUsersFile);
+    }
+
+    // Migrate global settings
+    if (fs.existsSync(settingsFilePath)) {
+        const oldSettings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+        await Settings.findOneAndUpdate(
+            { settings_type: 'global_settings' },
+            { settings_data: oldSettings },
+            { upsert: true, new: true }
+        );
+        console.log('✅ Old global settings migrated to MongoDB.');
+        // Clean up old file
+        fs.unlinkSync(settingsFilePath);
+    }
+};
 
 const syncData = async () => {
     try {
@@ -144,10 +177,11 @@ const syncData = async () => {
         welcomedUsers = dbWelcomedUsers.map(u => u.senderName);
         fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 
+        // NEW: Load settings from MongoDB
         await loadAllRules();
         await loadAllVariables();
-        loadOverrideUsers();
-        loadSettings();
+        await loadOverrideUsers();
+        await loadSettings();
 
         if (stats.lastResetDate !== today) {
             stats.todayUsers = [];
@@ -180,17 +214,29 @@ function saveVariables() {
     fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
-// NEW: Functions to save override lists
-function saveIgnoredOverrideUsers() {
-    fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
+// NEW: Functions to save override lists to MongoDB
+async function saveIgnoredOverrideUsers() {
+    await Settings.findOneAndUpdate(
+        { settings_type: 'override_lists' },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS },
+        { upsert: true, new: true }
+    );
 }
-function saveSpecificOverrideUsers() {
-    fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
+async function saveSpecificOverrideUsers() {
+    await Settings.findOneAndUpdate(
+        { settings_type: 'override_lists' },
+        { 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
+        { upsert: true, new: true }
+    );
 }
 
-// NEW: Function to save global settings
-function saveSettings() {
-    fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
+// NEW: Function to save global settings to MongoDB
+async function saveSettings() {
+    await Settings.findOneAndUpdate(
+        { settings_type: 'global_settings' },
+        { 'settings_data': settings },
+        { upsert: true, new: true }
+    );
 }
 
 const resetDailyStats = async () => {
@@ -612,17 +658,19 @@ console.log('❌ Client disconnected');
             }
         });
 
+        await migrateOldSettings(); // NEW: Run migration logic
+        
         await syncData();
         scheduleDailyReset();
     });
 })();
 
 // NEW ENDPOINT: Update ignored override users
-app.post("/api/settings/ignored-override", (req, res) => {
+app.post("/api/settings/ignored-override", async (req, res) => {
     try {
         const { users } = req.body;
         IGNORED_OVERRIDE_USERS = users.split(',').map(u => u.trim()).filter(Boolean);
-        saveIgnoredOverrideUsers();
+        await saveIgnoredOverrideUsers();
         res.json({ success: true, message: "Ignored override users updated successfully." });
     } catch (error) {
         console.error("❌ Failed to update ignored override users:", error);
@@ -631,11 +679,11 @@ app.post("/api/settings/ignored-override", (req, res) => {
 });
 
 // NEW ENDPOINT: Update specific override users
-app.post("/api/settings/specific-override", (req, res) => {
+app.post("/api/settings/specific-override", async (req, res) => {
     try {
         const { users } = req.body;
         SPECIFIC_OVERRIDE_USERS = users.split(',').map(u => u.trim()).filter(Boolean);
-        saveSpecificOverrideUsers();
+        await saveSpecificOverrideUsers();
         res.json({ success: true, message: "Specific override users updated successfully." });
     } catch (error) {
         console.error("❌ Failed to update specific override users:", error);
@@ -644,12 +692,15 @@ app.post("/api/settings/specific-override", (req, res) => {
 });
 
 // NEW ENDPOINT: Get all settings
-app.get("/api/settings", (req, res) => {
+app.get("/api/settings", async (req, res) => {
     try {
+        const overrideLists = await Settings.findOne({ settings_type: 'override_lists' });
+        const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
+        
         res.json({
-            preventRepeatingRule: settings.preventRepeatingRule,
-            ignoredOverrideUsers: IGNORED_OVERRIDE_USERS,
-            specificOverrideUsers: SPECIFIC_OVERRIDE_USERS
+            preventRepeatingRule: globalSettings?.settings_data?.preventRepeatingRule || { enabled: false, cooldown: 2 },
+            ignoredOverrideUsers: overrideLists?.settings_data?.ignored || [],
+            specificOverrideUsers: overrideLists?.settings_data?.specific || []
         });
     } catch (error) {
         res.status(500).json({ success: false, message: "Server error" });
@@ -657,12 +708,12 @@ app.get("/api/settings", (req, res) => {
 });
 
 // NEW ENDPOINT: Update repeating rule setting
-app.post("/api/settings/prevent-repeating-rule", (req, res) => {
+app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
     try {
         const { enabled, cooldown } = req.body;
         settings.preventRepeatingRule.enabled = enabled;
         settings.preventRepeatingRule.cooldown = cooldown;
-        saveSettings();
+        await saveSettings();
         res.json({ success: true, message: "Repeating rule setting updated successfully." });
     } catch (error) {
         console.error("❌ Failed to update repeating rule setting:", error);
