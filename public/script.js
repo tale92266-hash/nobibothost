@@ -950,25 +950,26 @@ document.addEventListener("DOMContentLoaded", () => {
     function openAddVariableModal() {
         currentVariableName = null;
         
-        document.getElementById('variableFormTitle').textContent = 'Add Variable';
-        variableForm.reset();
+        variableFormContainer.style.display = 'block';
         
-        variableFormContainer.style.display = 'block'; // Show the form container
+        // Reset form for new data
+        document.getElementById('variableName').value = '';
+        document.getElementById('variableValue').value = '';
+        
         configureModalButtons('variable', 'add');
     }
 
     function openEditVariableModal(variable) {
         currentVariableName = variable.name;
         
-        document.getElementById('variableFormTitle').textContent = 'Edit Variable';
+        variableFormContainer.style.display = 'block';
+        
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
 
-        variableFormContainer.style.display = 'block'; // Show the form container
         configureModalButtons('variable', 'edit');
     }
 
-    // New function to handle form cancellation
     window.cancelVariableEdit = function() {
         variableFormContainer.style.display = 'none';
         variableForm.reset();
@@ -976,11 +977,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     async function saveVariable() {
-        const formData = new FormData(variableForm);
-        
+        const variableName = document.getElementById('variableName').value.trim();
+        const variableValue = document.getElementById('variableValue').value.trim();
+
+        if (!variableName || !variableValue) {
+            showToast("Variable name and value cannot be empty.", "warning");
+            return;
+        }
+
         const variableData = {
-            name: formData.get('variableName'),
-            value: formData.get('variableValue')
+            name: variableName,
+            value: variableValue
         };
 
         const payload = {
