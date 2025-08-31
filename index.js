@@ -10,7 +10,6 @@ const mongoose = require("mongoose");
 const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
-const MONGODB_URI = process.env.MONGODB_URI;
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, { cors: { origin: "*" } });
@@ -22,7 +21,7 @@ let recentChatMessages = []; // Store last 10 chat messages globally
 const MAX_CHAT_HISTORY = 10;
 
 // MongoDB Connection & Models
-mongoose.connect(MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
 .catch(err => console.error("❌ MongoDB connection error:", err));
 
@@ -322,93 +321,121 @@ console.log(`✅ Final resolved result completed`);
 return result;
 }
 
-async function processMessage(msg, sessionId = "default", senderName) {
-msg = msg.toLowerCase();
+// NEW FUNCTION: sender string ko parse karne ke liye
+function extractSenderNameAndContext(sender) {
+    let senderName = sender;
+    let groupName = null;
+    let isGroup = false;
 
-// Update Stats
-if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
-if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
-stats.totalMsgs++;
-stats.todayMsgs++;
+    // Remove the admin username part, if it exists, using a regex pattern
+    const adminPattern = /^\(.*\)\s*/;
+    const cleanSender = sender.replace(adminPattern, '');
 
-if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
+    // Check for "GC NAME: SENDER NAME" pattern
+    const groupPattern = /^(.*):\s*(.*)$/;
+    const match = cleanSender.match(groupPattern);
 
-const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
-stats = updatedStats;
-saveStats();
-emitStats();
+    if (match && match.length === 3) {
+        groupName = match[1].trim();
+        senderName = match[2].trim();
+        isGroup = true;
+    }
 
-// Match Rules
-let reply = null;
-
-for (let rule of RULES) {
-let userMatch = false;
-const targetUsers = rule.TARGET_USERS || "ALL";
-
-// Check if user is in the "ignored" list
-if (rule.RULE_TYPE === "IGNORED") {
-if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
-userMatch = true;
-}
-} else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-userMatch = true;
+    return { senderName, groupName, isGroup };
 }
 
-if (!userMatch) {
-continue;
-}
+async function processMessage(msg, sessionId = "default", sender) {
+    const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+    
+    // Yahaan ab hum senderName aur isGroup ka use kar sakte hain
+    console.log(`🔍 Processing message from: ${senderName} (Group: ${isGroup ? groupName : 'No'})`);
 
-let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
-let match = false;
+    msg = msg.toLowerCase();
 
-if (rule.RULE_TYPE === "WELCOME") {
-if (senderName && !welcomedUsers.includes(senderName)) {
-match = true;
-welcomedUsers.push(senderName);
-saveWelcomedUsers();
-await User.create({ senderName, sessionId });
-}
-} else if (rule.RULE_TYPE === "DEFAULT") {
-match = true;
-} else {
-for (let pattern of patterns) {
-if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
-else if (rule.RULE_TYPE === "PATTERN") {
-let regexStr = pattern.replace(/\*/g, ".*");
-if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
-}
-else if (rule.RULE_TYPE === "EXPERT") {
-try {
-if (new RegExp(pattern, "i").test(msg)) match = true;
-} catch {}
-}
+    // Update Stats
+    if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
+    if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
+    stats.totalMsgs++;
+    stats.todayMsgs++;
 
-if (match) break;
-}
-}
+    if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
 
-if (match) {
-let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-if (rule.REPLIES_TYPE === "ALL") {
-replies = replies.slice(0, 20);
-reply = replies.join(" ");
-} else if (rule.REPLIES_TYPE === "ONE") {
-reply = replies[0];
-} else {
-reply = pick(replies);
-}
+    const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
+    stats = updatedStats;
+    saveStats();
+    emitStats();
 
-break;
-}
-}
+    // Match Rules
+    let reply = null;
 
-// Process reply with variables (with proper order)
-if (reply) {
-console.log(`🔧 Processing reply with correct variable resolution order`);
-reply = resolveVariablesRecursively(reply);
-}
+    for (let rule of RULES) {
+        let userMatch = false;
+        const targetUsers = rule.TARGET_USERS || "ALL";
 
-return reply || null;
+        // Check if user is in the "ignored" list
+        if (rule.RULE_TYPE === "IGNORED") {
+            if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
+                userMatch = true;
+            }
+        } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
+            userMatch = true;
+        }
+
+        if (!userMatch) {
+            continue;
+        }
+
+        let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+        let match = false;
+
+        if (rule.RULE_TYPE === "WELCOME") {
+            if (senderName && !welcomedUsers.includes(senderName)) {
+                match = true;
+                welcomedUsers.push(senderName);
+                saveWelcomedUsers();
+                await User.create({ senderName, sessionId });
+            }
+        } else if (rule.RULE_TYPE === "DEFAULT") {
+            match = true;
+        } else {
+            for (let pattern of patterns) {
+                if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
+                else if (rule.RULE_TYPE === "PATTERN") {
+                    let regexStr = pattern.replace(/\*/g, ".*");
+                    if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+                }
+                else if (rule.RULE_TYPE === "EXPERT") {
+                    try {
+                        if (new RegExp(pattern, "i").test(msg)) match = true;
+                    } catch {}
+                }
+
+                if (match) break;
+            }
+        }
+
+        if (match) {
+            let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+            if (rule.REPLIES_TYPE === "ALL") {
+                replies = replies.slice(0, 20);
+                reply = replies.join(" ");
+            } else if (rule.REPLIES_TYPE === "ONE") {
+                reply = replies[0];
+            } else {
+                reply = pick(replies);
+            }
+
+            break;
+        }
+    }
+
+    // Process reply with variables (with proper order)
+    if (reply) {
+        console.log(`🔧 Processing reply with correct variable resolution order`);
+        reply = resolveVariablesRecursively(reply);
+    }
+
+    return reply || null;
 }
 
 // Socket.io connection with chat history
@@ -661,13 +688,13 @@ res.status(500).json({ success: false, message: "Server error" });
 app.post("/webhook", async (req, res) => {
 const sessionId = req.body.session_id || "default_session";
 const msg = req.body.query?.message || "";
-const senderName = req.body.query?.sender || "";
-const replyText = await processMessage(msg, sessionId, senderName);
+const sender = req.body.query?.sender || "";
+const replyText = await processMessage(msg, sessionId, sender);
 
 // Create message object for history
 const messageData = {
 sessionId: sessionId,
-senderName: senderName,
+senderName: sender,
 userMessage: msg,
 botReply: replyText,
 timestamp: new Date().toISOString()
