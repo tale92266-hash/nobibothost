@@ -351,22 +351,6 @@ body {
     color: var(--white);
 }
 
-.stat-content {
-    flex: 1;
-}
-
-.stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--gray-800);
-}
-
-.stat-label {
-    color: var(--gray-600);
-    font-weight: 500;
-    margin-top: 0.25rem;
-}
-
 /* Action Buttons - FIXED */
 .action-buttons {
     display: flex;
@@ -390,8 +374,8 @@ body {
     font-size: 1.1rem;
 }
 
-/* FIXED - Add New Rule Button Background */
-#addRuleBtn {
+/* FIXED - Add New Rule/Variable Button Background */
+#addRuleBtn, #addVariableBtn {
     background-color: white !important;
     background-image: none !important;
     color: var(--primary) !important;
@@ -399,17 +383,17 @@ body {
     box-shadow: var(--shadow) !important;
 }
 
-#addRuleBtn:hover {
+#addRuleBtn:hover, #addVariableBtn:hover {
     background-color: var(--primary) !important;
     color: white !important;
     border-color: var(--primary) !important;
 }
 
-#addRuleBtn i {
+#addRuleBtn i, #addVariableBtn i {
     color: var(--primary) !important;
 }
 
-#addRuleBtn:hover i {
+#addRuleBtn:hover i, #addVariableBtn:hover i {
     color: white !important;
 }
 
@@ -1004,27 +988,23 @@ body {
 }
 
 /* Settings Card Icons - Different Colors and Better Contrast */
-.settings-card:nth-child(1) .settings-card-icon {
-    background: linear-gradient(135deg, #10b981, #059669); /* Emerald Green for Variables */
-}
-
-.settings-card:nth-child(2) .settings-card-icon {
+.settings-card[data-setting="export"] .settings-card-icon {
     background: linear-gradient(135deg, #f59e0b, #d97706); /* Amber for Export */
 }
 
-.settings-card:nth-child(3) .settings-card-icon {
+.settings-card[data-setting="analytics"] .settings-card-icon {
     background: linear-gradient(135deg, #06b6d4, #0891b2); /* Cyan for Analytics */
 }
 
-.settings-card:nth-child(4) .settings-card-icon {
+.settings-card[data-setting="system"] .settings-card-icon {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed); /* Purple for System */
 }
 
-.settings-card:nth-child(5) .settings-card-icon {
+.settings-card[data-setting="backup"] .settings-card-icon {
     background: linear-gradient(135deg, #ef4444, #dc2626); /* Red for Backup */
 }
 
-.settings-card:nth-child(6) .settings-card-icon {
+.settings-card[data-setting="help"] .settings-card-icon {
     background: linear-gradient(135deg, #f97316, #ea580c); /* Orange for Help */
 }
 
@@ -1343,31 +1323,18 @@ body {
         font-size: 1.1rem;
     }
     
-    .settings-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
+    .tab-navigation {
+        padding: 0.25rem;
     }
     
-    .settings-card {
-        padding: 1.5rem;
+    .nav-tabs {
+        gap: 0.25rem;
     }
     
-    .settings-header h2 {
-        font-size: 1.75rem;
-    }
-    
-    .info-card-header,
-    .info-card-body {
-        padding: 1rem;
-    }
-    
-    .activity-item {
-        gap: 0.75rem;
-        padding: 0.5rem 0;
-    }
-    
-    .status-item {
-        padding: 0.5rem 0;
+    .nav-tabs .nav-link {
+        padding: 0.75rem;
+        min-width: 60px;
+        justify-content: center;
     }
 }
 
