@@ -953,8 +953,8 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('variableFormTitle').textContent = 'Add Variable';
         variableForm.reset();
         
+        variableFormContainer.style.display = 'block'; // Show the form container
         configureModalButtons('variable', 'add');
-        variableModal.show();
     }
 
     function openEditVariableModal(variable) {
@@ -963,9 +963,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('variableFormTitle').textContent = 'Edit Variable';
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
-        
+
+        variableFormContainer.style.display = 'block'; // Show the form container
         configureModalButtons('variable', 'edit');
-        variableModal.show();
+    }
+
+    // New function to handle form cancellation
+    window.cancelVariableEdit = function() {
+        variableFormContainer.style.display = 'none';
+        variableForm.reset();
+        currentVariableName = null;
     }
 
     async function saveVariable() {
@@ -993,7 +1000,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result.success) {
                 showToast(result.message, 'success');
-                variableModal.hide();
+                cancelVariableEdit();
                 await fetchVariables();
             } else {
                 showToast(result.message || 'Failed to save variable', 'fail');
@@ -1023,7 +1030,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result.success) {
                 showToast('Variable deleted successfully', 'success');
-                variableModal.hide();
+                cancelVariableEdit();
                 await fetchVariables();
             } else {
                 showToast(result.message || 'Failed to delete variable', 'fail');
@@ -1057,6 +1064,13 @@ document.addEventListener("DOMContentLoaded", () => {
         targetUsersToggle.addEventListener('change', toggleTargetUsersField);
     }
 
+    if (variablesMenuBtn) {
+        variablesMenuBtn.addEventListener('click', () => {
+            fetchVariables();
+            variableModal.show();
+        });
+    }
+
     if (addVariableBtn) {
         addVariableBtn.addEventListener('click', openAddVariableModal);
     }
@@ -1069,14 +1083,6 @@ document.addEventListener("DOMContentLoaded", () => {
         deleteVariableBtn.addEventListener('click', deleteVariable);
     }
     
-    // FIX START: Add event listener for variablesMenuBtn
-    if (variablesMenuBtn) {
-        variablesMenuBtn.addEventListener('click', () => {
-            variableModal.show();
-        });
-    }
-    // FIX END
-
     // Initialize the app
     setupSearch();
     init();
