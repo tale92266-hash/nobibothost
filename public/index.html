@@ -188,6 +188,49 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="tab-pane fade" id="variables-pane" role="tabpanel">
+                    <div class="tab-content-wrapper">
+                        <div class="action-buttons">
+                            <button class="btn btn-primary btn-lg" id="addVariableBtn">
+                                <i class="fas fa-plus-circle"></i> Add New Variable
+                            </button>
+                        </div>
+                        <div class="content-section">
+                            <div class="section-header">
+                                <h2><i class="fas fa-code"></i> All Variables</h2>
+                                <div class="search-box">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" id="searchVariables" placeholder="Search variables...">
+                                </div>
+                            </div>
+                            <div id="variableFormContainer" style="display: none;">
+                                <form id="variableForm" class="variable-form">
+                                    <div class="form-group">
+                                        <label for="variableName">Variable Name</label>
+                                        <input type="text" class="form-control" id="variableName" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="variableValue">Variable Value</label>
+                                        <textarea class="form-control" id="variableValue" rows="3" required></textarea>
+                                    </div>
+                                    <div class="form-actions">
+                                        <button type="button" class="btn btn-outline-danger btn-sm" id="deleteVariableBtn" style="display: none;">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelVariableEdit()">
+                                            <i class="fas fa-times"></i> Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-primary btn-sm" id="saveVariableBtn">
+                                            <i class="fas fa-save"></i> Save
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div id="variablesList" class="variables-list"></div>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="tab-pane fade" id="settings-pane" role="tabpanel">
                     <div class="tab-content-wrapper">
@@ -198,20 +241,7 @@
                             </div>
 
                             <div class="settings-grid">
-                                <div class="settings-card" id="variablesCard">
-                                    <div class="settings-card-icon">
-                                        <i class="fas fa-code"></i>
-                                    </div>
-                                    <div class="settings-card-content">
-                                        <h5>Variables Management</h5>
-                                        <p>Create and manage dynamic variables for your bot responses</p>
-                                        <button class="btn btn-primary" id="variablesMenuBtn">
-                                            <i class="fas fa-arrow-right"></i> Manage Variables
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="settings-card">
+                                <div class="settings-card" data-setting="export">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-download"></i>
                                     </div>
@@ -224,7 +254,7 @@
                                     </div>
                                 </div>
 
-                                <div class="settings-card">
+                                <div class="settings-card" data-setting="analytics">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-chart-line"></i>
                                     </div>
@@ -237,7 +267,7 @@
                                     </div>
                                 </div>
 
-                                <div class="settings-card">
+                                <div class="settings-card" data-setting="system">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-server"></i>
                                     </div>
@@ -250,7 +280,7 @@
                                     </div>
                                 </div>
 
-                                <div class="settings-card">
+                                <div class="settings-card" data-setting="backup">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-shield-alt"></i>
                                     </div>
@@ -263,7 +293,7 @@
                                     </div>
                                 </div>
 
-                                <div class="settings-card">
+                                <div class="settings-card" data-setting="help">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-question-circle"></i>
                                     </div>
@@ -284,7 +314,7 @@
     </main>
 
     <nav class="bottom-navigation">
-        <div class="nav-item" data-tab="stats">
+        <div class="nav-item active" data-tab="stats">
             <i class="fas fa-chart-bar"></i>
             <span>Dashboard</span>
         </div>
@@ -295,6 +325,10 @@
         <div class="nav-item" data-tab="chat">
             <i class="fas fa-comments"></i>
             <span>Chat</span>
+        </div>
+        <div class="nav-item" data-tab="variables">
+            <i class="fas fa-code"></i>
+            <span>Variables</span>
         </div>
         <div class="nav-item" data-tab="settings">
             <i class="fas fa-cog"></i>
