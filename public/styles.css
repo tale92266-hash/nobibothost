@@ -987,6 +987,17 @@ body {
     border-color: rgba(102, 126, 234, 0.2);
 }
 
+/* NEW: Custom styles for Override cards */
+.settings-card[data-setting="ignored-override-card"] .settings-card-icon {
+    background: linear-gradient(135deg, var(--danger), #e53e3e); /* Red for Ignored */
+    color: var(--white);
+}
+
+.settings-card[data-setting="specific-override-card"] .settings-card-icon {
+    background: linear-gradient(135deg, var(--success), #38a169); /* Green for Specific */
+    color: var(--white);
+}
+
 /* Settings Card Icons - Different Colors and Better Contrast */
 .settings-card[data-setting="export"] .settings-card-icon {
     background: linear-gradient(135deg, #f59e0b, #d97706); /* Amber for Export */
