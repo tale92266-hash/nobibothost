@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const ruleModal = new bootstrap.Modal(document.getElementById("ruleModal"));
     const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
     const ruleForm = document.getElementById("ruleForm");
+    const variableForm = document.getElementById("variableForm");
     const formTitle = document.getElementById("formTitle");
     const deleteRuleBtn = document.getElementById("deleteRuleBtn");
     const loadingMessage = document.getElementById("loadingMessage");
@@ -18,13 +19,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const targetUsersField = document.getElementById('targetUsersField');
     const ruleNumberInput = document.getElementById('ruleNumber');
     const ruleNumberError = document.getElementById('ruleNumberError');
-    const variablesMenuBtn = document.getElementById('variablesMenuBtn');
-    const toastLiveExample = document.getElementById('liveToast');
-    const variableForm = document.getElementById('variableForm');
     const variablesList = document.getElementById('variablesList');
     const addVariableBtn = document.getElementById('addVariableBtn');
     const deleteVariableBtn = document.getElementById('deleteVariableBtn');
     const variableFormContainer = document.getElementById('variableFormContainer');
+    const variablesMenuBtn = document.getElementById('variablesMenuBtn');
+    const toastLiveExample = document.getElementById('liveToast');
+    const toastBody = document.querySelector('#liveToast .toast-body');
+    const toast = new bootstrap.Toast(toastLiveExample);
     const saveRuleBtn = document.getElementById('saveRuleBtn');
     const saveVariableBtn = document.getElementById('saveVariableBtn');
 
@@ -579,6 +581,16 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    async function fetchStats() {
+        try {
+            const response = await fetch('/stats');
+            const data = await response.json();
+            updateStatsDisplay(data);
+        } catch (error) {
+            console.error('Failed to fetch stats:', error);
+        }
+    }
+
     // Toast Functions
     function showToast(message, type = 'success') {
         const toastElement = document.getElementById('liveToast');
@@ -596,18 +608,20 @@ document.addEventListener("DOMContentLoaded", () => {
         toastInstance.show();
     }
 
-    // Updated toggleFormFields function
     function toggleFormFields(ruleType) {
         if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
             keywordsField.style.display = 'none';
+            // repliesTypeField.style.display = 'none'; // Ye line remove kar di gayi hai
+            replyTextField.style.display = 'block';
             document.getElementById('keywords').value = "ALL";
         } else {
             keywordsField.style.display = 'block';
+            // repliesTypeField.style.display = 'block'; // Ye line bhi remove kar di gayi hai
+            replyTextField.style.display = 'block';
         }
-
-        // Replies type field should always be visible now
+        
+        // repliesTypeField ko hamesha visible rakhein
         repliesTypeField.style.display = 'block';
-        replyTextField.style.display = 'block';
 
         if (!document.getElementById('repliesType').value) {
             document.getElementById('repliesType').value = 'RANDOM';
