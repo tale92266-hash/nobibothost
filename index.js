@@ -8,7 +8,7 @@ const path = require("path");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const app = express();
-const PORT = process.env.env || 10000;
+const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
@@ -97,7 +97,9 @@ let settings = {
     preventRepeatingRule: {
         enabled: false,
         cooldown: 2
-    }
+    },
+    // NEW: Bot Online status
+    isBotOnline: true
 };
 let lastReplyTimes = {}; // Stores { senderName: timestamp }
 
@@ -130,6 +132,7 @@ async function loadSettings() {
         settings = { ...settings, ...globalSettings.settings_data };
     }
     console.log('⚙️ Current Repeating Rule settings:', settings.preventRepeatingRule);
+    console.log('🤖 Current bot status:', settings.isBotOnline ? 'Online' : 'Offline');
 }
 
 // NEW: Migration function to move old settings from files to DB
@@ -474,6 +477,12 @@ async function processMessage(msg, sessionId = "default", sender) {
         console.error('❌ Stats object is undefined. Cannot process message.');
         return null;
     }
+    
+    // NEW: Bot Online check
+    if (!settings.isBotOnline) {
+        console.log('🤖 Bot is offline. Skipping message processing.');
+        return null;
+    }
 
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
     
@@ -699,6 +708,7 @@ app.get("/api/settings", async (req, res) => {
         
         res.json({
             preventRepeatingRule: globalSettings?.settings_data?.preventRepeatingRule || { enabled: false, cooldown: 2 },
+            isBotOnline: globalSettings?.settings_data?.isBotOnline ?? true,
             ignoredOverrideUsers: overrideLists?.settings_data?.ignored || [],
             specificOverrideUsers: overrideLists?.settings_data?.specific || []
         });
@@ -717,6 +727,20 @@ app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
         res.json({ success: true, message: "Repeating rule setting updated successfully." });
     } catch (error) {
         console.error("❌ Failed to update repeating rule setting:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+// NEW ENDPOINT: Update bot status
+app.post("/api/bot/status", async (req, res) => {
+    try {
+        const { isOnline } = req.body;
+        settings.isBotOnline = isOnline;
+        await saveSettings();
+        res.json({ success: true, message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.` });
+        console.log(`🤖 Bot status has been set to ${isOnline ? 'online' : 'offline'}.`);
+    } catch (error) {
+        console.error("❌ Failed to update bot status:", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
 });
@@ -940,13 +964,19 @@ app.post("/webhook", async (req, res) => {
     // Yahan hum sender string ko parse kar rahe hain
     const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
 
+    // NEW: Bot Online check added to webhook endpoint
+    if (!settings.isBotOnline) {
+        console.log('🤖 Bot is offline. Skipping message processing.');
+        return res.json({ replies: [] });
+    }
+
     const replyText = await processMessage(msg, sessionId, sender);
 
     // Create message object for history
     const messageData = {
         sessionId: sessionId,
-        senderName: parsedSenderName, // <-- Yahan ab parsed sender name use ho raha hai
-        groupName: isGroup ? groupName : null, // <-- Naya field: groupName
+        senderName: parsedSenderName,
+        groupName: isGroup ? groupName : null,
         userMessage: msg,
         botReply: replyText,
         timestamp: new Date().toISOString()
