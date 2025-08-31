@@ -998,6 +998,12 @@ body {
     color: var(--white);
 }
 
+/* NEW: Custom styles for Repeating Rule card */
+.settings-card[data-setting="repeating-rule"] .settings-card-icon {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed); /* Purple for Repeating Rule */
+    color: var(--white);
+}
+
 /* Settings Card Icons - Different Colors and Better Contrast */
 .settings-card[data-setting="export"] .settings-card-icon {
     background: linear-gradient(135deg, #f59e0b, #d97706); /* Amber for Export */
