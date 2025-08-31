@@ -78,6 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 id: Date.now() + Math.random(),
                 sessionId: message.sessionId || 'unknown',
                 senderName: message.senderName || '',
+                groupName: message.groupName || null,
                 userMessage: message.userMessage || '',
                 botReply: message.botReply || '',
                 timestamp: message.timestamp || new Date().toISOString()
@@ -109,13 +110,14 @@ document.addEventListener("DOMContentLoaded", () => {
     addChatNavigation();
 
     function addChatMessage(messageData) {
-        const { sessionId, userMessage, botReply, timestamp, senderName } = messageData;
+        const { sessionId, userMessage, botReply, timestamp, senderName, groupName } = messageData;
 
         // Create message object
         const message = {
             id: Date.now() + Math.random(),
             sessionId: sessionId || 'unknown',
             senderName: senderName || '',
+            groupName: groupName || null,
             userMessage: userMessage || '',
             botReply: botReply || '',
             timestamp: timestamp || new Date().toISOString()
@@ -158,6 +160,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const userName = message.senderName || getUserDisplayName(message.sessionId, message.senderName);
         const userAvatar = getUserAvatar(userName);
         const timeDisplay = formatTime(message.timestamp);
+
+        // Naya logic: Reply text ko update karen
+        let botReplyText = `Reply sent to ${escapeHtml(userName)}`;
+        if (message.groupName) {
+            botReplyText += ` in ${escapeHtml(message.groupName)} GC`;
+        }
         
         messageDiv.innerHTML = `
             <div class="message-header">
@@ -172,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <strong>User:</strong> ${escapeHtml(message.userMessage)}
                 </div>
                 <div class="bot-reply">
-                    <strong>Bot:</strong> Reply sent to ${escapeHtml(userName)}
+                    <strong>Bot:</strong> ${botReplyText}
                 </div>
             </div>
         `;
@@ -493,7 +501,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
-            btn.style.verticalAlign = 'middle';
+            btn.style.vertical-align: middle;
             btn.style.marginLeft = '0';
         });
 
