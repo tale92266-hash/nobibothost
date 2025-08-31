@@ -772,7 +772,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- NEW: Full Screen Modal Functions ---
+    // NEW: Full Screen Modal Functions
     function openFullScreenModal(modalId, title, showTabs = false) {
         const modal = document.getElementById(modalId);
         const modalDialog = modal.querySelector('.modal-dialog');
@@ -847,7 +847,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }, 300);
     }
-    // --- END: NEW Full Screen Modal Functions ---
+    // END: NEW Full Screen Modal Functions
 
 
     // Rule Modal Functions
@@ -1024,7 +1024,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return div;
     }
 
-    // --- NEW: Updated Variable Modal Functions ---
+    // NEW: Updated Variable Modal Functions
     function openVariablesManagement() {
         fetchVariables();
         openFullScreenModal('variableModal', 'Manage Variables', true);
@@ -1043,7 +1043,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (modal.querySelector('.fullscreen-modal')) {
             // Already fullscreen, just update title and switch tab
             modal.querySelector('.modal-title').textContent = 'Add Variable';
-            const addTabBtn = document.querySelector('[data-bs-target="#addVariable"]');
+            const addTabBtn = document.querySelector('[data-bs-target="#addVariableTab"]');
             if (addTabBtn) {
                 bootstrap.Tab.getInstance(addTabBtn).show();
             }
@@ -1072,7 +1072,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Update title and switch to form tab
         const modal = document.getElementById('variableModal');
         modal.querySelector('.modal-title').textContent = `Edit Variable: ${variableName}`;
-        const addTabBtn = document.querySelector('[data-bs-target="#addVariable"]');
+        const addTabBtn = document.querySelector('[data-bs-target="#addVariableTab"]');
         if (addTabBtn) {
             bootstrap.Tab.getInstance(addTabBtn).show();
         }
@@ -1085,7 +1085,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentVariableName = null;
         
         // Switch back to list tab
-        const listTabBtn = document.querySelector('[data-bs-target="#variablesList"]');
+        const listTabBtn = document.querySelector('[data-bs-target="#variablesListTab"]');
         if (listTabBtn) {
             bootstrap.Tab.getInstance(listTabBtn).show();
         }
@@ -1094,7 +1094,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const modal = document.getElementById('variableModal');
         modal.querySelector('.modal-title').textContent = 'Manage Variables';
     }
-    // --- END: Updated Variable Modal Functions ---
+    // END: Updated Variable Modal Functions
 
 
     async function saveVariable() {
