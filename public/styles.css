@@ -1228,6 +1228,67 @@ body {
     display: none;
 }
 
+/* NEW: Bot Status Button styles */
+.bot-status-container {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+#botStatusBtn {
+    border: none;
+    color: var(--white);
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-radius: var(--border-radius-xl);
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    min-width: 250px;
+}
+
+#botStatusBtn.bot-on {
+    background: linear-gradient(135deg, var(--success), #38a169);
+    animation: pulse-green 2s infinite;
+}
+
+#botStatusBtn.bot-off {
+    background: linear-gradient(135deg, var(--danger), #e53e3e);
+    animation: pulse-red 2s infinite;
+}
+
+#botStatusBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(72, 187, 120, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(72, 187, 120, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(72, 187, 120, 0);
+    }
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(245, 101, 101, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(245, 101, 101, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(245, 101, 101, 0);
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .header-content {
@@ -1394,6 +1455,12 @@ body {
         padding: 0.75rem;
         min-width: 60px;
         justify-content: center;
+    }
+
+    #botStatusBtn {
+        font-size: 1rem;
+        padding: 0.75rem 1.5rem;
+        min-width: 200px;
     }
 }
 
