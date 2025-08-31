@@ -471,23 +471,18 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             const result = await response.json();
-            console.log('📨 Bulk update response:', result);
 
             if (result.success) {
-                console.log('✅ Bulk update successful');
-                if (result.errors && result.errors.length > 0) {
-                    console.warn('⚠️ Some errors occurred:', result.errors);
-                }
-                return true;
+                showToast(`${result.updatedCount} rules reordered successfully`, 'success');
+                await fetchRules();
+                // We'll also need to update the rules in the memory here if we're not reloading
             } else {
-                console.error('❌ Bulk update failed:', result.message);
                 showToast(result.message || 'Failed to update rules order', 'fail');
-                return false;
             }
+
         } catch (error) {
             console.error('❌ Network error during bulk update:', error);
             showToast('Network error during bulk update: ' + error.message, 'fail');
-            return false;
         }
     }
 
