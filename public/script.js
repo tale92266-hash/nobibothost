@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const addRuleBtn = document.getElementById("addRuleBtn");
     const ruleModal = new bootstrap.Modal(document.getElementById("ruleModal"));
     const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
+    const overrideModal = new bootstrap.Modal(document.getElementById("overrideModal"));
     const ruleForm = document.getElementById("ruleForm");
     const variableForm = document.getElementById("variableForm");
     const formTitle = document.getElementById("formTitle");
@@ -30,6 +31,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveRuleBtn = document.getElementById('saveRuleBtn');
     const saveVariableBtn = document.getElementById('saveVariableBtn');
     const cancelVariableBtn = document.getElementById('cancelVariableBtn');
+    
+    // NEW DOM Elements
+    const ignoredOverrideBtn = document.getElementById('ignoredOverrideBtn');
+    const specificOverrideBtn = document.getElementById('specificOverrideBtn');
+    const overrideModalTitle = document.getElementById('overrideModalTitle');
+    const overrideModalDescription = document.getElementById('overrideModalDescription');
+    const overrideUsersList = document.getElementById('overrideUsersList');
+    const saveOverrideBtn = document.getElementById('saveOverrideBtn');
 
     // Variables
     let currentRuleNumber = null;
@@ -37,6 +46,11 @@ document.addEventListener("DOMContentLoaded", () => {
     let totalRules = 0;
     let allRules = [];
     let allVariables = [];
+    
+    // NEW: Override list variables
+    let ignoredOverrideUsers = [];
+    let specificOverrideUsers = [];
+    let currentOverrideType = null;
 
     // Socket connection for real-time stats
     const socket = io();
@@ -501,6 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
+            // FIX: Syntax error
             btn.style.verticalAlign = 'middle';
             btn.style.marginLeft = '0';
         });
@@ -1078,6 +1093,55 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // NEW Override Modal Functions
+    function openOverrideModal(type) {
+        currentOverrideType = type;
+        const modalTitle = document.getElementById('overrideModalTitle');
+        const modalDescription = document.getElementById('overrideModalDescription');
+        const usersListTextarea = document.getElementById('overrideUsersList');
+
+        if (type === 'ignored') {
+            modalTitle.textContent = 'Ignored Contact Override';
+            modalDescription.textContent = 'List users to be ignored for all "ALL Users" rules. Rules with specific targets will not be affected.';
+            usersListTextarea.value = ignoredOverrideUsers.join(', ');
+        } else if (type === 'specific') {
+            modalTitle.textContent = 'Specific Contact Override';
+            modalDescription.textContent = 'List users to apply all "ALL Users" rules to, overriding any other global settings.';
+            usersListTextarea.value = specificOverrideUsers.join(', ');
+        }
+
+        overrideModal.show();
+    }
+
+    async function saveOverrideSettings() {
+        const usersListTextarea = document.getElementById('overrideUsersList');
+        const users = usersListTextarea.value;
+        const endpoint = `/api/settings/${currentOverrideType}-override`;
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ users })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                if (currentOverrideType === 'ignored') {
+                    ignoredOverrideUsers = users.split(',').map(u => u.trim()).filter(Boolean);
+                } else {
+                    specificOverrideUsers = users.split(',').map(u => u.trim()).filter(Boolean);
+                }
+                overrideModal.hide();
+            } else {
+                showToast(result.message, 'fail');
+            }
+        } catch (error) {
+            showToast('Failed to save settings.', 'fail');
+        }
+    }
+
     // Event Listeners
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', openAddRuleModal);
@@ -1115,6 +1179,17 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (cancelVariableBtn) {
         cancelVariableBtn.addEventListener('click', cancelVariableEdit);
+    }
+
+    // NEW Event Listeners for overrides
+    if (ignoredOverrideBtn) {
+        ignoredOverrideBtn.addEventListener('click', () => openOverrideModal('ignored'));
+    }
+    if (specificOverrideBtn) {
+        specificOverrideBtn.addEventListener('click', () => openOverrideModal('specific'));
+    }
+    if (saveOverrideBtn) {
+        saveOverrideBtn.addEventListener('click', saveOverrideSettings);
     }
     
     // Initialize the app
