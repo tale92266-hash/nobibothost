@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const toast = new bootstrap.Toast(toastLiveExample);
     const saveRuleBtn = document.getElementById('saveRuleBtn');
     const saveVariableBtn = document.getElementById('saveVariableBtn');
+    const cancelVariableBtn = document.getElementById('cancelVariableBtn');
 
     // Variables
     let currentRuleNumber = null;
@@ -533,7 +534,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Load data based on tab
                 if (tabName === 'rules' && allRules.length === 0) {
                     fetchRules();
-                } else if (tabName === 'settings' && allVariables.length === 0) {
+                } else if (tabName === 'variables' && allVariables.length === 0) {
                     fetchVariables();
                 }
             });
@@ -955,37 +956,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
         return div;
     }
-
+    
+    // Updated openAddVariableModal to use Bootstrap modal
     function openAddVariableModal() {
         currentVariableName = null;
-        
-        variableFormContainer.style.display = 'block';
-        
-        // Reset form for new data
-        document.getElementById('variableName').value = '';
-        document.getElementById('variableValue').value = '';
-        
+        variableForm.reset();
         configureModalButtons('variable', 'add');
+        variableModal.show();
     }
 
+    // Updated openEditVariableModal to use Bootstrap modal
     function openEditVariableModal(variable) {
         currentVariableName = variable.name;
-        
-        variableFormContainer.style.display = 'block';
         
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
 
         configureModalButtons('variable', 'edit');
+        variableModal.show();
     }
-
-    // Global function for cancel variable edit
-    window.cancelVariableEdit = function() {
-        variableFormContainer.style.display = 'none';
+    
+    // Updated cancelVariableEdit function
+    function cancelVariableEdit() {
         variableForm.reset();
         currentVariableName = null;
+        variableModal.hide();
     }
-
+    
+    // Updated saveVariable function to close the modal
     async function saveVariable() {
         const variableName = document.getElementById('variableName').value.trim();
         const variableValue = document.getElementById('variableValue').value.trim();
@@ -1017,7 +1015,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result.success) {
                 showToast(result.message, 'success');
-                cancelVariableEdit();
+                variableModal.hide();
                 await fetchVariables();
             } else {
                 showToast(result.message || 'Failed to save variable', 'fail');
@@ -1027,7 +1025,8 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Network error occurred', 'fail');
         }
     }
-
+    
+    // Updated deleteVariable function to close the modal
     async function deleteVariable() {
         if (!currentVariableName) return;
 
@@ -1047,7 +1046,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (result.success) {
                 showToast('Variable deleted successfully', 'success');
-                cancelVariableEdit();
+                variableModal.hide();
                 await fetchVariables();
             } else {
                 showToast(result.message || 'Failed to delete variable', 'fail');
@@ -1081,13 +1080,6 @@ document.addEventListener("DOMContentLoaded", () => {
         targetUsersToggle.addEventListener('change', toggleTargetUsersField);
     }
 
-    if (variablesMenuBtn) {
-        variablesMenuBtn.addEventListener('click', () => {
-            fetchVariables();
-            variableModal.show();
-        });
-    }
-
     if (addVariableBtn) {
         addVariableBtn.addEventListener('click', openAddVariableModal);
     }
@@ -1098,6 +1090,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (deleteVariableBtn) {
         deleteVariableBtn.addEventListener('click', deleteVariable);
+    }
+    
+    if (cancelVariableBtn) {
+        cancelVariableBtn.addEventListener('click', cancelVariableEdit);
     }
     
     // Initialize the app
