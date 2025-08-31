@@ -204,29 +204,6 @@
                                     <input type="text" id="searchVariables" placeholder="Search variables...">
                                 </div>
                             </div>
-                            <div id="variableFormContainer" style="display: none;">
-                                <form id="variableForm" class="variable-form">
-                                    <div class="form-group">
-                                        <label for="variableName">Variable Name</label>
-                                        <input type="text" class="form-control" id="variableName" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="variableValue">Variable Value</label>
-                                        <textarea class="form-control" id="variableValue" rows="3" required></textarea>
-                                    </div>
-                                    <div class="form-actions">
-                                        <button type="button" class="btn btn-outline-danger btn-sm" id="deleteVariableBtn" style="display: none;">
-                                            <i class="fas fa-trash"></i> Delete
-                                        </button>
-                                        <button type="button" class="btn btn-secondary btn-sm" onclick="cancelVariableEdit()">
-                                            <i class="fas fa-times"></i> Cancel
-                                        </button>
-                                        <button type="submit" class="btn btn-primary btn-sm" id="saveVariableBtn">
-                                            <i class="fas fa-save"></i> Save
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
                             <div id="variablesList" class="variables-list"></div>
                         </div>
                     </div>
@@ -427,7 +404,7 @@
     </div>
 
     <div class="modal fade" id="variableModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
@@ -436,38 +413,27 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h6 class="mb-0">All Variables</h6>
-                        <button class="btn btn-primary btn-sm" id="addVariableBtn">
-                            <i class="fas fa-plus"></i> Add Variable
-                        </button>
-                    </div>
-                    
-                    <div id="variableFormContainer" style="display: none;">
-                        <form id="variableForm" class="variable-form">
-                            <div class="form-group">
-                                <label for="variableName">Variable Name</label>
-                                <input type="text" class="form-control" id="variableName" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="variableValue">Variable Value</label>
-                                <textarea class="form-control" id="variableValue" rows="3" required></textarea>
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn btn-outline-danger btn-sm" id="deleteVariableBtn" style="display: none;">
-                                    <i class="fas fa-trash"></i> Delete
-                                </button>
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="cancelVariableEdit()">
-                                    <i class="fas fa-times"></i> Cancel
-                                </button>
-                                <button type="submit" class="btn btn-primary btn-sm" id="saveVariableBtn">
-                                    <i class="fas fa-save"></i> Save
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                    
-                    <div id="variablesList" class="variables-list"></div>
+                    <form id="variableForm" class="variable-form">
+                        <div class="form-group">
+                            <label for="variableName">Variable Name</label>
+                            <input type="text" class="form-control" id="variableName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="variableValue">Variable Value</label>
+                            <textarea class="form-control" id="variableValue" rows="3" required></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="deleteVariableBtn" style="display: none;">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="cancelVariableBtn">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary btn-sm" id="saveVariableBtn">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
