@@ -1,5 +1,4 @@
 // file: nobibothost-main (1).zip/nobibothost-main/public/script.js
-
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
@@ -39,11 +38,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Socket connection for real-time stats
     const socket = io();
-    
     socket.on('connect', () => {
         console.log('Connected to server');
     });
-
     socket.on('statsUpdate', (data) => {
         updateStatsDisplay(data);
     });
@@ -82,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function addChatMessage(messageData) {
         const { sessionId, userMessage, botReply, timestamp, senderName } = messageData;
-        
+
         // Create message object
         const message = {
             id: Date.now() + Math.random(),
@@ -103,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Update chat display
         updateChatDisplay();
-        
+
         // Auto scroll to latest message
         scrollToLatest();
     }
@@ -113,7 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!chatContainer) return;
 
         chatContainer.innerHTML = '';
-
         chatMessages.forEach((message, index) => {
             const messageElement = createMessageElement(message, index);
             chatContainer.appendChild(messageElement);
@@ -124,41 +120,39 @@ document.addEventListener("DOMContentLoaded", () => {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'chat-message';
         messageDiv.style.animationDelay = `${index * 0.1}s`;
-
-        const userName = getUserDisplayName(message.sessionId, message.senderName);
+        
+        // Use actual sender name if available
+        const userName = message.senderName || getUserDisplayName(message.sessionId, message.senderName);
         const userAvatar = getUserAvatar(userName);
         const timeDisplay = formatTime(message.timestamp);
-
+        
         messageDiv.innerHTML = `
             <div class="message-header">
                 <div class="user-info">
                     <div class="user-avatar">${userAvatar}</div>
-                    <span class="user-name">${userName}</span>
+                    <div class="user-name">${escapeHtml(userName)}</div>
                 </div>
-                <span class="message-time">${timeDisplay}</span>
+                <div class="message-time">${timeDisplay}</div>
             </div>
             <div class="message-content">
-                ${message.userMessage ? `
-                    <div class="user-message">
-                        <strong>User:</strong> ${escapeHtml(message.userMessage)}
-                    </div>
-                ` : ''}
-                ${message.botReply ? `
-                    <div class="bot-reply">
-                        <strong>🤖 Bot:</strong> ${escapeHtml(message.botReply)}
-                    </div>
-                ` : ''}
+                <div class="user-message">
+                    <strong>User:</strong> ${escapeHtml(message.userMessage)}
+                </div>
+                <div class="bot-reply">
+                    <strong>Bot:</strong> Reply sent to user
+                </div>
             </div>
         `;
-
         return messageDiv;
     }
 
     function getUserDisplayName(sessionId, senderName) {
+        // Prioritize actual sender name
         if (senderName && senderName.trim() !== '') {
-            return senderName;
+            return senderName.trim();
         }
-        // Updated to show a more user-friendly name
+        
+        // Fallback for anonymous users
         const prefix = 'User';
         const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
         return `${prefix}-${shortId}`;
@@ -167,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function getUserAvatar(userName) {
         if (!userName || userName === 'unknown') return '?';
         
-        // Use first two letters of a formatted name
+        // Create avatar from actual name
         return userName.substring(0, 2).toUpperCase();
     }
 
@@ -176,15 +170,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const now = new Date();
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
-        
+
         if (diffMins < 1) return 'अभी';
         if (diffMins < 60) return `${diffMins} मिनट पहले`;
         if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घंटे पहले`;
-        
-        return date.toLocaleTimeString('hi-IN', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        });
+        return date.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' });
     }
 
     function escapeHtml(text) {
@@ -199,7 +189,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chatContainer.classList.add('scrolling');
         chatContainer.scrollTop = 0; // Scroll to top since we're adding new messages at top
-        
         setTimeout(() => {
             chatContainer.classList.remove('scrolling');
         }, 500);
@@ -216,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!pauseBtn) return;
 
         chatPaused = !chatPaused;
-        
+
         if (chatPaused) {
             pauseBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
             pauseBtn.classList.remove('btn-outline-secondary');
@@ -258,7 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // FIXED: Rule Number Validation - NO DOM MANIPULATION
     function validateRuleNumber(num, isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
-        
+
         if (num > maxAllowed) {
             ruleNumberError.style.display = 'block';
             if (isEditing) {
@@ -272,7 +261,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ruleNumberError.innerText = `Rule number must be at least 1`;
             return false;
         }
-        
+
         ruleNumberError.style.display = 'none';
         return true;
     }
@@ -280,21 +269,20 @@ document.addEventListener("DOMContentLoaded", () => {
     // FIXED: Safe Input Setup WITHOUT DOM Recreation
     function setupRuleNumberValidation(isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
-        
+
         // Set HTML attributes safely
         ruleNumberInput.setAttribute('max', maxAllowed);
         ruleNumberInput.setAttribute('min', 1);
-        
+
         console.log(`🔢 Rule number validation setup: min=1, max=${maxAllowed} (${isEditing ? 'Edit' : 'Add'} mode)`);
-        
+
         // Remove existing event listeners by storing references
         const newHandler = function(e) {
             let value = parseInt(e.target.value);
-            
             if (isNaN(value)) {
                 return;
             }
-            
+
             // Auto-correct out-of-bounds values
             if (value < 1) {
                 e.target.value = 1;
@@ -302,25 +290,24 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (value > maxAllowed) {
                 e.target.value = maxAllowed;
                 value = maxAllowed;
-                
                 if (isEditing) {
                     showToast(`Maximum rule number in edit mode is ${totalRules}`, 'warning');
                 } else {
                     showToast(`Maximum rule number in add mode is ${totalRules + 1}`, 'warning');
                 }
             }
-            
+
             // Validate the corrected value
             validateRuleNumber(value, isEditing);
         };
-        
+
         // Remove previous listeners and add new one
         if (ruleNumberInput._currentHandler) {
             ruleNumberInput.removeEventListener('input', ruleNumberInput._currentHandler);
         }
         ruleNumberInput.addEventListener('input', newHandler);
         ruleNumberInput._currentHandler = newHandler; // Store for future removal
-        
+
         // Prevent invalid input on keydown
         const keydownHandler = function(e) {
             // Allow backspace, delete, tab, escape, enter
@@ -334,13 +321,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 (e.keyCode >= 35 && e.keyCode <= 39)) {
                 return;
             }
-            
             // Ensure that it is a number and stop the keypress
             if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
                 e.preventDefault();
             }
         };
-        
+
         if (ruleNumberInput._currentKeydownHandler) {
             ruleNumberInput.removeEventListener('keydown', ruleNumberInput._currentKeydownHandler);
         }
@@ -351,43 +337,44 @@ document.addEventListener("DOMContentLoaded", () => {
     // Rule Reordering Function
     function reorderRulesArray(rules, oldRuleNumber, newRuleNumber) {
         if (oldRuleNumber === newRuleNumber) return rules;
-        
+
         console.log(`🔄 Reordering: Rule ${oldRuleNumber} → Rule ${newRuleNumber}`);
-        
+
         // Find actual array indices (not rule numbers)
         const fromIndex = rules.findIndex(r => r.RULE_NUMBER === oldRuleNumber);
         const toIndex = newRuleNumber - 1; // Convert to 0-based index
-        
+
         if (fromIndex === -1) {
             console.error('❌ Rule not found:', oldRuleNumber);
             return rules;
         }
-        
+
         if (toIndex < 0 || toIndex >= rules.length) {
             console.error('❌ Invalid target position:', newRuleNumber);
             return rules;
         }
-        
+
         console.log(`📍 Moving from array index ${fromIndex} to index ${toIndex}`);
-        
+
         // Create copy and perform the move
         const newRules = [...rules];
-        
+
         // Remove element from original position
         const [movingRule] = newRules.splice(fromIndex, 1);
         console.log(`📤 Removed rule: ${movingRule.RULE_NAME || 'Unnamed'} (was #${movingRule.RULE_NUMBER})`);
-        
+
         // Insert element at new position
         newRules.splice(toIndex, 0, movingRule);
         console.log(`📥 Inserted at position ${toIndex}`);
-        
+
         // Reassign rule numbers sequentially (this is critical!)
         const finalRules = newRules.map((rule, index) => ({
             ...rule,
             RULE_NUMBER: index + 1
         }));
-        
+
         console.log('✅ New rule order:', finalRules.map(r => `#${r.RULE_NUMBER}: ${r.RULE_NAME || 'Unnamed'}`));
+
         return finalRules;
     }
 
@@ -395,26 +382,21 @@ document.addEventListener("DOMContentLoaded", () => {
     async function bulkUpdateRules(reorderedRules) {
         try {
             console.log('📡 Sending bulk update for', reorderedRules.length, 'rules');
-            console.log('📊 Sample rule data:', {
+            console.log('📊 Sample rule ', {
                 _id: reorderedRules[0]._id,
                 RULE_NUMBER: reorderedRules[0].RULE_NUMBER,
                 RULE_NAME: reorderedRules[0].RULE_NAME
             });
-            
+
             const response = await fetch('/api/rules/bulk-update', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    rules: reorderedRules
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rules: reorderedRules })
             });
-            
+
             const result = await response.json();
-            
             console.log('📨 Bulk update response:', result);
-            
+
             if (result.success) {
                 console.log('✅ Bulk update successful');
                 if (result.errors && result.errors.length > 0) {
@@ -436,7 +418,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Modal Button Management
     function configureModalButtons(modalType, mode) {
         let deleteBtn, buttonContainer;
-        
+
         if (modalType === 'rule') {
             deleteBtn = document.getElementById('deleteRuleBtn');
             buttonContainer = document.querySelector('#ruleModal .modal-footer');
@@ -444,14 +426,14 @@ document.addEventListener("DOMContentLoaded", () => {
             deleteBtn = document.getElementById('deleteVariableBtn');
             buttonContainer = document.querySelector('.form-actions');
         }
-        
+
         if (!deleteBtn || !buttonContainer) {
             console.error('Modal elements not found:', modalType);
             return;
         }
-        
+
         console.log(`🔧 Configuring ${modalType} modal for ${mode} mode`);
-        
+
         // Handle delete button visibility
         if (mode === 'add') {
             deleteBtn.style.display = 'none';
@@ -464,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
             deleteBtn.classList.remove('d-none');
             console.log('👁️ Delete button shown for edit mode');
         }
-        
+
         // Apply consistent styling to all buttons
         const allButtons = buttonContainer.querySelectorAll('.btn');
         allButtons.forEach(btn => {
@@ -479,7 +461,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.verticalAlign = 'middle';
             btn.style.marginLeft = '0';
         });
-        
+
         console.log(`✅ ${modalType} modal configured successfully for ${mode} mode`);
     }
 
@@ -487,33 +469,33 @@ document.addEventListener("DOMContentLoaded", () => {
     function initBottomNavigation() {
         const navItems = document.querySelectorAll('.nav-item');
         const tabPanes = document.querySelectorAll('.tab-pane');
-        
+
         // Set first tab as active
         if (navItems.length > 0) {
             navItems[0].classList.add('active');
         }
-        
+
         navItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
                 const tabName = navItem.getAttribute('data-tab');
-                
+
                 // Remove active class from all nav items
                 navItems.forEach(item => item.classList.remove('active'));
-                
+
                 // Add active class to clicked nav item
                 navItem.classList.add('active');
-                
+
                 // Hide all tab panes
                 tabPanes.forEach(pane => {
                     pane.classList.remove('show', 'active');
                 });
-                
+
                 // Show selected tab pane
                 const targetPane = document.getElementById(`${tabName}-pane`);
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
                 }
-                
+
                 // Load data based on tab
                 if (tabName === 'rules' && allRules.length === 0) {
                     fetchRules();
@@ -544,18 +526,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const todayUsers = document.getElementById('todayUsers');
         const totalMsgs = document.getElementById('totalMsgs');
         const todayMsgs = document.getElementById('todayMsgs');
-        
+
         if (totalUsers) totalUsers.textContent = data.totalUsers || 0;
         if (todayUsers) todayUsers.textContent = data.todayUsers || 0;
         if (totalMsgs) totalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
         if (todayMsgs) todayMsgs.textContent = (data.todayMsgs || 0).toLocaleString();
-        
+
         // Update header mini stats
         const headerTotalUsers = document.getElementById('headerTotalUsers');
         const headerTotalMsgs = document.getElementById('headerTotalMsgs');
+
         if (headerTotalUsers) headerTotalUsers.textContent = data.totalUsers || 0;
         if (headerTotalMsgs) headerTotalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
-        
+
         // Update last update time
         const lastUpdate = document.getElementById('lastUpdate');
         if (lastUpdate) {
@@ -578,15 +561,16 @@ document.addEventListener("DOMContentLoaded", () => {
     function showToast(message, type = 'success') {
         const toastElement = document.getElementById('liveToast');
         const toastBody = toastElement.querySelector('.toast-body');
-        
+
         toastBody.textContent = message;
         toastElement.classList.remove('success', 'fail', 'warning');
         toastElement.classList.add(type);
-        
+
         const toastInstance = new bootstrap.Toast(toastElement, {
             autohide: true,
             delay: 4000
         });
+
         toastInstance.show();
     }
 
@@ -601,7 +585,7 @@ document.addEventListener("DOMContentLoaded", () => {
             repliesTypeField.style.display = 'block';
             replyTextField.style.display = 'block';
         }
-        
+
         if (!document.getElementById('repliesType').value) {
             document.getElementById('repliesType').value = 'RANDOM';
         }
@@ -610,7 +594,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function toggleTargetUsersField() {
         const isTargetOrIgnored = targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED';
         targetUsersField.style.display = isTargetOrIgnored ? 'block' : 'none';
-        
+
         if (!isTargetOrIgnored) {
             document.getElementById('targetUsers').value = "ALL";
         }
@@ -618,366 +602,266 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function fetchRules() {
         if (!loadingMessage) return;
-        
+
         loadingMessage.style.display = 'block';
         rulesList.innerHTML = '';
-        
+
         try {
             const response = await fetch('/api/rules');
             const data = await response.json();
             allRules = data;
             totalRules = data.length;
-            
+
             console.log(`📋 Loaded ${totalRules} rules from server`);
-            
+
             loadingMessage.style.display = 'none';
-            
+
             if (data.length === 0) {
                 rulesList.innerHTML = `
-                    <div class="empty-state text-center py-5">
-                        <i class="fas fa-list-check fa-4x mb-3 text-muted"></i>
-                        <h5 class="text-muted">No rules found</h5>
-                        <p class="text-muted">Add your first rule to get started!</p>
-                        <button class="btn btn-primary mt-3" onclick="openAddRuleModal()">
-                            <i class="fas fa-plus"></i> Add First Rule
-                        </button>
-                    </div>`;
-            } else {
-                renderRules(data);
+                    <div class="empty-state">
+                        <i class="fas fa-robot fa-3x"></i>
+                        <h5>No Rules Found</h5>
+                        <p>Add your first rule to get started!</p>
+                    </div>
+                `;
+                return;
             }
+
+            renderRules(data);
+
         } catch (error) {
-            loadingMessage.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Failed to load rules.</div>';
-            showToast("Failed to fetch rules.", "fail");
-            console.error('Error fetching rules:', error);
+            console.error('Failed to fetch rules:', error);
+            loadingMessage.style.display = 'none';
+            rulesList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    <h5>Error Loading Rules</h5>
+                    <p>Please try refreshing the page</p>
+                </div>
+            `;
         }
     }
 
-    // Render Rules Function
-    function renderRules(rules) {
-        if (!rulesList) return;
-        
+    function renderRules(rules, searchTerm = '') {
         rulesList.innerHTML = '';
-        
-        rules.forEach((rule, index) => {
-            const ruleTypeClass = `type-${rule.RULE_TYPE.toLowerCase()}`;
-            const item = document.createElement("div");
-            item.className = "rule-item";
-            item.style.animationDelay = `${index * 0.1}s`;
-            
-            // Create click handler for editing
-            item.addEventListener('click', () => editRule(rule));
-            
-            // Format rule number with leading zero
-            const ruleNumber = rule.RULE_NUMBER.toString().padStart(2, '0');
-            
-            // Rule name - show (no name) if empty
-            const ruleName = rule.RULE_NAME && rule.RULE_NAME.trim() ? rule.RULE_NAME : '(no name)';
-            
-            // Keywords - show * for ALL
-            let keywords = rule.KEYWORDS;
-            if (!keywords || keywords.trim() === '' || keywords.toUpperCase() === 'ALL') {
-                keywords = '*';
+
+        if (rules.length === 0) {
+            if (searchTerm) {
+                rulesList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search fa-3x"></i>
+                        <h5>No Results Found</h5>
+                        <p>No rules match your search term "${searchTerm}"</p>
+                    </div>
+                `;
+            } else {
+                rulesList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-robot fa-3x"></i>
+                        <h5>No Rules Found</h5>
+                        <p>Add your first rule to get started!</p>
+                    </div>
+                `;
             }
-            
-            // Reply text as is
-            const replyText = rule.REPLY_TEXT || '';
-            
-            // Truncate long text for display
-            const truncateText = (text, maxLength = 80) => {
-                return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-            };
-            
-            item.innerHTML = `
-                <div class="rule-header-new">
-                    <div class="rule-title">
-                        <span class="rule-number-new">#${ruleNumber}</span>
-                        <span class="rule-name-new">${ruleName}</span>
-                    </div>
-                    <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
-                </div>
-                <div class="rule-content-new">
-                    <div class="rule-line">
-                        <strong>KEYWORD:</strong>
-                        <span>${keywords}</span>
-                    </div>
-                    <div class="rule-reply">
-                        <strong>reply:</strong>
-                        <div class="reply-text">${truncateText(replyText)}</div>
-                    </div>
-                </div>
-            `;
-            
-            rulesList.appendChild(item);
+            return;
+        }
+
+        rules.forEach(rule => {
+            const ruleElement = createRuleElement(rule);
+            rulesList.appendChild(ruleElement);
         });
     }
 
-    // FIXED: Add Rule Modal with Safe Input Validation
-    function openAddRuleModal() {
-        try {
-            currentRuleNumber = null;
-            formTitle.innerHTML = '<i class="fas fa-plus-circle"></i> Add New Rule';
-            
-            // Reset form
-            if (ruleForm) ruleForm.reset();
-            
-            // FIXED: Setup input validation for ADD mode WITHOUT DOM recreation
-            setupRuleNumberValidation(false); // false = Add mode
-            ruleNumberInput.value = totalRules + 1; // Set to next available number
-            
-            // Set default values
-            const repliesTypeSelect = document.getElementById('repliesType');
-            const targetUsersToggle = document.getElementById('targetUsersToggle');
-            
-            if (repliesTypeSelect) repliesTypeSelect.value = 'RANDOM';
-            if (targetUsersToggle) targetUsersToggle.value = 'ALL';
-            
-            // Reset field visibility
-            toggleFormFields('');
-            toggleTargetUsersField();
-            
-            console.log(`➕ Opening ADD modal - Rule number range: 1 to ${totalRules + 1}`);
-            
-            // Show modal
-            ruleModal.show();
-            
-            // Configure buttons
-            setTimeout(() => {
-                configureModalButtons('rule', 'add');
-            }, 100);
-            
-        } catch (error) {
-            console.error('Error opening add rule modal:', error);
-            showToast('Failed to open add rule form', 'fail');
-        }
+    function createRuleElement(rule) {
+        const div = document.createElement('div');
+        div.className = 'rule-item';
+        div.onclick = () => openEditRuleModal(rule);
+
+        const typeClass = rule.RULE_TYPE.toLowerCase();
+        const targetUsers = Array.isArray(rule.TARGET_USERS) ? rule.TARGET_USERS.join(', ') : rule.TARGET_USERS;
+        const isTargetSpecific = targetUsers !== 'ALL';
+
+        div.innerHTML = `
+            <div class="rule-header-new">
+                <div class="rule-title">
+                    <span class="rule-number-new">${rule.RULE_NUMBER}</span>
+                    <span class="rule-name-new">${rule.RULE_NAME || 'Unnamed Rule'}</span>
+                </div>
+                <span class="rule-type ${typeClass}">${rule.RULE_TYPE}</span>
+            </div>
+            <div class="rule-content-new">
+                ${rule.RULE_TYPE !== 'WELCOME' && rule.RULE_TYPE !== 'DEFAULT' ? `
+                    <div class="rule-line">
+                        <strong>Keywords:</strong> ${rule.KEYWORDS}
+                    </div>
+                ` : ''}
+                <div class="rule-line">
+                    <strong>Type:</strong> ${rule.REPLIES_TYPE}
+                </div>
+                ${isTargetSpecific ? `
+                    <div class="rule-line">
+                        <strong>Target:</strong> ${targetUsers}
+                    </div>
+                ` : ''}
+                <div class="rule-reply">
+                    <strong>Reply:</strong>
+                    <div class="reply-text">${rule.REPLY_TEXT}</div>
+                </div>
+            </div>
+        `;
+
+        return div;
     }
 
-    // FIXED: Edit Rule Modal with Safe Input Validation  
-    function editRule(rule) {
-        try {
-            if (!rule) {
-                showToast('Invalid rule data', 'fail');
+    // Search functionality
+    function setupSearch() {
+        const searchInput = document.getElementById('ruleSearch');
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                renderRules(allRules);
                 return;
             }
-            
-            console.log('🔧 Editing rule:', rule.RULE_NUMBER, rule.RULE_NAME);
-            
-            currentRuleNumber = rule.RULE_NUMBER;
-            formTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Rule';
-            
-            // FIXED: Setup input validation for EDIT mode WITHOUT DOM recreation
-            setupRuleNumberValidation(true); // true = Edit mode
-            ruleNumberInput.value = rule.RULE_NUMBER;
-            
-            // Populate form fields safely
-            const fields = {
-                'ruleName': rule.RULE_NAME || '',
-                'ruleType': rule.RULE_TYPE,
-                'keywords': rule.KEYWORDS,
-                'repliesType': rule.REPLIES_TYPE,
-                'replyText': rule.REPLY_TEXT
-            };
-            
-            Object.keys(fields).forEach(fieldId => {
-                const element = document.getElementById(fieldId);
-                if (element) {
-                    element.value = fields[fieldId];
-                }
+
+            const filteredRules = allRules.filter(rule => {
+                return (
+                    (rule.RULE_NAME || '').toLowerCase().includes(searchTerm) ||
+                    rule.RULE_TYPE.toLowerCase().includes(searchTerm) ||
+                    rule.KEYWORDS.toLowerCase().includes(searchTerm) ||
+                    rule.REPLY_TEXT.toLowerCase().includes(searchTerm) ||
+                    rule.REPLIES_TYPE.toLowerCase().includes(searchTerm)
+                );
             });
-            
-            // Handle target users properly
-            const targetUsersToggleEl = document.getElementById('targetUsersToggle');
-            const targetUsersEl = document.getElementById('targetUsers');
-            
-            if (rule.TARGET_USERS === 'ALL' || !rule.TARGET_USERS) {
-                if (targetUsersToggleEl) targetUsersToggleEl.value = 'ALL';
-                if (targetUsersEl) targetUsersEl.value = 'ALL';
-            } else if (Array.isArray(rule.TARGET_USERS)) {
-                if (targetUsersToggleEl) targetUsersToggleEl.value = 'TARGET';
-                if (targetUsersEl) targetUsersEl.value = rule.TARGET_USERS.join(', ');
-            } else {
-                if (targetUsersToggleEl) targetUsersToggleEl.value = 'TARGET';
-                if (targetUsersEl) targetUsersEl.value = rule.TARGET_USERS;
-            }
-            
-            // Update field visibility
-            toggleFormFields(rule.RULE_TYPE);
-            toggleTargetUsersField();
-            
-            console.log(`✏️ Opening EDIT modal - Rule number range: 1 to ${totalRules}`);
-            
-            // Show modal
-            ruleModal.show();
-            
-            // Configure buttons  
-            setTimeout(() => {
-                configureModalButtons('rule', 'edit');
-            }, 100);
-            
-        } catch (error) {
-            console.error('Error editing rule:', error);
-            showToast('Failed to load rule for editing', 'fail');
-        }
+
+            renderRules(filteredRules, searchTerm);
+        });
     }
 
-    // Save Rule Function
-    async function saveRule(event) {
-        event.preventDefault();
+    // Rule Modal Functions
+    function openAddRuleModal() {
+        currentRuleNumber = null;
+        setupRuleNumberValidation(false);
         
-        const newRuleNumber = parseInt(document.getElementById('ruleNumber').value);
-        const isEditing = currentRuleNumber !== null;
+        formTitle.textContent = 'Add New Rule';
         
-        // FIXED: Validate with correct mode
-        if (!validateRuleNumber(newRuleNumber, isEditing)) {
-            return;
+        ruleForm.reset();
+        document.getElementById('ruleNumber').value = totalRules + 1;
+        document.getElementById('ruleType').value = 'EXACT';
+        document.getElementById('repliesType').value = 'RANDOM';
+        document.getElementById('targetUsersToggle').value = 'ALL';
+        
+        toggleFormFields('EXACT');
+        toggleTargetUsersField();
+        
+        configureModalButtons('rule', 'add');
+        ruleModal.show();
+    }
+
+    function openEditRuleModal(rule) {
+        currentRuleNumber = rule.RULE_NUMBER;
+        setupRuleNumberValidation(true);
+        
+        formTitle.textContent = 'Edit Rule';
+        
+        document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
+        document.getElementById('ruleName').value = rule.RULE_NAME || '';
+        document.getElementById('ruleType').value = rule.RULE_TYPE;
+        document.getElementById('keywords').value = rule.KEYWORDS;
+        document.getElementById('repliesType').value = rule.REPLIES_TYPE;
+        document.getElementById('replyText').value = rule.REPLY_TEXT;
+        
+        if (Array.isArray(rule.TARGET_USERS)) {
+            document.getElementById('targetUsersToggle').value = 'TARGET';
+            document.getElementById('targetUsers').value = rule.TARGET_USERS.join(', ');
+        } else if (rule.TARGET_USERS === 'ALL') {
+            document.getElementById('targetUsersToggle').value = 'ALL';
+            document.getElementById('targetUsers').value = '';
         }
         
+        toggleFormFields(rule.RULE_TYPE);
+        toggleTargetUsersField();
+        
+        configureModalButtons('rule', 'edit');
+        ruleModal.show();
+    }
+
+    async function saveRule() {
+        const formData = new FormData(ruleForm);
+        const ruleNumber = parseInt(formData.get('ruleNumber'));
+        
+        if (!validateRuleNumber(ruleNumber, currentRuleNumber !== null)) {
+            return;
+        }
+
         const ruleData = {
-            ruleNumber: newRuleNumber,
-            ruleName: document.getElementById('ruleName').value,
-            ruleType: document.getElementById('ruleType').value,
-            keywords: document.getElementById('keywords').value,
-            repliesType: document.getElementById('repliesType').value,
-            replyText: document.getElementById('replyText').value,
-            targetUsers: document.getElementById('targetUsersToggle').value === 'ALL' ? 
-                'ALL' : 
-                document.getElementById('targetUsers').value.split(',').map(u => u.trim()).filter(Boolean)
+            ruleNumber: ruleNumber,
+            ruleName: formData.get('ruleName'),
+            ruleType: formData.get('ruleType'),
+            keywords: formData.get('keywords'),
+            repliesType: formData.get('repliesType'),
+            replyText: formData.get('replyText'),
+            targetUsers: formData.get('targetUsersToggle') === 'ALL' ? 'ALL' : 
+                        formData.get('targetUsers').split(',').map(u => u.trim()).filter(u => u)
         };
-        
-        if (!ruleData.ruleType || !ruleData.replyText.trim()) {
-            showToast('Please fill in all required fields', 'fail');
-            return;
-        }
-        
-        // Show loading
-        const saveBtn = document.getElementById('saveRuleBtn');
-        const originalText = saveBtn.innerHTML;
-        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-        saveBtn.disabled = true;
-        
+
+        const payload = {
+            type: currentRuleNumber ? 'edit' : 'add',
+            rule: ruleData,
+            oldRuleNumber: currentRuleNumber
+        };
+
         try {
-            if (currentRuleNumber) {
-                // EDIT MODE: Check if rule number changed
-                if (currentRuleNumber !== newRuleNumber) {
-                    console.log(`🔄 Rule number changed: ${currentRuleNumber} → ${newRuleNumber}`);
-                    
-                    // Reorder all rules based on new number with correct logic
-                    const reorderedRules = reorderRulesArray(allRules, currentRuleNumber, newRuleNumber);
-                    
-                    // Update the specific rule data in reordered array
-                    const targetRule = reorderedRules.find(r => r.RULE_NUMBER === newRuleNumber);
-                    if (targetRule) {
-                        console.log('🎯 Updating target rule data');
-                        Object.assign(targetRule, {
-                            RULE_NAME: ruleData.ruleName,
-                            RULE_TYPE: ruleData.ruleType,
-                            KEYWORDS: ruleData.keywords,
-                            REPLIES_TYPE: ruleData.repliesType,
-                            REPLY_TEXT: ruleData.replyText,
-                            TARGET_USERS: ruleData.targetUsers
-                        });
-                    }
-                    
-                    console.log('📤 Sending bulk update to server...');
-                    
-                    // Send bulk update
-                    const bulkSuccess = await bulkUpdateRules(reorderedRules);
-                    if (bulkSuccess) {
-                        showToast(`Rule moved to position ${newRuleNumber} and all rules reordered successfully!`, 'success');
-                        allRules = reorderedRules; // Update local array
-                        console.log('✅ Local rules array updated');
-                    } else {
-                        throw new Error('Bulk update failed');
-                    }
-                } else {
-                    console.log('📝 Normal edit without number change');
-                    // Normal edit without number change
-                    const response = await fetch('/api/rules/update', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            type: 'edit',
-                            rule: ruleData,
-                            oldRuleNumber: currentRuleNumber
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        showToast(result.message, 'success');
-                    } else {
-                        throw new Error(result.message || 'Failed to save rule');
-                    }
-                }
+            const response = await fetch('/api/rules/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(result.message, 'success');
+                ruleModal.hide();
+                await fetchRules();
             } else {
-                console.log('➕ Adding new rule');
-                // ADD MODE: Regular add
-                const response = await fetch('/api/rules/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        type: 'add',
-                        rule: ruleData
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showToast(result.message, 'success');
-                } else {
-                    throw new Error(result.message || 'Failed to save rule');
-                }
+                showToast(result.message || 'Failed to save rule', 'fail');
             }
-            
-            ruleModal.hide();
-            await fetchRules(); // Refresh rules list
-            
         } catch (error) {
-            console.error('❌ Error saving rule:', error);
-            showToast(error.message || 'Failed to save rule', 'fail');
-        } finally {
-            // Restore button
-            saveBtn.innerHTML = originalText;
-            saveBtn.disabled = false;
+            console.error('Error saving rule:', error);
+            showToast('Network error occurred', 'fail');
         }
     }
 
     async function deleteRule() {
         if (!currentRuleNumber) return;
-        
-        if (!confirm('Are you sure you want to delete this rule?')) {
-            return;
-        }
-        
+
+        if (!confirm('Are you sure you want to delete this rule?')) return;
+
         try {
             const response = await fetch('/api/rules/update', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: 'delete',
                     rule: { ruleNumber: currentRuleNumber }
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 showToast('Rule deleted successfully', 'success');
                 ruleModal.hide();
                 await fetchRules();
             } else {
-                showToast('Failed to delete rule', 'fail');
+                showToast(result.message || 'Failed to delete rule', 'fail');
             }
         } catch (error) {
             console.error('Error deleting rule:', error);
-            showToast('Failed to delete rule', 'fail');
+            showToast('Network error occurred', 'fail');
         }
     }
 
@@ -989,290 +873,179 @@ document.addEventListener("DOMContentLoaded", () => {
             allVariables = data;
             renderVariables(data);
         } catch (error) {
-            console.error('Error fetching variables:', error);
-            if (variablesList) {
-                variablesList.innerHTML = '<div class="alert alert-danger">Failed to load variables.</div>';
-            }
-            showToast("Failed to fetch variables.", "fail");
+            console.error('Failed to fetch variables:', error);
         }
     }
 
     function renderVariables(variables) {
         if (!variablesList) return;
-        
+
         variablesList.innerHTML = '';
-        
+
         if (variables.length === 0) {
             variablesList.innerHTML = `
-                <div class="empty-state text-center py-4">
-                    <i class="fas fa-code fa-3x mb-3 text-muted"></i>
-                    <h6 class="text-muted">No variables found</h6>
-                    <p class="text-muted mb-0">Create variables to use dynamic content in your rules.</p>
-                </div>`;
+                <div class="empty-state">
+                    <i class="fas fa-code fa-3x"></i>
+                    <h6>No Variables Found</h6>
+                    <p>Create variables to use dynamic content in your rules.</p>
+                </div>
+            `;
             return;
         }
-        
-        variables.forEach((variable, index) => {
-            const item = document.createElement('div');
-            item.className = 'variable-item';
-            item.style.animationDelay = `${index * 0.1}s`;
-            
-            item.addEventListener('click', () => editVariable(variable));
-            
-            const truncateValue = (text, maxLength = 100) => {
-                return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-            };
-            
-            item.innerHTML = `
-                <div class="variable-header">
-                    <span class="variable-name">%${variable.name}%</span>
-                </div>
-                <div class="variable-value">${truncateValue(variable.value)}</div>
-            `;
-            
-            variablesList.appendChild(item);
+
+        variables.forEach(variable => {
+            const variableElement = createVariableElement(variable);
+            variablesList.appendChild(variableElement);
         });
     }
 
-    // Add Variable Modal
-    function openAddVariableModal() {
-        currentVariableName = null;
-        document.getElementById('variableFormContainer').style.display = 'block';
-        
-        variableForm.reset();
-        document.getElementById('variableName').focus();
-        
-        // Configure buttons
-        setTimeout(() => {
-            configureModalButtons('variable', 'add');
-        }, 100);
+    function createVariableElement(variable) {
+        const div = document.createElement('div');
+        div.className = 'variable-item';
+        div.onclick = () => openEditVariableModal(variable);
+
+        div.innerHTML = `
+            <div class="variable-header">
+                <span class="variable-name">%${variable.name}%</span>
+            </div>
+            <div class="variable-value">${variable.value}</div>
+        `;
+
+        return div;
     }
 
-    // Edit Variable Modal  
-    function editVariable(variable) {
-        currentVariableName = variable.name;
-        document.getElementById('variableFormContainer').style.display = 'block';
+    function openAddVariableModal() {
+        currentVariableName = null;
         
+        document.getElementById('variableFormTitle').textContent = 'Add Variable';
+        variableForm.reset();
+        
+        configureModalButtons('variable', 'add');
+        variableModal.show();
+    }
+
+    function openEditVariableModal(variable) {
+        currentVariableName = variable.name;
+        
+        document.getElementById('variableFormTitle').textContent = 'Edit Variable';
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
         
-        document.getElementById('variableName').focus();
-        
-        // Configure buttons
-        setTimeout(() => {
-            configureModalButtons('variable', 'edit');
-        }, 100);
+        configureModalButtons('variable', 'edit');
+        variableModal.show();
     }
 
-    async function saveVariable(event) {
-        event.preventDefault();
+    async function saveVariable() {
+        const formData = new FormData(variableForm);
         
         const variableData = {
-            name: document.getElementById('variableName').value.trim(),
-            value: document.getElementById('variableValue').value.trim()
+            name: formData.get('variableName'),
+            value: formData.get('variableValue')
         };
-        
-        // Validation
-        if (!variableData.name || !variableData.value) {
-            showToast('Please fill in all fields', 'fail');
-            return;
-        }
-        
-        // Validate variable name (alphanumeric and underscore only)
-        if (!/^[a-zA-Z0-9_]+$/.test(variableData.name)) {
-            showToast('Variable name can only contain letters, numbers, and underscores', 'fail');
-            return;
-        }
-        
-        // Show loading
-        const saveBtn = document.getElementById('saveVariableBtn');
-        const originalText = saveBtn.innerHTML;
-        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
-        saveBtn.disabled = true;
-        
+
+        const payload = {
+            type: currentVariableName ? 'edit' : 'add',
+            variable: variableData,
+            oldName: currentVariableName
+        };
+
         try {
             const response = await fetch('/api/variables/update', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    type: currentVariableName ? 'edit' : 'add',
-                    variable: variableData,
-                    oldName: currentVariableName
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 showToast(result.message, 'success');
-                cancelVariableEdit();
+                variableModal.hide();
                 await fetchVariables();
             } else {
                 showToast(result.message || 'Failed to save variable', 'fail');
             }
         } catch (error) {
             console.error('Error saving variable:', error);
-            showToast('Failed to save variable', 'fail');
-        } finally {
-            // Restore button
-            saveBtn.innerHTML = originalText;
-            saveBtn.disabled = false;
+            showToast('Network error occurred', 'fail');
         }
     }
 
     async function deleteVariable() {
         if (!currentVariableName) return;
-        
-        if (!confirm(`Are you sure you want to delete variable "${currentVariableName}"?`)) {
-            return;
-        }
-        
+
+        if (!confirm('Are you sure you want to delete this variable?')) return;
+
         try {
             const response = await fetch('/api/variables/update', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     type: 'delete',
                     variable: { name: currentVariableName }
                 })
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 showToast('Variable deleted successfully', 'success');
-                cancelVariableEdit();
+                variableModal.hide();
                 await fetchVariables();
             } else {
-                showToast('Failed to delete variable', 'fail');
+                showToast(result.message || 'Failed to delete variable', 'fail');
             }
         } catch (error) {
             console.error('Error deleting variable:', error);
-            showToast('Failed to delete variable', 'fail');
+            showToast('Network error occurred', 'fail');
         }
     }
-
-    function cancelVariableEdit() {
-        document.getElementById('variableFormContainer').style.display = 'none';
-        document.getElementById('variableName').value = '';
-        document.getElementById('variableValue').value = '';
-        document.getElementById('deleteVariableBtn').style.display = 'none';
-        currentVariableName = null;
-    }
-
-    // Search functionality
-    function setupSearch() {
-        const searchInput = document.getElementById('searchRules');
-        if (searchInput) {
-            let searchTimeout;
-            searchInput.addEventListener('input', function(e) {
-                const searchTerm = e.target.value.toLowerCase().trim();
-                
-                // Clear previous timeout
-                clearTimeout(searchTimeout);
-                
-                // Debounce search
-                searchTimeout = setTimeout(() => {
-                    filterRules(searchTerm);
-                }, 300);
-            });
-        }
-    }
-
-    function filterRules(searchTerm) {
-        if (!searchTerm) {
-            renderRules(allRules);
-            return;
-        }
-        
-        const filteredRules = allRules.filter(rule => {
-            const searchableText = [
-                rule.RULE_NAME || '',
-                rule.RULE_TYPE || '',
-                rule.KEYWORDS || '',
-                rule.REPLY_TEXT || '',
-                rule.RULE_NUMBER.toString()
-            ].join(' ').toLowerCase();
-            
-            return searchableText.includes(searchTerm);
-        });
-        
-        renderRules(filteredRules);
-        
-        // Show search results info
-        if (filteredRules.length === 0) {
-            rulesList.innerHTML = `
-                <div class="empty-state text-center py-4">
-                    <i class="fas fa-search fa-3x mb-3 text-muted"></i>
-                    <h6 class="text-muted">No rules found</h6>
-                    <p class="text-muted">No rules match your search term "${searchTerm}"</p>
-                    <button class="btn btn-outline-primary btn-sm" onclick="clearSearch()">
-                        <i class="fas fa-times"></i> Clear Search
-                    </button>
-                </div>`;
-        }
-    }
-
-    function clearSearch() {
-        const searchInput = document.getElementById('searchRules');
-        if (searchInput) {
-            searchInput.value = '';
-            renderRules(allRules);
-        }
-    }
-
-    // Make clearSearch global for HTML onclick
-    window.clearSearch = clearSearch;
 
     // Event Listeners
-    if (addRuleBtn) addRuleBtn.addEventListener('click', openAddRuleModal);
-    if (variablesMenuBtn) variablesMenuBtn.addEventListener('click', () => variableModal.show());
-    
-    // Form event listeners
-    if (ruleForm) ruleForm.addEventListener('submit', saveRule);
-    if (variableForm) variableForm.addEventListener('submit', saveVariable);
-    if (deleteRuleBtn) deleteRuleBtn.addEventListener('click', deleteRule);
-    if (deleteVariableBtn) deleteVariableBtn.addEventListener('click', deleteVariable);
-    if (addVariableBtn) addVariableBtn.addEventListener('click', openAddVariableModal);
-    
-    // Form field listeners
-    if (ruleTypeSelect) ruleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value));
-    if (targetUsersToggle) targetUsersToggle.addEventListener('change', toggleTargetUsersField);
+    if (addRuleBtn) {
+        addRuleBtn.addEventListener('click', openAddRuleModal);
+    }
 
-    // Setup search after DOM is loaded
+    if (saveRuleBtn) {
+        saveRuleBtn.addEventListener('click', saveRule);
+    }
+
+    if (deleteRuleBtn) {
+        deleteRuleBtn.addEventListener('click', deleteRule);
+    }
+
+    if (ruleTypeSelect) {
+        ruleTypeSelect.addEventListener('change', (e) => {
+            toggleFormFields(e.target.value);
+        });
+    }
+
+    if (targetUsersToggle) {
+        targetUsersToggle.addEventListener('change', toggleTargetUsersField);
+    }
+
+    if (addVariableBtn) {
+        addVariableBtn.addEventListener('click', openAddVariableModal);
+    }
+
+    if (saveVariableBtn) {
+        saveVariableBtn.addEventListener('click', saveVariable);
+    }
+
+    if (deleteVariableBtn) {
+        deleteVariableBtn.addEventListener('click', deleteVariable);
+    }
+
+    // Initialize the app
     setupSearch();
-
-    // Make functions globally available for HTML onclick handlers
-    window.openAddRuleModal = openAddRuleModal;
-    window.editRule = editRule;
-    window.editVariable = editVariable;
-    window.cancelVariableEdit = cancelVariableEdit;
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        // Ctrl/Cmd + N for new rule
-        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-            e.preventDefault();
-            openAddRuleModal();
-        }
-        
-        // Escape to close modals
-        if (e.key === 'Escape') {
-            if (document.getElementById('variableFormContainer').style.display === 'block') {
-                cancelVariableEdit();
-            }
-        }
-    });
-
-    // Auto-refresh stats every 30 seconds
-    setInterval(fetchStats, 30000);
-
-    // Initialize everything
     init();
 
-    console.log('🤖 Chatbot Admin Panel loaded successfully!');
+    // Socket event listeners
+    socket.on('rulesUpdated', () => {
+        fetchRules();
+    });
+
+    socket.on('variablesUpdated', () => {
+        fetchVariables();
+    });
 });
