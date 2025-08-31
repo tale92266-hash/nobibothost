@@ -354,6 +354,12 @@ function extractSenderNameAndContext(sender) {
 }
 
 async function processMessage(msg, sessionId = "default", sender) {
+    // NEW: Check if stats is loaded before accessing it
+    if (!stats) {
+        console.error('❌ Stats object is undefined. Cannot process message.');
+        return null;
+    }
+
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
     
     // Yahaan ab hum senderName aur isGroup ka use kar sakte hain
@@ -478,6 +484,18 @@ console.log('❌ Client disconnected');
 // Initial Load
 (async () => {
     await mongoose.connection.once('open', async () => {
+        // PERMANENT FIX: Drop the old 'email_1' index if it exists
+        try {
+            await User.collection.dropIndex('email_1');
+            console.log('✅ Old email_1 index dropped successfully.');
+        } catch (error) {
+            if (error.codeName !== 'IndexNotFound') {
+                console.error('❌ Failed to drop old index:', error);
+            } else {
+                console.log('🔍 Old email_1 index not found, no action needed.');
+            }
+        }
+
         const dataDir = path.join(__dirname, "data");
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
