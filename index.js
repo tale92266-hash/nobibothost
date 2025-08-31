@@ -25,39 +25,40 @@ mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
 .catch(err => console.error("❌ MongoDB connection error:", err));
 
+// UPDATED: User model to remove the problematic 'email' field and set 'senderName' as unique.
 const userSchema = new mongoose.Schema({
-sessionId: { type: String, required: true, unique: false },
-senderName: { type: String, required: false, unique: true }
+    sessionId: { type: String, required: true, unique: false },
+    senderName: { type: String, required: true, unique: true }
 });
 
 const User = mongoose.model("User", userSchema);
 
 const ruleSchema = new mongoose.Schema({
-RULE_NUMBER: { type: Number, required: true, unique: true },
-RULE_NAME: { type: String, required: false },
-RULE_TYPE: { type: String, required: true },
-KEYWORDS: { type: String, required: true },
-REPLIES_TYPE: { type: String, required: true },
-REPLY_TEXT: { type: String, required: true },
-TARGET_USERS: { type: mongoose.Schema.Types.Mixed, default: "ALL" }
+    RULE_NUMBER: { type: Number, required: true, unique: true },
+    RULE_NAME: { type: String, required: false },
+    RULE_TYPE: { type: String, required: true },
+    KEYWORDS: { type: String, required: true },
+    REPLIES_TYPE: { type: String, required: true },
+    REPLY_TEXT: { type: String, required: true },
+    TARGET_USERS: { type: mongoose.Schema.Types.Mixed, default: "ALL" }
 });
 
 const Rule = mongoose.model("Rule", ruleSchema);
 
 const statsSchema = new mongoose.Schema({
-totalUsers: [{ type: String }],
-todayUsers: [{ type: String }],
-totalMsgs: { type: Number, default: 0 },
-todayMsgs: { type: Number, default: 0 },
-nobiPapaHideMeUsers: [{ type: String }],
-lastResetDate: { type: String }
+    totalUsers: [{ type: String }],
+    todayUsers: [{ type: String }],
+    totalMsgs: { type: Number, default: 0 },
+    todayMsgs: { type: Number, default: 0 },
+    nobiPapaHideMeUsers: [{ type: String }],
+    lastResetDate: { type: String }
 });
 
 const Stats = mongoose.model("Stats", statsSchema);
 
 const variableSchema = new mongoose.Schema({
-name: { type: String, required: true, unique: true },
-value: { type: String, required: true }
+    name: { type: String, required: true, unique: true },
+    value: { type: String, required: true }
 });
 
 const Variable = mongoose.model("Variable", variableSchema);
@@ -75,250 +76,250 @@ let VARIABLES = [];
 
 // Helper functions
 async function loadAllRules() {
-RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
+    RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+    console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
 }
 
 async function loadAllVariables() {
-VARIABLES = await Variable.find({});
-console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
+    VARIABLES = await Variable.find({});
+    console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
 const syncData = async () => {
-try {
-stats = await Stats.findOne();
-if (!stats) {
-stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
-}
+    try {
+        stats = await Stats.findOne();
+        if (!stats) {
+            stats = await Stats.create({ totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today });
+        }
 
-fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+        fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 
-const dbWelcomedUsers = await User.find({}, 'senderName');
-welcomedUsers = dbWelcomedUsers.map(u => u.senderName);
-fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+        const dbWelcomedUsers = await User.find({}, 'senderName');
+        welcomedUsers = dbWelcomedUsers.map(u => u.senderName);
+        fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 
-await loadAllRules();
-await loadAllVariables();
+        await loadAllRules();
+        await loadAllVariables();
 
-if (stats.lastResetDate !== today) {
-stats.todayUsers = [];
-stats.todayMsgs = 0;
-stats.lastResetDate = today;
-await Stats.findByIdAndUpdate(stats._id, stats);
-fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
-}
+        if (stats.lastResetDate !== today) {
+            stats.todayUsers = [];
+            stats.todayMsgs = 0;
+            stats.lastResetDate = today;
+            await Stats.findByIdAndUpdate(stats._id, stats);
+            fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+        }
 
-emitStats();
-} catch (err) {
-console.error("❌ Data sync error:", err);
-}
+        emitStats();
+    } catch (err) {
+        console.error("❌ Data sync error:", err);
+    }
 };
 
 function saveStats() {
-fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
+    fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 }
 
 function saveWelcomedUsers() {
-fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
+    fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 }
 
 function saveVariables() {
-fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
+    fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
 const resetDailyStats = async () => {
-stats.todayUsers = [];
-stats.todayMsgs = 0;
-stats.lastResetDate = new Date().toLocaleDateString();
-await Stats.findByIdAndUpdate(stats._id, stats);
-saveStats();
+    stats.todayUsers = [];
+    stats.todayMsgs = 0;
+    stats.lastResetDate = new Date().toLocaleDateString();
+    await Stats.findByIdAndUpdate(stats._id, stats);
+    saveStats();
 };
 
 const scheduleDailyReset = () => {
-const now = new Date();
-const midnight = new Date(now);
-midnight.setDate(now.getDate() + 1);
-midnight.setHours(0, 0, 0, 0);
-const timeUntilMidnight = midnight.getTime() - now.getTime();
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setDate(now.getDate() + 1);
+    midnight.setHours(0, 0, 0, 0);
+    const timeUntilMidnight = midnight.getTime() - now.getTime();
 
-setTimeout(() => {
-resetDailyStats();
-setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
-}, timeUntilMidnight);
+    setTimeout(() => {
+        resetDailyStats();
+        setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
+    }, timeUntilMidnight);
 };
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function emitStats() {
-io.emit("statsUpdate", {
-totalUsers: stats.totalUsers.length,
-totalMsgs: stats.totalMsgs,
-todayUsers: stats.todayUsers.length,
-todayMsgs: stats.todayMsgs,
-nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
-});
+    io.emit("statsUpdate", {
+        totalUsers: stats.totalUsers.length,
+        totalMsgs: stats.totalMsgs,
+        todayUsers: stats.todayUsers.length,
+        todayMsgs: stats.todayMsgs,
+        nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
+    });
 }
 
 // Random generation logic
 const charSets = {
-lower: 'abcdefghijklmnopqrstuvwxyz',
-upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-num: '0123456789',
-grawlix: '#$%&@*!'
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    num: '0123456789',
+    grawlix: '#$%&@*!'
 };
 
 function generateRandom(type, length, customSet) {
-if (type === 'custom' && customSet) {
-return pick(customSet);
-}
+    if (type === 'custom' && customSet) {
+        return pick(customSet);
+    }
 
-let result = '';
-let characters = '';
+    let result = '';
+    let characters = '';
 
-if (type === 'num') characters = charSets.num;
-else if (type === 'lower') characters = charSets.lower;
-else if (type === 'upper') characters = charSets.upper;
-else if (type === 'abc') characters = charSets.lower + charSets.upper;
-else if (type === 'abcnum_lower') characters = charSets.lower + charSets.num;
-else if (type === 'abcnum_upper') characters = charSets.upper + charSets.num;
-else if (type === 'abcnum') characters = charSets.lower + charSets.upper + charSets.num;
-else if (type === 'grawlix') characters = charSets.grawlix;
-else if (type === 'ascii') {
-for (let i = 0; i < length; i++) {
-result += String.fromCharCode(Math.floor(Math.random() * (127 - 33 + 1)) + 33);
-}
-return result;
-}
+    if (type === 'num') characters = charSets.num;
+    else if (type === 'lower') characters = charSets.lower;
+    else if (type === 'upper') characters = charSets.upper;
+    else if (type === 'abc') characters = charSets.lower + charSets.upper;
+    else if (type === 'abcnum_lower') characters = charSets.lower + charSets.num;
+    else if (type === 'abcnum_upper') characters = charSets.upper + charSets.num;
+    else if (type === 'abcnum') characters = charSets.lower + charSets.upper + charSets.num;
+    else if (type === 'grawlix') characters = charSets.grawlix;
+    else if (type === 'ascii') {
+        for (let i = 0; i < length; i++) {
+            result += String.fromCharCode(Math.floor(Math.random() * (127 - 33 + 1)) + 33);
+        }
+        return result;
+    }
 
-if (!characters) return '';
+    if (!characters) return '';
 
-for (let i = 0; i < length; i++) {
-result += characters.charAt(Math.floor(Math.random() * characters.length));
-}
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
 
-return result;
+    return result;
 }
 
 // NEW: Convert literal \n to actual newlines BEFORE saving to DB
 function convertNewlinesBeforeSave(text) {
-if (!text) return '';
-return text.replace(/\\n/g, '\n');
+    if (!text) return '';
+    return text.replace(/\\n/g, '\n');
 }
 
 // Updated smartSplitTokens logic
 function smartSplitTokens(tokensString) {
-console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
-// Split by comma followed by any whitespace, but only if not inside a variable.
-// This is handled by a simple regex now that the nested variables are placeholders.
-const tokens = tokensString.split(/,(?![^%]*%)/g).map(t => t.trim());
-console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
-return tokens.filter(t => t !== '');
+    console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
+    // Split by comma followed by any whitespace, but only if not inside a variable.
+    // This is handled by a simple regex now that the nested variables are placeholders.
+    const tokens = tokensString.split(/,(?![^%]*%)/g).map(t => t.trim());
+    console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
+    return tokens.filter(t => t !== '');
 }
 
 function pickNUniqueRandomly(tokens, count) {
-const actualCount = Math.min(count, tokens.length);
-if (actualCount === 0) return [];
+    const actualCount = Math.min(count, tokens.length);
+    if (actualCount === 0) return [];
 
-if (actualCount === 1) {
-const selected = pick(tokens);
-console.log(`🎯 Single token selected: "${selected}"`);
-return [selected];
-}
+    if (actualCount === 1) {
+        const selected = pick(tokens);
+        console.log(`🎯 Single token selected: "${selected}"`);
+        return [selected];
+    }
 
-const availableTokens = [...tokens];
-const selectedTokens = [];
+    const availableTokens = [...tokens];
+    const selectedTokens = [];
 
-for (let i = 0; i < actualCount; i++) {
-if (availableTokens.length === 0) break;
-const randomIndex = Math.floor(Math.random() * availableTokens.length);
-const selectedToken = availableTokens[randomIndex];
-selectedTokens.push(selectedToken);
-availableTokens.splice(randomIndex, 1);
-}
+    for (let i = 0; i < actualCount; i++) {
+        if (availableTokens.length === 0) break;
+        const randomIndex = Math.floor(Math.random() * availableTokens.length);
+        const selectedToken = availableTokens[randomIndex];
+        selectedTokens.push(selectedToken);
+        availableTokens.splice(randomIndex, 1);
+    }
 
-console.log(`🎯 Selected ${selectedTokens.length} tokens: [${selectedTokens.join('] | [')}]`);
-return selectedTokens;
+    console.log(`🎯 Selected ${selectedTokens.length} tokens: [${selectedTokens.join('] | [')}]`);
+    return selectedTokens;
 }
 
 // Updated resolveVariablesRecursively function
 function resolveVariablesRecursively(text, maxIterations = 10) {
-let result = text;
-let iterationCount = 0;
+    let result = text;
+    let iterationCount = 0;
 
-// Use a Map to store placeholders and original variable names
-const placeholderMap = new Map();
-let placeholderCounter = 0;
+    // Use a Map to store placeholders and original variable names
+    const placeholderMap = new Map();
+    let placeholderCounter = 0;
 
-// First, find all static and other random variables and replace them with placeholders
-const staticAndRandomRegex = /%(\w+)%/g;
-result = result.replace(staticAndRandomRegex, (match) => {
-const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
-placeholderMap.set(placeholder, match);
-return placeholder;
-});
+    // First, find all static and other random variables and replace them with placeholders
+    const staticAndRandomRegex = /%(\w+)%/g;
+    result = result.replace(staticAndRandomRegex, (match) => {
+        const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
+        placeholderMap.set(placeholder, match);
+        return placeholder;
+    });
 
-while (iterationCount < maxIterations) {
-let hasVariables = false;
-let previousResult = result;
+    while (iterationCount < maxIterations) {
+        let hasVariables = false;
+        let previousResult = result;
 
-// STEP 1: Process Custom Random Variables using placeholders
-const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
-result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
-const count = parseInt(countStr, 10);
-console.log(`🎲 Processing custom random FIRST: count=${count}`);
-console.log(`🎲 Raw tokens string: "${tokensString}"`);
+        // STEP 1: Process Custom Random Variables using placeholders
+        const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
+        result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            console.log(`🎲 Processing custom random FIRST: count=${count}`);
+            console.log(`🎲 Raw tokens string: "${tokensString}"`);
 
-const tokens = smartSplitTokens(tokensString);
-if (tokens.length === 0) {
-console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
-return '';
-}
+            const tokens = smartSplitTokens(tokensString);
+            if (tokens.length === 0) {
+                console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
+                return '';
+            }
 
-const selectedTokens = pickNUniqueRandomly(tokens, count);
-let finalResult = selectedTokens.join(' ');
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            let finalResult = selectedTokens.join(' ');
 
-console.log(`✅ Custom random result: "${finalResult}"`);
-hasVariables = true;
-return finalResult;
-});
+            console.log(`✅ Custom random result: "${finalResult}"`);
+            hasVariables = true;
+            return finalResult;
+        });
 
-if (result === previousResult) {
-break;
-}
+        if (result === previousResult) {
+            break;
+        }
 
-iterationCount++;
-}
+        iterationCount++;
+    }
 
-// Finally, resolve the placeholders
-for (const [placeholder, originalVariable] of placeholderMap.entries()) {
-const varName = originalVariable.replace(/%/g, '');
-let varValue = '';
+    // Finally, resolve the placeholders
+    for (const [placeholder, originalVariable] of placeholderMap.entries()) {
+        const varName = originalVariable.replace(/%/g, '');
+        let varValue = '';
 
-// Find the actual value for the original variable name
-const staticVar = VARIABLES.find(v => v.name === varName);
-if (staticVar) {
-varValue = staticVar.value;
-} else {
-// Check for other random variables here, since they were also replaced by placeholders
-const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
-const match = originalVariable.match(otherRandomRegex);
-if (match) {
-const [fullMatch, type, param1, param2] = match;
-if (type === 'num') {
-const [min, max] = param1.split('_').map(Number);
-varValue = Math.floor(Math.random() * (max - min + 1)) + min;
-} else {
-const length = parseInt(param1);
-varValue = generateRandom(type, length);
-}
-}
-}
+        // Find the actual value for the original variable name
+        const staticVar = VARIABLES.find(v => v.name === varName);
+        if (staticVar) {
+            varValue = staticVar.value;
+        } else {
+            // Check for other random variables here, since they were also replaced by placeholders
+            const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
+            const match = originalVariable.match(otherRandomRegex);
+            if (match) {
+                const [fullMatch, type, param1, param2] = match;
+                if (type === 'num') {
+                    const [min, max] = param1.split('_').map(Number);
+                    varValue = Math.floor(Math.random() * (max - min + 1)) + min;
+                } else {
+                    const length = parseInt(param1);
+                    varValue = generateRandom(type, length);
+                }
+            }
+        }
 
-result = result.split(placeholder).join(varValue);
-}
+        result = result.split(placeholder).join(varValue);
+    }
 
-console.log(`✅ Final resolved result completed`);
-return result;
+    console.log(`✅ Final resolved result completed`);
+    return result;
 }
 
 // NEW FUNCTION: sender string ko parse karne ke liye
@@ -386,6 +387,11 @@ async function processMessage(msg, sessionId = "default", sender) {
         }
 
         let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+    
+        // A rule can match on DM, Group, or both.
+        // For 'WELCOME' and 'DEFAULT' rules, we will not need to parse pattern.
+        // For others, a pattern can be 'DM_ONLY', 'GROUP_ONLY'
+        // or a regex pattern to match a certain group name.
         let match = false;
 
         if (rule.RULE_TYPE === "WELCOME") {
@@ -399,6 +405,14 @@ async function processMessage(msg, sessionId = "default", sender) {
             match = true;
         } else {
             for (let pattern of patterns) {
+                // Check if rule is for DM only or Group only
+                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) {
+                    continue; // Skip rule if it's a DM_ONLY rule but the message is from a group
+                } else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) {
+                    continue; // Skip rule if it's a GROUP_ONLY rule but the message is a DM
+                }
+                
+                // Now, check for keyword matches
                 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
                 else if (rule.RULE_TYPE === "PATTERN") {
                     let regexStr = pattern.replace(/\*/g, ".*");
