@@ -611,17 +611,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function toggleFormFields(ruleType) {
         if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
             keywordsField.style.display = 'none';
-            // repliesTypeField.style.display = 'none'; // Ye line remove kar di gayi hai
+            repliesTypeField.style.display = 'none';
             replyTextField.style.display = 'block';
             document.getElementById('keywords').value = "ALL";
         } else {
             keywordsField.style.display = 'block';
-            // repliesTypeField.style.display = 'block'; // Ye line bhi remove kar di gayi hai
+            repliesTypeField.style.display = 'block';
             replyTextField.style.display = 'block';
         }
-        
-        // repliesTypeField ko hamesha visible rakhein
-        repliesTypeField.style.display = 'block';
 
         if (!document.getElementById('repliesType').value) {
             document.getElementById('repliesType').value = 'RANDOM';
@@ -718,6 +715,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const targetUsers = Array.isArray(rule.TARGET_USERS) ? rule.TARGET_USERS.join(', ') : rule.TARGET_USERS;
         const isTargetSpecific = targetUsers !== 'ALL';
 
+        const truncatedReply = rule.REPLY_TEXT.length > 150 ?
+            rule.REPLY_TEXT.substring(0, 150) + '...' :
+            rule.REPLY_TEXT;
+
         div.innerHTML = `
             <div class="rule-header-new">
                 <div class="rule-title">
@@ -742,7 +743,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ` : ''}
                 <div class="rule-reply">
                     <strong>Reply:</strong>
-                    <div class="reply-text">${rule.REPLY_TEXT}</div>
+                    <div class="reply-text">${truncatedReply}</div>
                 </div>
             </div>
         `;
