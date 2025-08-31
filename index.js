@@ -114,22 +114,41 @@ async function loadAllVariables() {
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
-// NEW: Function to load override lists from MongoDB
+// UPDATED: Function to load override lists from files first, then sync with MongoDB
 async function loadOverrideUsers() {
-    const overrideSettings = await Settings.findOne({ settings_type: 'override_lists' });
-    if (overrideSettings) {
-        IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
-        SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
+    if (fs.existsSync(ignoredOverrideUsersFile) && fs.existsSync(specificOverrideUsersFile)) {
+        IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8'));
+        SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8'));
+        console.log(`🔍 Override users loaded from local files.`);
+    } else {
+        const overrideSettings = await Settings.findOne({ settings_type: 'override_lists' });
+        if (overrideSettings) {
+            IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
+            SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
+        }
+        console.log(`🔍 Override users loaded from MongoDB.`);
     }
     console.log(`🔍 Loaded ${IGNORED_OVERRIDE_USERS.length} ignored override users.`);
     console.log(`🔍 Loaded ${SPECIFIC_OVERRIDE_USERS.length} specific override users.`);
 }
 
-// NEW: Function to load global settings from MongoDB
+// UPDATED: Function to load global settings from files first, then sync with MongoDB
 async function loadSettings() {
-    const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
-    if (globalSettings) {
-        settings = { ...settings, ...globalSettings.settings_data };
+    if (fs.existsSync(settingsFilePath)) {
+        const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
+        try {
+            const loadedSettings = JSON.parse(fileContent);
+            settings = { ...settings, ...loadedSettings };
+            console.log('⚙️ Settings loaded from local file.');
+        } catch (e) {
+            console.error('❌ Failed to parse settings.json:', e);
+        }
+    } else {
+        const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
+        if (globalSettings) {
+            settings = { ...settings, ...globalSettings.settings_data };
+        }
+        console.log('⚙️ Settings loaded from MongoDB.');
     }
     console.log('⚙️ Current Repeating Rule settings:', settings.preventRepeatingRule);
     console.log('🤖 Current bot status:', settings.isBotOnline ? 'Online' : 'Offline');
@@ -217,8 +236,9 @@ function saveVariables() {
     fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
 
-// NEW: Functions to save override lists to MongoDB
+// UPDATED: Functions to save override lists to files and then sync to MongoDB
 async function saveIgnoredOverrideUsers() {
+    fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
         { 'settings_data.ignored': IGNORED_OVERRIDE_USERS },
@@ -226,6 +246,7 @@ async function saveIgnoredOverrideUsers() {
     );
 }
 async function saveSpecificOverrideUsers() {
+    fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
         { 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
@@ -233,8 +254,9 @@ async function saveSpecificOverrideUsers() {
     );
 }
 
-// NEW: Function to save global settings to MongoDB
+// UPDATED: Function to save global settings to a file and then sync to MongoDB
 async function saveSettings() {
+    fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'global_settings' },
         { 'settings_data': settings },
