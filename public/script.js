@@ -501,7 +501,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
-            btn.style.vertical-align: middle;
+            btn.style.verticalAlign = 'middle';
             btn.style.marginLeft = '0';
         });
 
