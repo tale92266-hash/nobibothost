@@ -1,4 +1,4 @@
-// file: nobibothost-main (1).zip/nobibothost-main/public/script.js
+// file: nobibothost-main.zip/nobibothost-main/public/script.js
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
@@ -748,7 +748,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Search functionality
     function setupSearch() {
-        const searchInput = document.getElementById('ruleSearch');
+        const searchInput = document.getElementById('searchRules');
         if (!searchInput) return;
 
         searchInput.addEventListener('input', (e) => {
@@ -1068,6 +1068,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (deleteVariableBtn) {
         deleteVariableBtn.addEventListener('click', deleteVariable);
     }
+    
+    // FIX START: Add event listener for variablesMenuBtn
+    if (variablesMenuBtn) {
+        variablesMenuBtn.addEventListener('click', () => {
+            variableModal.show();
+        });
+    }
+    // FIX END
 
     // Initialize the app
     setupSearch();
