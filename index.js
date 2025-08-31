@@ -735,12 +735,16 @@ app.post("/webhook", async (req, res) => {
     const sessionId = req.body.session_id || "default_session";
     const msg = req.body.query?.message || "";
     const sender = req.body.query?.sender || "";
+    
+    // Yahan hum sender string ko parse kar rahe hain
+    const { senderName: parsedSenderName } = extractSenderNameAndContext(sender);
+
     const replyText = await processMessage(msg, sessionId, sender);
 
     // Create message object for history
     const messageData = {
         sessionId: sessionId,
-        senderName: sender,
+        senderName: parsedSenderName, // <-- Yahan ab parsed sender name use ho raha hai
         userMessage: msg,
         botReply: replyText,
         timestamp: new Date().toISOString()
