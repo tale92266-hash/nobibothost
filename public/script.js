@@ -139,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <strong>User:</strong> ${escapeHtml(message.userMessage)}
                 </div>
                 <div class="bot-reply">
-                    <strong>Bot:</strong> Reply sent to user
+                    <strong>Bot:</strong> Reply sent to ${escapeHtml(userName)}
                 </div>
             </div>
         `;
