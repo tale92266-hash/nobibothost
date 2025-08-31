@@ -67,8 +67,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // Clear current messages and load history
         chatMessages = [];
         
+        // Reverse history (oldest first in array for chronological order)
+        const reversedHistory = [...historyMessages].reverse();
+        
         // Add history messages to current array
-        historyMessages.forEach(message => {
+        reversedHistory.forEach(message => {
             chatMessages.push({
                 id: Date.now() + Math.random(),
                 sessionId: message.sessionId || 'unknown',
@@ -81,6 +84,8 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // Update display
         updateChatDisplay();
+        // Scroll to bottom to show latest
+        scrollToLatest();
         console.log('✅ Chat history loaded and displayed');
     });
 
@@ -114,18 +119,18 @@ document.addEventListener("DOMContentLoaded", () => {
             timestamp: timestamp || new Date().toISOString()
         };
 
-        // Add to messages array
-        chatMessages.unshift(message);
+        // Add to end of array (newest at end)
+        chatMessages.push(message);
 
         // Keep only last 10 messages
         if (chatMessages.length > maxMessages) {
-            chatMessages = chatMessages.slice(0, maxMessages);
+            chatMessages = chatMessages.slice(-maxMessages); // Keep last 10
         }
 
         // Update chat display
         updateChatDisplay();
 
-        // Auto scroll to latest message
+        // Auto scroll to latest message (bottom)
         scrollToLatest();
     }
 
@@ -134,6 +139,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!chatContainer) return;
 
         chatContainer.innerHTML = '';
+        
+        // Show messages in chronological order (oldest first, newest at bottom)
         chatMessages.forEach((message, index) => {
             const messageElement = createMessageElement(message, index);
             chatContainer.appendChild(messageElement);
@@ -195,7 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
 
-        if (diffMins < 1) return 'अभी';
+        if (diffMins < 1) return 'Now.';
         if (diffMins < 60) return `${diffMins} मिनट पहले`;
         if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घंटे पहले`;
         return date.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' });
@@ -212,7 +219,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!chatContainer) return;
 
         chatContainer.classList.add('scrolling');
-        chatContainer.scrollTop = 0; // Scroll to top since we're adding new messages at top
+        // Scroll to bottom for newest messages
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
         setTimeout(() => {
             chatContainer.classList.remove('scrolling');
         }, 500);
