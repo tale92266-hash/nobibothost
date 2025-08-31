@@ -20,6 +20,9 @@ app.use(express.json({ limit: "1mb" }));
 let recentChatMessages = []; // Store last 10 chat messages globally
 const MAX_CHAT_HISTORY = 10;
 
+// NEW: Add a readiness flag
+let isReady = false;
+
 // MongoDB Connection & Models
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
@@ -110,6 +113,11 @@ const syncData = async () => {
         }
 
         emitStats();
+        
+        // NEW: Set the flag to true after successful data sync
+        isReady = true;
+        console.log('✅ Server is ready to handle requests.');
+
     } catch (err) {
         console.error("❌ Data sync error:", err);
     }
@@ -469,28 +477,28 @@ console.log('❌ Client disconnected');
 
 // Initial Load
 (async () => {
-await mongoose.connection.once('open', async () => {
-const dataDir = path.join(__dirname, "data");
-if (!fs.existsSync(dataDir)) {
-fs.mkdirSync(dataDir, { recursive: true });
-}
+    await mongoose.connection.once('open', async () => {
+        const dataDir = path.join(__dirname, "data");
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
 
-const files = [
-{ path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
-{ path: path.join(dataDir, "welcomed_users.json"), content: [] },
-{ path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
-{ path: path.join(dataDir, "variables.json"), content: [] }
-];
+        const files = [
+            { path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
+            { path: path.join(dataDir, "welcomed_users.json"), content: [] },
+            { path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
+            { path: path.join(dataDir, "variables.json"), content: [] }
+        ];
 
-files.forEach(file => {
-if (!fs.existsSync(file.path)) {
-fs.writeFileSync(file.path, JSON.stringify(file.content, null, 2));
-}
-});
+        files.forEach(file => {
+            if (!fs.existsSync(file.path)) {
+                fs.writeFileSync(file.path, JSON.stringify(file.content, null, 2));
+            }
+        });
 
-await syncData();
-scheduleDailyReset();
-});
+        await syncData();
+        scheduleDailyReset();
+    });
 })();
 
 // Bulk Update Rules API Call with \n conversion
@@ -700,35 +708,41 @@ res.status(500).json({ success: false, message: "Server error" });
 });
 
 app.post("/webhook", async (req, res) => {
-const sessionId = req.body.session_id || "default_session";
-const msg = req.body.query?.message || "";
-const sender = req.body.query?.sender || "";
-const replyText = await processMessage(msg, sessionId, sender);
+    // NEW: Check if the server is ready before processing the request
+    if (!isReady) {
+        console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
+        return res.status(503).send('Server is initializing. Please try again in a moment.');
+    }
 
-// Create message object for history
-const messageData = {
-sessionId: sessionId,
-senderName: sender,
-userMessage: msg,
-botReply: replyText,
-timestamp: new Date().toISOString()
-};
+    const sessionId = req.body.session_id || "default_session";
+    const msg = req.body.query?.message || "";
+    const sender = req.body.query?.sender || "";
+    const replyText = await processMessage(msg, sessionId, sender);
 
-// Add to recent messages array (newest first)
-recentChatMessages.unshift(messageData);
+    // Create message object for history
+    const messageData = {
+        sessionId: sessionId,
+        senderName: sender,
+        userMessage: msg,
+        botReply: replyText,
+        timestamp: new Date().toISOString()
+    };
 
-// Keep only last 10 messages
-if (recentChatMessages.length > MAX_CHAT_HISTORY) {
-recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY);
-}
+    // Add to recent messages array (newest first)
+    recentChatMessages.unshift(messageData);
 
-console.log(`💬 Chat history updated. Total messages: ${recentChatMessages.length}`);
+    // Keep only last 10 messages
+    if (recentChatMessages.length > MAX_CHAT_HISTORY) {
+        recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY);
+    }
 
-// Emit real-time chat message to all connected clients
-io.emit('newMessage', messageData);
+    console.log(`💬 Chat history updated. Total messages: ${recentChatMessages.length}`);
 
-if (!replyText) return res.json({ replies: [] });
-res.json({ replies: [{ message: replyText }] });
+    // Emit real-time chat message to all connected clients
+    io.emit('newMessage', messageData);
+
+    if (!replyText) return res.json({ replies: [] });
+    res.json({ replies: [{ message: replyText }] });
 });
 
 app.get("/stats", (req, res) => {
