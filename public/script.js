@@ -45,6 +45,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const cooldownTimeInput = document.getElementById('cooldownTime');
     const cooldownField = document.getElementById('cooldownField');
     const saveRepeatingBtn = document.getElementById('saveRepeatingBtn');
+    
+    // NEW: Bot Status DOM elements
+    const botStatusBtn = document.getElementById('botStatusBtn');
+    const botStatusText = document.getElementById('botStatusText');
 
     // Variables
     let currentRuleNumber = null;
@@ -61,7 +65,8 @@ document.addEventListener("DOMContentLoaded", () => {
         preventRepeatingRule: {
             enabled: false,
             cooldown: 2
-        }
+        },
+        isBotOnline: true
     };
 
     // Socket connection for real-time stats
@@ -584,6 +589,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchRules();
             await fetchVariables();
             await fetchSettings();
+            updateBotStatusUI();
         } catch (error) {
             console.error('Initialization error:', error);
             showToast('Failed to initialize application', 'fail');
@@ -1214,11 +1220,51 @@ document.addEventListener("DOMContentLoaded", () => {
             ignoredOverrideUsers = data.ignoredOverrideUsers || [];
             specificOverrideUsers = data.specificOverrideUsers || [];
             currentSettings.preventRepeatingRule = data.preventRepeatingRule || { enabled: false, cooldown: 2 };
+            currentSettings.isBotOnline = data.isBotOnline ?? true; // Use nullish coalescing for default
+            
             console.log('⚙️ All settings fetched successfully.');
             
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             showToast('Failed to load settings', 'fail');
+        }
+    }
+
+    // NEW: Function to update the bot status UI
+    function updateBotStatusUI() {
+        if (currentSettings.isBotOnline) {
+            botStatusBtn.classList.add('bot-on');
+            botStatusBtn.classList.remove('bot-off');
+            botStatusText.textContent = 'Bot Running';
+        } else {
+            botStatusBtn.classList.add('bot-off');
+            botStatusBtn.classList.remove('bot-on');
+            botStatusText.textContent = 'Bot Off';
+        }
+    }
+    
+    // NEW: Function to toggle bot status
+    async function toggleBotStatus() {
+        const newStatus = !currentSettings.isBotOnline;
+        
+        try {
+            const response = await fetch('/api/bot/status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isOnline: newStatus })
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                currentSettings.isBotOnline = newStatus;
+                updateBotStatusUI();
+                showToast(result.message, 'success');
+            } else {
+                showToast(result.message, 'fail');
+            }
+        } catch (error) {
+            console.error('Error toggling bot status:', error);
+            showToast('Failed to toggle bot status.', 'fail');
         }
     }
 
@@ -1281,6 +1327,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (saveRepeatingBtn) {
         saveRepeatingBtn.addEventListener('click', saveRepeatingRuleSettings);
+    }
+
+    // NEW Event Listener for bot status button
+    if (botStatusBtn) {
+        botStatusBtn.addEventListener('click', toggleBotStatus);
     }
     
     // Initialize the app
