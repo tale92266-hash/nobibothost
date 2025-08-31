@@ -77,6 +77,12 @@ let welcomedUsers;
 let RULES = [];
 let VARIABLES = [];
 
+// NEW: Override lists
+const ignoredOverrideUsersFile = path.join(__dirname, "data", "ignored_override_users.json");
+const specificOverrideUsersFile = path.join(__dirname, "data", "specific_override_users.json");
+let IGNORED_OVERRIDE_USERS = [];
+let SPECIFIC_OVERRIDE_USERS = [];
+
 // Helper functions
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
@@ -86,6 +92,18 @@ async function loadAllRules() {
 async function loadAllVariables() {
     VARIABLES = await Variable.find({});
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
+}
+
+// NEW: Function to load override lists
+function loadOverrideUsers() {
+    if (fs.existsSync(ignoredOverrideUsersFile)) {
+        IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8'));
+    }
+    if (fs.existsSync(specificOverrideUsersFile)) {
+        SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8'));
+    }
+    console.log(`🔍 Loaded ${IGNORED_OVERRIDE_USERS.length} ignored override users.`);
+    console.log(`🔍 Loaded ${SPECIFIC_OVERRIDE_USERS.length} specific override users.`);
 }
 
 const syncData = async () => {
@@ -103,6 +121,7 @@ const syncData = async () => {
 
         await loadAllRules();
         await loadAllVariables();
+        loadOverrideUsers();
 
         if (stats.lastResetDate !== today) {
             stats.todayUsers = [];
@@ -134,6 +153,15 @@ function saveWelcomedUsers() {
 function saveVariables() {
     fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
+
+// NEW: Functions to save override lists
+function saveIgnoredOverrideUsers() {
+    fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
+}
+function saveSpecificOverrideUsers() {
+    fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
+}
+
 
 const resetDailyStats = async () => {
     stats.todayUsers = [];
@@ -353,6 +381,17 @@ function extractSenderNameAndContext(sender) {
     return { senderName, groupName, isGroup };
 }
 
+// NEW: Pattern matching function for override lists
+function matchesOverridePattern(senderName, patternList) {
+    for (const pattern of patternList) {
+        const regexStr = '^' + pattern.replace(/\*/g, '.*') + '$';
+        if (new RegExp(regexStr, 'i').test(senderName)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 async function processMessage(msg, sessionId = "default", sender) {
     // NEW: Check if stats is loaded before accessing it
     if (!stats) {
@@ -387,13 +426,22 @@ async function processMessage(msg, sessionId = "default", sender) {
         let userMatch = false;
         const targetUsers = rule.TARGET_USERS || "ALL";
 
-        // Check if user is in the "ignored" list
-        if (rule.RULE_TYPE === "IGNORED") {
+        // NEW: Specific Override check (Highest Priority)
+        if (SPECIFIC_OVERRIDE_USERS.length > 0 && matchesOverridePattern(senderName, SPECIFIC_OVERRIDE_USERS)) {
+            console.log(`✅ Specific override match for user: ${senderName}`);
+            userMatch = true;
+        } else if (rule.RULE_TYPE === "IGNORED") {
             if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
                 userMatch = true;
             }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-            userMatch = true;
+            // NEW: Ignored Override check
+            if (IGNORED_OVERRIDE_USERS.length > 0 && matchesOverridePattern(senderName, IGNORED_OVERRIDE_USERS)) {
+                 console.log(`🚫 Ignored override match for user: ${senderName}`);
+                userMatch = false;
+            } else {
+                userMatch = true;
+            }
         }
 
         if (!userMatch) {
@@ -505,7 +553,10 @@ console.log('❌ Client disconnected');
             { path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
             { path: path.join(dataDir, "welcomed_users.json"), content: [] },
             { path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
-            { path: path.join(dataDir, "variables.json"), content: [] }
+            { path: path.join(dataDir, "variables.json"), content: [] },
+            // NEW: Default content for override files
+            { path: ignoredOverrideUsersFile, content: [] },
+            { path: specificOverrideUsersFile, content: [] }
         ];
 
         files.forEach(file => {
@@ -519,86 +570,30 @@ console.log('❌ Client disconnected');
     });
 })();
 
-// Bulk Update Rules API Call with \n conversion
-app.post("/api/rules/bulk-update", async (req, res) => {
-const session = await mongoose.startSession();
-try {
-await session.withTransaction(async () => {
-const { rules } = req.body;
-if (!Array.isArray(rules) || rules.length === 0) {
-throw new Error('Invalid rules data - must be an array');
-}
-
-const tempBulkOps = rules.map((rule, index) => ({
-updateOne: {
-filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-update: { $set: { RULE_NUMBER: -(index + 1000) } },
-upsert: false
-}
-}));
-
-if (tempBulkOps.length > 0) {
-await Rule.bulkWrite(tempBulkOps, { session, ordered: true });
-}
-
-const finalBulkOps = rules.map(rule => ({
-updateOne: {
-filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-update: {
-$set: {
-RULE_NUMBER: rule.RULE_NUMBER,
-RULE_NAME: rule.RULE_NAME || '',
-RULE_TYPE: rule.RULE_TYPE,
-KEYWORDS: rule.KEYWORDS || '',
-REPLIES_TYPE: rule.REPLIES_TYPE,
-REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
-TARGET_USERS: rule.TARGET_USERS || 'ALL'
-}
-},
-upsert: false
-}
-}));
-
-if (finalBulkOps.length > 0) {
-const finalResult = await Rule.bulkWrite(finalBulkOps, { session, ordered: true });
-if (finalResult.modifiedCount !== rules.length) {
-throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
-}
-}
+// NEW ENDPOINT: Update ignored override users
+app.post("/api/settings/ignored-override", (req, res) => {
+    try {
+        const { users } = req.body;
+        IGNORED_OVERRIDE_USERS = users.split(',').map(u => u.trim()).filter(Boolean);
+        saveIgnoredOverrideUsers();
+        res.json({ success: true, message: "Ignored override users updated successfully." });
+    } catch (error) {
+        console.error("❌ Failed to update ignored override users:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
 });
 
-await session.endSession();
-await loadAllRules();
-
-const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
-fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
-
-res.json({
-success: true,
-message: `${req.body.rules.length} rules reordered successfully`,
-updatedCount: req.body.rules.length,
-totalCount: req.body.rules.length
-});
-
-io.emit('rulesUpdated', {
-action: 'bulk_reorder_atomic',
-count: req.body.rules.length,
-newOrder: RULES.map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
-});
-
-} catch (error) {
-console.error('❌ Atomic bulk update failed:', error);
-if (session.inTransaction()) {
-await session.abortTransaction();
-}
-await session.endSession();
-
-res.json({
-success: false,
-message: 'Failed to reorder rules atomically: ' + error.message
-});
-}
+// NEW ENDPOINT: Update specific override users
+app.post("/api/settings/specific-override", (req, res) => {
+    try {
+        const { users } = req.body;
+        SPECIFIC_OVERRIDE_USERS = users.split(',').map(u => u.trim()).filter(Boolean);
+        saveSpecificOverrideUsers();
+        res.json({ success: true, message: "Specific override users updated successfully." });
+    } catch (error) {
+        console.error("❌ Failed to update specific override users:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
 });
 
 app.get("/api/rules", async (req, res) => {
@@ -653,7 +648,7 @@ await Rule.findOneAndUpdate(
 {
 RULE_NUMBER: rule.ruleNumber,
 RULE_NAME: rule.ruleName,
-RULE_TYPE: rule.ruleType,
+RULE_TYPE: rule.RULE_TYPE,
 KEYWORDS: rule.keywords,
 REPLIES_TYPE: rule.repliesType,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
