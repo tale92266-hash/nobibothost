@@ -1231,6 +1231,179 @@ body {
     display: none;
 }
 
+/* --- NEW: Full Screen Modal Styles --- */
+.fullscreen-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    z-index: 9999;
+    background: var(--white);
+    transition: transform 0.3s ease-out;
+}
+
+.fullscreen-modal .modal-content {
+    height: 100vh;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: none;
+}
+
+.fullscreen-modal.modal-slide-in {
+    animation: slideInFromRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.fullscreen-modal.modal-slide-out {
+    animation: slideOutToRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideInFromRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutToRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+
+/* Fullscreen Modal Header with Back Button */
+.fullscreen-modal .modal-header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: var(--white);
+    border-bottom: none;
+    border-radius: 0;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 60px;
+    flex-shrink: 0;
+}
+
+.fullscreen-modal .back-button {
+    background: none;
+    border: none;
+    color: var(--white);
+    font-size: 1.25rem;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+}
+
+.fullscreen-modal .back-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.fullscreen-modal .modal-title {
+    flex: 1;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Fullscreen Modal Body */
+.fullscreen-modal .modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    background: var(--gray-50);
+}
+
+/* Fullscreen Modal Footer */
+.fullscreen-modal .modal-footer {
+    background: var(--white);
+    border-top: 1px solid var(--gray-200);
+    padding: 1rem 1.5rem;
+    flex-shrink: 0;
+    gap: 1rem;
+}
+
+/* Hide Bootstrap close button in fullscreen */
+.fullscreen-modal .btn-close {
+    display: none;
+}
+
+/* Navigation Tabs in Fullscreen Modal */
+.fullscreen-modal .nav-tabs {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 1.5rem;
+    margin: 0 -1.5rem 1.5rem -1.5rem;
+}
+
+.fullscreen-modal .nav-tabs .nav-link {
+    border: none;
+    color: var(--gray-600);
+    font-weight: 600;
+    padding: 1rem 0;
+    margin-right: 2rem;
+    border-bottom: 2px solid transparent;
+    background: none;
+}
+
+.fullscreen-modal .nav-tabs .nav-link.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    background: none;
+}
+
+.fullscreen-modal .nav-tabs .nav-link:hover {
+    color: var(--primary);
+    background: none;
+    border-bottom-color: var(--primary);
+}
+
+/* Variables List in Fullscreen */
+.fullscreen-variables {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+}
+
+.fullscreen-variables .variables-list {
+    max-height: none;
+    padding: 0;
+}
+
+.fullscreen-variables .variable-item {
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.fullscreen-variables .variable-item:last-child {
+    border-bottom: none;
+}
+
+/* Variable Form in Fullscreen */
+.fullscreen-variable-form {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .header-content {
