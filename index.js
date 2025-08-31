@@ -83,6 +83,16 @@ const specificOverrideUsersFile = path.join(__dirname, "data", "specific_overrid
 let IGNORED_OVERRIDE_USERS = [];
 let SPECIFIC_OVERRIDE_USERS = [];
 
+// NEW: Repeating rule settings and last reply times
+const settingsFilePath = path.join(__dirname, "data", "settings.json");
+let settings = {
+    preventRepeatingRule: {
+        enabled: false,
+        cooldown: 2
+    }
+};
+let lastReplyTimes = {}; // Stores { senderName: timestamp }
+
 // Helper functions
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
@@ -106,6 +116,21 @@ function loadOverrideUsers() {
     console.log(`🔍 Loaded ${SPECIFIC_OVERRIDE_USERS.length} specific override users.`);
 }
 
+// NEW: Function to load global settings
+function loadSettings() {
+    if (fs.existsSync(settingsFilePath)) {
+        const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
+        try {
+            const loadedSettings = JSON.parse(fileContent);
+            settings = { ...settings, ...loadedSettings };
+            console.log('⚙️ Settings loaded successfully.');
+        } catch (e) {
+            console.error('❌ Failed to parse settings.json:', e);
+        }
+    }
+    console.log('⚙️ Current Repeating Rule settings:', settings.preventRepeatingRule);
+}
+
 const syncData = async () => {
     try {
         stats = await Stats.findOne();
@@ -122,6 +147,7 @@ const syncData = async () => {
         await loadAllRules();
         await loadAllVariables();
         loadOverrideUsers();
+        loadSettings();
 
         if (stats.lastResetDate !== today) {
             stats.todayUsers = [];
@@ -162,6 +188,10 @@ function saveSpecificOverrideUsers() {
     fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
 }
 
+// NEW: Function to save global settings
+function saveSettings() {
+    fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
+}
 
 const resetDailyStats = async () => {
     stats.todayUsers = [];
@@ -404,6 +434,18 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Yahaan ab hum senderName aur isGroup ka use kar sakte hain
     console.log(`🔍 Processing message from: ${senderName} (Group: ${isGroup ? groupName : 'No'})`);
 
+    // NEW: Cooldown check for repeating messages
+    if (settings.preventRepeatingRule.enabled) {
+        const lastTime = lastReplyTimes[senderName] || 0;
+        const currentTime = Date.now();
+        const cooldownMs = settings.preventRepeatingRule.cooldown * 1000;
+
+        if (currentTime - lastTime < cooldownMs) {
+            console.log(`⏳ Cooldown active for user: ${senderName}. Skipping reply.`);
+            return null; // Return early, don't send a reply
+        }
+    }
+
     msg = msg.toLowerCase();
 
     // Update Stats
@@ -509,6 +551,9 @@ async function processMessage(msg, sessionId = "default", sender) {
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
         reply = resolveVariablesRecursively(reply);
+        
+        // NEW: Update last reply time if a reply is sent
+        lastReplyTimes[senderName] = Date.now();
     }
 
     return reply || null;
@@ -556,7 +601,9 @@ console.log('❌ Client disconnected');
             { path: path.join(dataDir, "variables.json"), content: [] },
             // NEW: Default content for override files
             { path: ignoredOverrideUsersFile, content: [] },
-            { path: specificOverrideUsersFile, content: [] }
+            { path: specificOverrideUsersFile, content: [] },
+            // NEW: Default content for settings file
+            { path: settingsFilePath, content: { preventRepeatingRule: { enabled: false, cooldown: 2 } } }
         ];
 
         files.forEach(file => {
@@ -594,6 +641,114 @@ app.post("/api/settings/specific-override", (req, res) => {
         console.error("❌ Failed to update specific override users:", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
+});
+
+// NEW ENDPOINT: Get all settings
+app.get("/api/settings", (req, res) => {
+    try {
+        res.json({
+            preventRepeatingRule: settings.preventRepeatingRule,
+            ignoredOverrideUsers: IGNORED_OVERRIDE_USERS,
+            specificOverrideUsers: SPECIFIC_OVERRIDE_USERS
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+// NEW ENDPOINT: Update repeating rule setting
+app.post("/api/settings/prevent-repeating-rule", (req, res) => {
+    try {
+        const { enabled, cooldown } = req.body;
+        settings.preventRepeatingRule.enabled = enabled;
+        settings.preventRepeatingRule.cooldown = cooldown;
+        saveSettings();
+        res.json({ success: true, message: "Repeating rule setting updated successfully." });
+    } catch (error) {
+        console.error("❌ Failed to update repeating rule setting:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+app.post("/api/rules/bulk-update", async (req, res) => {
+const session = await mongoose.startSession();
+try {
+await session.withTransaction(async () => {
+const { rules } = req.body;
+if (!Array.isArray(rules) || rules.length === 0) {
+throw new Error('Invalid rules data - must be an array');
+}
+
+const tempBulkOps = rules.map((rule, index) => ({
+updateOne: {
+filter: { _id: new mongoose.Types.ObjectId(rule._id) },
+update: { $set: { RULE_NUMBER: -(index + 1000) } },
+upsert: false
+}
+}));
+
+if (tempBulkOps.length > 0) {
+await Rule.bulkWrite(tempBulkOps, { session, ordered: true });
+}
+
+const finalBulkOps = rules.map(rule => ({
+updateOne: {
+filter: { _id: new mongoose.Types.ObjectId(rule._id) },
+update: {
+$set: {
+RULE_NUMBER: rule.RULE_NUMBER,
+RULE_NAME: rule.RULE_NAME || '',
+RULE_TYPE: rule.RULE_TYPE,
+KEYWORDS: rule.KEYWORDS || '',
+REPLIES_TYPE: rule.REPLIES_TYPE,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
+TARGET_USERS: rule.TARGET_USERS || 'ALL'
+}
+},
+upsert: false
+}
+}));
+
+if (finalBulkOps.length > 0) {
+const finalResult = await Rule.bulkWrite(finalBulkOps, { session, ordered: true });
+if (finalResult.modifiedCount !== rules.length) {
+throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
+}
+}
+});
+
+await session.endSession();
+await loadAllRules();
+
+const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
+fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+
+res.json({
+success: true,
+message: `${req.body.rules.length} rules reordered successfully`,
+updatedCount: req.body.rules.length,
+totalCount: req.body.rules.length
+});
+
+io.emit('rulesUpdated', {
+action: 'bulk_reorder_atomic',
+count: req.body.rules.length,
+newOrder: RULES.map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
+});
+
+} catch (error) {
+console.error('❌ Atomic bulk update failed:', error);
+if (session.inTransaction()) {
+await session.abortTransaction();
+}
+await session.endSession();
+
+res.json({
+success: false,
+message: 'Failed to reorder rules atomically: ' + error.message
+});
+}
 });
 
 app.get("/api/rules", async (req, res) => {
@@ -648,7 +803,7 @@ await Rule.findOneAndUpdate(
 {
 RULE_NUMBER: rule.ruleNumber,
 RULE_NAME: rule.ruleName,
-RULE_TYPE: rule.RULE_TYPE,
+RULE_TYPE: rule.ruleType,
 KEYWORDS: rule.keywords,
 REPLIES_TYPE: rule.repliesType,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
