@@ -60,6 +60,30 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    // Socket listener for chat history
+    socket.on('chatHistory', (historyMessages) => {
+        console.log('📜 Received chat history:', historyMessages.length, 'messages');
+        
+        // Clear current messages and load history
+        chatMessages = [];
+        
+        // Add history messages to current array
+        historyMessages.forEach(message => {
+            chatMessages.push({
+                id: Date.now() + Math.random(),
+                sessionId: message.sessionId || 'unknown',
+                senderName: message.senderName || '',
+                userMessage: message.userMessage || '',
+                botReply: message.botReply || '',
+                timestamp: message.timestamp || new Date().toISOString()
+            });
+        });
+        
+        // Update display
+        updateChatDisplay();
+        console.log('✅ Chat history loaded and displayed');
+    });
+
     // Clear chat button
     if (clearChatBtn) {
         clearChatBtn.addEventListener('click', () => {
@@ -171,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const diffMs = now - date;
         const diffMins = Math.floor(diffMs / 60000);
 
-        if (diffMins < 1) return 'Now';
+        if (diffMins < 1) return 'अभी';
         if (diffMins < 60) return `${diffMins} मिनट पहले`;
         if (diffMins < 1440) return `${Math.floor(diffMins / 60)} घंटे पहले`;
         return date.toLocaleTimeString('hi-IN', { hour: '2-digit', minute: '2-digit' });
