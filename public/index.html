@@ -242,6 +242,18 @@
                                         </button>
                                     </div>
                                 </div>
+                                <div class="settings-card" data-setting="repeating-rule">
+                                    <div class="settings-card-icon">
+                                        <i class="fas fa-shield-alt"></i>
+                                    </div>
+                                    <div class="settings-card-content">
+                                        <h5>Prevent Repeating Rule</h5>
+                                        <p>Avoid sending quick, repetitive replies to a single user.</p>
+                                        <button class="btn btn-primary" id="preventRepeatingBtn">
+                                            <i class="fas fa-arrow-right"></i> Configure
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="settings-card" data-setting="export">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-download"></i>
@@ -489,6 +501,39 @@
             </div>
         </div>
     </div>
+
+    <div class="modal fade" id="preventRepeatingModal" tabindex="-1">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-shield-alt"></i> Prevent Repeating Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group form-check form-switch d-flex align-items-center justify-content-between mb-4">
+                        <label class="form-check-label" for="preventRepeatingToggle">
+                            Enable Feature
+                        </label>
+                        <input class="form-check-input" type="checkbox" role="switch" id="preventRepeatingToggle">
+                    </div>
+                    <div class="form-group" id="cooldownField">
+                        <label for="cooldownTime">Cooldown Period (in seconds)</label>
+                        <input type="number" class="form-control" id="cooldownTime" min="1" value="2">
+                        <small class="form-text text-muted">Bot will not reply to the same user again within this period.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveRepeatingBtn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="bottom: 80px !important;">
         <div id="liveToast" class="toast" role="alert">
