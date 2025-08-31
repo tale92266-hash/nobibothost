@@ -114,78 +114,49 @@ async function loadAllVariables() {
     console.log(`⚡ Loaded ${VARIABLES.length} variables from MongoDB.`);
 }
 
-// UPDATED: Function to load override lists from files first, then sync with MongoDB
-async function loadOverrideUsers() {
+// NEW: Function to load settings from JSON files
+async function loadSettingsFromFiles() {
+    let loaded = false;
     if (fs.existsSync(ignoredOverrideUsersFile) && fs.existsSync(specificOverrideUsersFile)) {
         IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8'));
         SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8'));
         console.log(`🔍 Override users loaded from local files.`);
-    } else {
-        const overrideSettings = await Settings.findOne({ settings_type: 'override_lists' });
-        if (overrideSettings) {
-            IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
-            SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
-        }
-        console.log(`🔍 Override users loaded from MongoDB.`);
+        loaded = true;
     }
-    console.log(`🔍 Loaded ${IGNORED_OVERRIDE_USERS.length} ignored override users.`);
-    console.log(`🔍 Loaded ${SPECIFIC_OVERRIDE_USERS.length} specific override users.`);
-}
-
-// UPDATED: Function to load global settings from files first, then sync with MongoDB
-async function loadSettings() {
     if (fs.existsSync(settingsFilePath)) {
         const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
         try {
             const loadedSettings = JSON.parse(fileContent);
             settings = { ...settings, ...loadedSettings };
             console.log('⚙️ Settings loaded from local file.');
+            loaded = true;
         } catch (e) {
             console.error('❌ Failed to parse settings.json:', e);
         }
-    } else {
-        const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
-        if (globalSettings) {
-            settings = { ...settings, ...globalSettings.settings_data };
-        }
-        console.log('⚙️ Settings loaded from MongoDB.');
     }
-    console.log('⚙️ Current Repeating Rule settings:', settings.preventRepeatingRule);
-    console.log('🤖 Current bot status:', settings.isBotOnline ? 'Online' : 'Offline');
+    return loaded;
 }
 
-// NEW: Migration function to move old settings from files to DB
-const migrateOldSettings = async () => {
-    // Migrate override users
-    if (fs.existsSync(ignoredOverrideUsersFile) || fs.existsSync(specificOverrideUsersFile)) {
-        const ignored = fs.existsSync(ignoredOverrideUsersFile) ? JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8')) : [];
-        const specific = fs.existsSync(specificOverrideUsersFile) ? JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8')) : [];
-
-        await Settings.findOneAndUpdate(
-            { settings_type: 'override_lists' },
-            { settings_data: { ignored, specific } },
-            { upsert: true, new: true }
-        );
-        console.log('✅ Old override lists migrated to MongoDB.');
-        // Clean up old files
-        fs.unlinkSync(ignoredOverrideUsersFile);
-        fs.unlinkSync(specificOverrideUsersFile);
+// NEW: Function to restore settings from MongoDB and create local files
+async function restoreSettingsFromDb() {
+    const overrideSettings = await Settings.findOne({ settings_type: 'override_lists' });
+    if (overrideSettings) {
+        IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
+        SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
+        fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
+        fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
+        console.log('✅ Override lists restored from MongoDB.');
     }
 
-    // Migrate global settings
-    if (fs.existsSync(settingsFilePath)) {
-        const oldSettings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
-        await Settings.findOneAndUpdate(
-            { settings_type: 'global_settings' },
-            { settings_data: oldSettings },
-            { upsert: true, new: true }
-        );
-        console.log('✅ Old global settings migrated to MongoDB.');
-        // Clean up old file
-        fs.unlinkSync(settingsFilePath);
+    const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
+    if (globalSettings) {
+        settings = { ...settings, ...globalSettings.settings_data };
+        fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
+        console.log('✅ Global settings restored from MongoDB.');
     }
-};
+}
 
+// UPDATED: Centralized data sync function
 const syncData = async () => {
     try {
         stats = await Stats.findOne();
@@ -199,11 +170,15 @@ const syncData = async () => {
         welcomedUsers = dbWelcomedUsers.map(u => u.senderName);
         fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 
-        // NEW: Load settings from MongoDB
         await loadAllRules();
         await loadAllVariables();
-        await loadOverrideUsers();
-        await loadSettings();
+
+        // NEW: Load settings from files first, if not present, restore from DB
+        const settingsLoaded = await loadSettingsFromFiles();
+        if (!settingsLoaded) {
+            console.log('⚠️ Settings files not found. Restoring from MongoDB...');
+            await restoreSettingsFromDb();
+        }
 
         if (stats.lastResetDate !== today) {
             stats.todayUsers = [];
@@ -241,7 +216,7 @@ async function saveIgnoredOverrideUsers() {
     fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
         { upsert: true, new: true }
     );
 }
@@ -249,7 +224,7 @@ async function saveSpecificOverrideUsers() {
     fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
         { upsert: true, new: true }
     );
 }
@@ -675,12 +650,7 @@ console.log('❌ Client disconnected');
             { path: path.join(dataDir, "stats.json"), content: { totalUsers: [], todayUsers: [], totalMsgs: 0, todayMsgs: 0, nobiPapaHideMeUsers: [], lastResetDate: today } },
             { path: path.join(dataDir, "welcomed_users.json"), content: [] },
             { path: path.join(dataDir, "funrules.json"), content: { rules: [] } },
-            { path: path.join(dataDir, "variables.json"), content: [] },
-            // NEW: Default content for override files
-            { path: ignoredOverrideUsersFile, content: [] },
-            { path: specificOverrideUsersFile, content: [] },
-            // NEW: Default content for settings file
-            { path: settingsFilePath, content: { preventRepeatingRule: { enabled: false, cooldown: 2 } } }
+            { path: path.join(dataDir, "variables.json"), content: [] }
         ];
 
         files.forEach(file => {
@@ -725,15 +695,14 @@ app.post("/api/settings/specific-override", async (req, res) => {
 // NEW ENDPOINT: Get all settings
 app.get("/api/settings", async (req, res) => {
     try {
-        const overrideLists = await Settings.findOne({ settings_type: 'override_lists' });
-        const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
-        
-        res.json({
-            preventRepeatingRule: globalSettings?.settings_data?.preventRepeatingRule || { enabled: false, cooldown: 2 },
-            isBotOnline: globalSettings?.settings_data?.isBotOnline ?? true,
-            ignoredOverrideUsers: overrideLists?.settings_data?.ignored || [],
-            specificOverrideUsers: overrideLists?.settings_data?.specific || []
-        });
+        // NEW: Return settings from local files for faster loading
+        const settingsData = {
+            preventRepeatingRule: settings.preventRepeatingRule,
+            isBotOnline: settings.isBotOnline,
+            ignoredOverrideUsers: IGNORED_OVERRIDE_USERS,
+            specificOverrideUsers: SPECIFIC_OVERRIDE_USERS
+        };
+        res.json(settingsData);
     } catch (error) {
         res.status(500).json({ success: false, message: "Server error" });
     }
