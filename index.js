@@ -737,7 +737,7 @@ app.post("/webhook", async (req, res) => {
     const sender = req.body.query?.sender || "";
     
     // Yahan hum sender string ko parse kar rahe hain
-    const { senderName: parsedSenderName } = extractSenderNameAndContext(sender);
+    const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
 
     const replyText = await processMessage(msg, sessionId, sender);
 
@@ -745,6 +745,7 @@ app.post("/webhook", async (req, res) => {
     const messageData = {
         sessionId: sessionId,
         senderName: parsedSenderName, // <-- Yahan ab parsed sender name use ho raha hai
+        groupName: isGroup ? groupName : null, // <-- Naya field: groupName
         userMessage: msg,
         botReply: replyText,
         timestamp: new Date().toISOString()
