@@ -358,8 +358,8 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: resolveVariablesRecursively function with new random variables
-function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
+// UPDATED: resolveVariablesRecursively function with new random variables and capturing groups
+function resolveVariablesRecursively(text, senderName, regexMatch = null, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
@@ -498,7 +498,16 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return selected.join('');
         });
         
-        // Pass 4: Resolve static variables from DB
+        // Pass 4: Resolve Capturing Groups
+        if (regexMatch) {
+            result = result.replace(/%capturing_group_(\d+)%/g, (match, id) => {
+                const index = parseInt(id, 10);
+                // Capturing groups are 1-indexed in RegEx results
+                return (regexMatch[index] !== undefined) ? regexMatch[index] : match;
+            });
+        }
+        
+        // Pass 5: Resolve static variables from DB
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
@@ -679,6 +688,7 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     // Match Rules
     let reply = null;
+    let regexMatch = null;
 
     for (let rule of RULES) {
         let userMatch = false;
@@ -736,7 +746,13 @@ async function processMessage(msg, sessionId = "default", sender) {
                 }
                 else if (rule.RULE_TYPE === "EXPERT") {
                     try {
-                        if (new RegExp(pattern, "i").test(msg)) match = true;
+                        // UPDATED: Use exec() for capturing groups
+                        const regex = new RegExp(pattern, "i");
+                        const execResult = regex.exec(msg);
+                        if (execResult) {
+                            match = true;
+                            regexMatch = execResult;
+                        }
                     } catch {}
                 }
 
@@ -762,7 +778,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        reply = resolveVariablesRecursively(reply, senderName);
+        reply = resolveVariablesRecursively(reply, senderName, regexMatch);
         
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
