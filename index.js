@@ -442,12 +442,14 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
         const initialResult = result;
 
         // Step 0: Legacy syntax ko braces me convert karo
-        result = result.replace(/%rndm_custom_(\d+)_((?:[^%]|%[^%]+%)+?)%/g, (match, countStr, tokensString) => {
-            return `%rndm_custom_${countStr}_{${tokensString}}%`;
+        result = result.replace(/%rndm_custom_(\d+)_([\s\S]*?)%/g, (match, countStr, tokensString) => {
+            const lastPercentIndex = match.lastIndexOf("%");
+            const inside = match.substring(match.indexOf("_") + 1, lastPercentIndex);
+            return `%rndm_custom_${countStr}_{${inside}}%`;
         });
 
         // Step 1: Braced rndm_custom handle karo
-        const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*?)\}%/g;
+        const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*)\}%/g;
         result = result.replace(customRandomBraced, (match, countStr, tokensString) => {
             const count = Math.max(1, parseInt(countStr || "1", 10));
             const tokens = smartSplitTokens(tokensString);
