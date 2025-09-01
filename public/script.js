@@ -1,5 +1,7 @@
 // file: script.js
 
+// file: script.js
+
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
