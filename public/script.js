@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const tempHideToggle = document.getElementById('tempHideToggle');
     const tempUnhideToggle = document.getElementById('tempUnhideToggle');
     const tempHideMatchTypeSelect = document.getElementById('tempHideMatchType');
+    const tempUnhideMatchTypeSelect = document.getElementById('tempUnhideMatchType');
     const tempHideTriggerTextarea = document.getElementById('tempHideTriggerText');
     const tempUnhideTriggerTextarea = document.getElementById('tempUnhideTriggerText');
     const saveTempHideBtn = document.getElementById('saveTempHideBtn');
@@ -86,7 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
             matchType: 'EXACT',
             triggerText: 'nobi papa hide me',
             unhideEnabled: true,
-            unhideTriggerText: 'nobi papa start'
+            unhideTriggerText: 'nobi papa start',
+            unhideMatchType: 'EXACT'
         }
     };
 
@@ -1033,6 +1035,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('tempUnhideToggle').checked = tempHideSettings.unhideEnabled;
         document.getElementById('tempHideMatchType').value = tempHideSettings.matchType || 'EXACT';
         document.getElementById('tempHideTriggerText').value = tempHideSettings.triggerText || '';
+        document.getElementById('tempUnhideMatchType').value = tempHideSettings.unhideMatchType || 'EXACT';
         document.getElementById('tempUnhideTriggerText').value = tempHideSettings.unhideTriggerText || '';
         tempHideModalBootstrap.show();
     }
@@ -1040,7 +1043,8 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveTempHideSettings() {
         const enabled = document.getElementById('tempHideToggle').checked;
         const unhideEnabled = document.getElementById('tempUnhideToggle').checked;
-        const matchType = document.getElementById('tempHideMatchType').value;
+        const hideMatchType = document.getElementById('tempHideMatchType').value;
+        const unhideMatchType = document.getElementById('tempUnhideMatchType').value;
         const triggerText = document.getElementById('tempHideTriggerText').value;
         const unhideTriggerText = document.getElementById('tempUnhideTriggerText').value;
 
@@ -1053,7 +1057,14 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const payload = { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText };
+        const payload = { 
+            enabled, 
+            matchType: hideMatchType, 
+            triggerText, 
+            unhideEnabled, 
+            unhideTriggerText,
+            unhideMatchType
+        };
         try {
             const response = await fetch('/api/settings/temporary-hide', {
                 method: 'POST',
