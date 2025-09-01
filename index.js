@@ -674,7 +674,9 @@ async function processMessage(msg, sessionId = "default", sender) {
     // NEW: If temporary hide was triggered, add user to ignored list AFTER processing reply
     if (temporaryHideTriggered) {
         const hideEntry = { name: senderName, context: context };
-        if (!IGNORED_OVERRIDE_USERS.some(item => item.name === hideEntry.name && item.context === hideEntry.context)) {
+        // Check if the user is not already in the list for this specific context
+        const isAlreadyIgnoredInContext = IGNORED_OVERRIDE_USERS.some(item => item.name === hideEntry.name && item.context === hideEntry.context);
+        if (!isAlreadyIgnoredInContext) {
             IGNORED_OVERRIDE_USERS.push(hideEntry);
             await saveIgnoredOverrideUsers();
             console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
