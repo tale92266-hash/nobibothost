@@ -577,6 +577,13 @@ function matchesTrigger(message, triggerText, matchType) {
 }
 
 async function processMessage(msg, sessionId = "default", sender) {
+    // NEW: Check if the sender is in the specific override list first.
+    const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+    if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(senderName, SPECIFIC_OVERRIDE_USERS)) {
+        console.log(`⚠️ User "${senderName}" is not on the specific override list. Ignoring message.`);
+        return null;
+    }
+
     // NEW: Check if stats is loaded before accessing it
     if (!stats) {
         console.error('❌ Stats object is undefined. Cannot process message.');
@@ -588,8 +595,7 @@ async function processMessage(msg, sessionId = "default", sender) {
         console.log('🤖 Bot is offline. Skipping message processing.');
         return null;
     }
-
-    const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+    
     const context = isGroup ? groupName : 'DM';
     
     console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
@@ -669,11 +675,8 @@ async function processMessage(msg, sessionId = "default", sender) {
         let userMatch = false;
         const targetUsers = rule.TARGET_USERS || "ALL";
 
-        // NEW: Specific Override check (Highest Priority)
-        if (SPECIFIC_OVERRIDE_USERS.length > 0 && matchesOverridePattern(senderName, SPECIFIC_OVERRIDE_USERS)) {
-            console.log(`✅ Specific override match for user: ${senderName}`);
-            userMatch = true;
-        } else if (rule.RULE_TYPE === "IGNORED") {
+        // NEW: Specific Override check (Highest Priority) - REMOVED
+        if (rule.RULE_TYPE === "IGNORED") {
             if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
                 userMatch = true;
             }
@@ -1147,6 +1150,12 @@ app.post("/webhook", async (req, res) => {
     // NEW: Bot Online check added to webhook endpoint
     if (!settings.isBotOnline) {
         console.log('🤖 Bot is offline. Skipping message processing.');
+        return res.json({ replies: [] });
+    }
+    
+    // Yahaan specific override ki check lagaayi gayi hai
+    if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(parsedSenderName, SPECIFIC_OVERRIDE_USERS)) {
+        console.log(`⚠️ User "${parsedSenderName}" is not on the specific override list. Ignoring message.`);
         return res.json({ replies: [] });
     }
 
