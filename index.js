@@ -100,11 +100,14 @@ let settings = {
     },
     // NEW: Bot Online status
     isBotOnline: true,
-    // NEW: Temporary Hide settings
+    // NEW: Temporary Hide and Unhide settings
     temporaryHide: {
         enabled: false,
         matchType: 'EXACT',
-        triggerText: 'nobi papa hide me'
+        triggerText: 'nobi papa hide me',
+        // NEW: Temporary Unhide settings
+        unhideEnabled: true, // by default enabled
+        unhideTriggerText: 'nobi papa start',
     }
 };
 let lastReplyTimes = {}; // Stores { senderName: timestamp }
@@ -134,6 +137,22 @@ async function loadSettingsFromFiles() {
         try {
             const loadedSettings = JSON.parse(fileContent);
             settings = { ...settings, ...loadedSettings };
+            // Ensure temporaryHide sub-object exists and has default values
+            if (!settings.temporaryHide) {
+                settings.temporaryHide = {
+                    enabled: false,
+                    matchType: 'EXACT',
+                    triggerText: 'nobi papa hide me',
+                    unhideEnabled: true,
+                    unhideTriggerText: 'nobi papa start',
+                };
+            }
+            if (settings.temporaryHide.unhideEnabled === undefined) {
+                settings.temporaryHide.unhideEnabled = true;
+            }
+            if (settings.temporaryHide.unhideTriggerText === undefined) {
+                settings.temporaryHide.unhideTriggerText = 'nobi papa start';
+            }
             console.log('⚙️ Settings loaded from local file.');
             loaded = true;
         } catch (e) {
@@ -157,6 +176,22 @@ async function restoreSettingsFromDb() {
     const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
     if (globalSettings) {
         settings = { ...settings, ...globalSettings.settings_data };
+        // Ensure temporaryHide sub-object exists and has default values
+        if (!settings.temporaryHide) {
+            settings.temporaryHide = {
+                enabled: false,
+                matchType: 'EXACT',
+                triggerText: 'nobi papa hide me',
+                unhideEnabled: true,
+                unhideTriggerText: 'nobi papa start',
+            };
+        }
+        if (settings.temporaryHide.unhideEnabled === undefined) {
+            settings.temporaryHide.unhideEnabled = true;
+        }
+        if (settings.temporaryHide.unhideTriggerText === undefined) {
+            settings.temporaryHide.unhideTriggerText = 'nobi papa start';
+        }
         fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
         console.log('✅ Global settings restored from MongoDB.');
     }
@@ -514,6 +549,25 @@ function isUserIgnored(senderName, context, ignoredList) {
     });
 }
 
+// NEW: Function to check if a message matches a trigger pattern
+function matchesTrigger(message, triggerText, matchType) {
+    const triggers = triggerText.split('//').map(t => t.trim()).filter(Boolean);
+    for (const trigger of triggers) {
+        let match = false;
+        if (matchType === 'EXACT' && trigger.toLowerCase() === message.toLowerCase()) match = true;
+        else if (matchType === 'PATTERN') {
+            let regexStr = trigger.replace(/\*/g, ".*");
+            if (new RegExp(`^${regexStr}$`, "i").test(message)) match = true;
+        } else if (matchType === 'EXPERT') {
+            try {
+                if (new RegExp(trigger, "i").test(message)) match = true;
+            } catch {}
+        }
+        if (match) return true;
+    }
+    return false;
+}
+
 async function processMessage(msg, sessionId = "default", sender) {
     // NEW: Check if stats is loaded before accessing it
     if (!stats) {
@@ -532,37 +586,50 @@ async function processMessage(msg, sessionId = "default", sender) {
     
     console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
 
+    // NEW: Check for unhide trigger FIRST
+    let unhideTriggered = false;
+    if (settings.temporaryHide.unhideEnabled) {
+        if (matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.matchType)) {
+            console.log(`✅ Unhide trigger received from user: ${senderName}`);
+            
+            // Unhide logic: remove user from the ignored list for this specific context
+            const initialIgnoredCount = IGNORED_OVERRIDE_USERS.length;
+            IGNORED_OVERRIDE_USERS = IGNORED_OVERRIDE_USERS.filter(item => {
+                const nameMatches = matchesOverridePattern(senderName, [item.name]);
+                const contextMatches = matchesOverridePattern(context, [item.context]);
+                return !(nameMatches && contextMatches);
+            });
+            
+            if (IGNORED_OVERRIDE_USERS.length < initialIgnoredCount) {
+                await saveIgnoredOverrideUsers();
+                console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
+                unhideTriggered = true;
+            } else {
+                console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
+            }
+        }
+    }
+
     // NEW: Temporary hide check
     let temporaryHideTriggered = false;
     if (settings.temporaryHide.enabled) {
-        const triggerTexts = settings.temporaryHide.triggerText.split('//').map(t => t.trim()).filter(Boolean);
-        for (const trigger of triggerTexts) {
-            let match = false;
-            if (settings.temporaryHide.matchType === 'EXACT' && trigger.toLowerCase() === msg.toLowerCase()) match = true;
-            else if (settings.temporaryHide.matchType === 'PATTERN') {
-                let regexStr = trigger.replace(/\*/g, ".*");
-                if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
-            } else if (settings.temporaryHide.matchType === 'EXPERT') {
-                try {
-                    if (new RegExp(trigger, "i").test(msg)) match = true;
-                } catch {}
-            }
-            if (match) {
-                temporaryHideTriggered = true;
-                break;
-            }
+        if (matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType)) {
+            temporaryHideTriggered = true;
+            console.log(`✅ Hide trigger received from user: ${senderName}`);
         }
     }
     
     // NEW: User is ignored if they are in the context-specific list.
     const isSenderIgnored = isUserIgnored(senderName, context, IGNORED_OVERRIDE_USERS);
 
-    if (isSenderIgnored) {
+    // If unhide was triggered, or user is not ignored, continue processing.
+    // If the user is globally ignored (by manual override), they will stay ignored.
+    const isGloballyIgnored = matchesOverridePattern(sender, IGNORED_OVERRIDE_USERS.map(u => u.name));
+
+    if (isSenderIgnored && !unhideTriggered) {
         console.log(`🚫 User "${senderName}" is ignored in context "${context}". Skipping reply.`);
         return null;
     }
-
-    msg = msg.toLowerCase();
 
     // Update Stats
     if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
@@ -594,7 +661,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
             // NEW: Ignored Override check
-            if (isSenderIgnored) { // Use the pre-computed ignored status
+            if (isSenderIgnored && !unhideTriggered) { // Use the pre-computed ignored status
                 userMatch = false;
             } else {
                 userMatch = true;
@@ -810,10 +877,13 @@ app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
 // NEW ENDPOINT: Update temporary hide setting
 app.post("/api/settings/temporary-hide", async (req, res) => {
     try {
-        const { enabled, matchType, triggerText } = req.body;
+        const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText } = req.body;
         settings.temporaryHide.enabled = enabled;
         settings.temporaryHide.matchType = matchType;
         settings.temporaryHide.triggerText = triggerText;
+        // NEW: Add unhide settings
+        settings.temporaryHide.unhideEnabled = unhideEnabled;
+        settings.temporaryHide.unhideTriggerText = unhideTriggerText;
         await saveSettings();
         res.json({ success: true, message: "Temporary hide setting updated successfully." });
     } catch (error) {
