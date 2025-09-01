@@ -398,42 +398,15 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// Updated smartSplitTokens logic
+// UPDATED: smartSplitTokens logic
 function smartSplitTokens(tokensString) {
-    // This function needs to be aware of commas inside nested variables.
-    // We'll use a simple approach: split by comma, but rejoin if a token starts and ends with a variable pattern.
-    const tokens = tokensString.split(',').map(t => t.trim());
-    const result = [];
-    let currentToken = '';
-
-    for (const token of tokens) {
-        currentToken += (currentToken ? ',' : '') + token;
-        // Simple check to see if the string seems to be a complete variable
-        if (currentToken.startsWith('%') && currentToken.endsWith('%')) {
-            result.push(currentToken);
-            currentToken = '';
-        } else if (!currentToken.includes('%')) {
-            // If it doesn't contain a %, it's just plain text, push it and reset
-            result.push(currentToken);
-            currentToken = '';
-        }
-        // If it's still an open variable, continue accumulating.
-    }
-    // Push any remaining token
-    if (currentToken) {
-        result.push(currentToken);
-    }
-    
-    // A more robust but complex approach would involve tracking parentheses or brackets.
-    // For now, let's assume variables don't contain commas inside their names.
-    // The previous regex was `/(?![^%]*%)`, which tried to handle this but failed.
-    // A simpler approach might be more reliable. Let's stick to a simpler, corrected regex for now.
-    
-    // Resetting to the simple-but-correct approach for custom randoms
-    const finalTokens = tokensString.split('//').map(t => t.trim()).filter(Boolean);
+    // This function now uses a simple approach: split by `//`.
+    // The previous comma-based splitting logic was causing issues with commas inside the tokens.
+    // The new logic assumes `//` is the primary separator for options in custom random variables.
+    const tokens = tokensString.split('//').map(t => t.trim());
     console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
-    console.log(`🎯 Total ${finalTokens.length} tokens found: [${finalTokens.join('] | [')}]`);
-    return finalTokens;
+    console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
+    return tokens.filter(t => t !== '');
 }
 
 function pickNUniqueRandomly(tokens, count) {
@@ -461,57 +434,56 @@ function pickNUniqueRandomly(tokens, count) {
     return selectedTokens;
 }
 
-// NEW and CORRECTED: resolveVariablesRecursively function
+// UPDATED: resolveVariablesRecursively function with multi-pass logic
 function resolveVariablesRecursively(text, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
-    while (iterationCount < maxIterations) {
-        const initialResult = result;
+    // Use a multi-pass approach to handle nesting correctly
+    const resolvePass = (str) => {
+        let tempResult = str;
+        let changed = false;
 
-        // Step 1: Handle custom random variables first, which are the most complex.
-        // We'll use a capturing group for the content inside the custom variable,
-        // and a non-capturing group to make sure we don't accidentally capture nested variables.
-        // The pattern now looks for `%rndm_custom_1_...%`
-        result = result.replace(/%rndm_custom_(\d+)_((?:(?!%).)*)%/g, (match, countStr, tokensString) => {
+        // Pass 1: Resolve custom random variables first (highest precedence)
+        tempResult = tempResult.replace(/%rndm_custom_(\d+)_((?:(?!%).)*)%/g, (match, countStr, tokensString) => {
             const count = parseInt(countStr, 10);
-            const tokens = tokensString.split(',').map(t => t.trim()).filter(Boolean);
-            
-            if (tokens.length === 0) {
-                console.warn(`⚠️ No valid tokens found in custom random variable: ${match}`);
-                return '';
-            }
-            
+            const tokens = smartSplitTokens(tokensString);
+            if (tokens.length === 0) return '';
             const selectedTokens = pickNUniqueRandomly(tokens, count);
-            const finalResult = selectedTokens.join(' ');
-            return finalResult;
+            changed = true;
+            return selectedTokens.join(' ');
         });
 
-        // Step 2: Handle other types of random variables
-        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+        // Pass 2: Resolve other random variables
+        tempResult = tempResult.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
             if (type === 'num') {
                 const [min, max] = param1.split('_').map(Number);
+                changed = true;
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             } else {
                 const length = parseInt(param1);
+                changed = true;
                 return generateRandom(type, length);
             }
         });
         
-        // Step 3: Handle static variables
-        result = result.replace(/%(\w+)%/g, (match, varName) => {
+        // Pass 3: Resolve static variables
+        tempResult = tempResult.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
+                changed = true;
                 return staticVar.value;
             }
             return match;
         });
 
-        if (result === initialResult) {
-            // No more variables to resolve, exit the loop
-            break;
-        }
+        return { result: tempResult, changed };
+    };
 
+    let resolved = { result, changed: true };
+    while (resolved.changed && iterationCount < maxIterations) {
+        resolved = resolvePass(resolved.result);
+        result = resolved.result;
         iterationCount++;
     }
 
