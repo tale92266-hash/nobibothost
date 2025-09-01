@@ -576,7 +576,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 `;
             } else {
-                const searchTerm = document.getElementById('rulesSearch')?.value?.toLowerCase() || '';
+                const searchTerm = document.getElementById('searchRules')?.value?.toLowerCase() || '';
                 displayRulesWithSearch(data, searchTerm);
             }
         } catch (error) {
@@ -1262,13 +1262,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Search functionality
-    const rulesSearchInput = document.getElementById('rulesSearch');
+    const rulesSearchInput = document.getElementById('searchRules');
     if (rulesSearchInput) {
         rulesSearchInput.addEventListener('input', (e) => {
             const searchTerm = e.target.value.toLowerCase();
             displayRulesWithSearch(allRules, searchTerm);
         });
     }
+    
+    // Variables search functionality
+    const variablesSearchInput = document.getElementById('searchVariables');
+    if (variablesSearchInput) {
+        variablesSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredVariables = allVariables.filter(variable =>
+                (variable.name || '').toLowerCase().includes(searchTerm) ||
+                (variable.value || '').toLowerCase().includes(searchTerm)
+            );
+            displayVariables(filteredVariables);
+        });
+    }
+
 
     // Initialize the app
     init();
