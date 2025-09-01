@@ -744,15 +744,15 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveRule() {
         const formData = new FormData(ruleForm);
         const ruleNumber = parseInt(formData.get('ruleNumber'));
-        const targetUsersToggleValue = formData.get('targetUsersToggle');
-        const keywordsValue = formData.get('keywords');
-        const replyTextValue = formData.get('replyText');
+        const targetUsersToggleValue = document.getElementById('targetUsersToggle').value;
+        const keywordsValue = document.getElementById('keywords').value;
+        const replyTextValue = document.getElementById('replyText').value;
         
         if (!validateRuleNumber(ruleNumber, currentRuleNumber !== null)) {
             return;
         }
 
-        // Backend validation check for keywords and replies
+        // Form validation for required fields
         if (ruleTypeSelect.value !== 'WELCOME' && ruleTypeSelect.value !== 'DEFAULT' && !keywordsValue.trim()) {
             showToast('Keywords cannot be empty for this rule type.', 'warning');
             return;
@@ -777,12 +777,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const ruleData = {
             ruleNumber: ruleNumber,
-            ruleName: formData.get('ruleName'),
-            ruleType: formData.get('ruleType'),
+            ruleName: document.getElementById('ruleName').value,
+            ruleType: ruleTypeSelect.value,
             keywords: keywordsValue,
-            repliesType: formData.get('repliesType'),
+            repliesType: document.getElementById('repliesType').value,
             replyText: replyTextValue,
-            TARGET_USERS: targetUsersValue // Correctly assigning the validated value
+            TARGET_USERS: targetUsersValue
         };
         const payload = {
             type: currentRuleNumber ? 'edit' : 'add',
@@ -790,13 +790,12 @@ document.addEventListener("DOMContentLoaded", () => {
             oldRuleNumber: currentRuleNumber
         };
 
-        // Added loading state
-        saveRuleBtn.disabled = true;
         const saveBtnIcon = saveRuleBtn.querySelector('i');
         const saveBtnSpinner = saveRuleBtn.querySelector('span.spinner-border');
+
+        saveRuleBtn.disabled = true;
         if (saveBtnIcon) saveBtnIcon.classList.add('d-none');
         if (saveBtnSpinner) saveBtnSpinner.style.display = 'inline-block';
-        
 
         try {
             const response = await fetch('/api/rules/update', {
@@ -816,12 +815,12 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error('Error saving rule:', error);
             showToast('Network error occurred', 'fail');
         } finally {
-            // Restore button state
             saveRuleBtn.disabled = false;
             if (saveBtnIcon) saveBtnIcon.classList.remove('d-none');
             if (saveBtnSpinner) saveBtnSpinner.style.display = 'none';
         }
     }
+
 
     async function deleteRule() {
         if (!currentRuleNumber) return;
