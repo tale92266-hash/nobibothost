@@ -974,7 +974,7 @@ document.addEventListener("DOMContentLoaded", () => {
             botStatusBtn.className = 'bot-loading';
             const statusText = document.getElementById('botStatusText');
             if (statusText) {
-                statusText.textContent = 'Updating...';
+                statusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Updating...';
             }
         }
         
