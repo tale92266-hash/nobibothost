@@ -1260,6 +1260,11 @@ body {
     animation: pulse-red 2s infinite;
 }
 
+#botStatusBtn.bot-loading {
+    background: linear-gradient(135deg, var(--gray-500), var(--gray-600));
+    animation: none;
+}
+
 #botStatusBtn:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-xl);
