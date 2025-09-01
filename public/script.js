@@ -1173,8 +1173,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', openAddRuleModal);
     }
-    if (saveRuleBtn) {
-        saveRuleBtn.addEventListener('click', saveRule);
+    // CHANGED: Use form submit event listener instead of button click
+    if (ruleForm) {
+        ruleForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent default form submission and page reload
+            saveRule();
+        });
     }
     if (deleteRuleBtn) {
         deleteRuleBtn.addEventListener('click', deleteRule);
@@ -1190,8 +1194,11 @@ document.addEventListener("DOMContentLoaded", () => {
     if (addVariableBtn) {
         addVariableBtn.addEventListener('click', openAddVariableModal);
     }
-    if (saveVariableBtn) {
-        saveVariableBtn.addEventListener('click', saveVariable);
+    if (variableForm) {
+        variableForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent default form submission and page reload
+            saveVariable();
+        });
     }
     if (deleteVariableBtn) {
         deleteVariableBtn.addEventListener('click', deleteVariable);
