@@ -11,7 +11,8 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.PORT || `http://localhost:${PORT}`;
 const server = require("http").createServer(app);
-const { Server } = new (require("socket.io"))(server, { cors: { origin: "*" } });
+const { Server } = require("socket.io");
+const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
