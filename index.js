@@ -398,11 +398,9 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: smartSplitTokens logic
+// UPDATED: smartSplitTokens logic to use '//' as separator
 function smartSplitTokens(tokensString) {
-    // This function now uses a simple approach: split by `//`.
-    // The previous comma-based splitting logic was causing issues with commas inside the tokens.
-    // The new logic assumes `//` is the primary separator for options in custom random variables.
+    // We now split by '//' to allow commas inside tokens
     const tokens = tokensString.split('//').map(t => t.trim());
     console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
     console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
@@ -435,55 +433,79 @@ function pickNUniqueRandomly(tokens, count) {
 }
 
 // UPDATED: resolveVariablesRecursively function with multi-pass logic
-function resolveVariablesRecursively(text, maxIterations = 10) {
+function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
-
-    // Use a multi-pass approach to handle nesting correctly
-    const resolvePass = (str) => {
-        let tempResult = str;
-        let changed = false;
-
-        // Pass 1: Resolve custom random variables first (highest precedence)
-        tempResult = tempResult.replace(/%rndm_custom_(\d+)_((?:(?!%).)*)%/g, (match, countStr, tokensString) => {
-            const count = parseInt(countStr, 10);
-            const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) return '';
-            const selectedTokens = pickNUniqueRandomly(tokens, count);
-            changed = true;
-            return selectedTokens.join(' ');
-        });
-
-        // Pass 2: Resolve other random variables
-        tempResult = tempResult.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === 'num') {
-                const [min, max] = param1.split('_').map(Number);
-                changed = true;
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            } else {
-                const length = parseInt(param1);
-                changed = true;
-                return generateRandom(type, length);
-            }
-        });
+    
+    while (iterationCount < maxIterations) {
+        const initialResult = result;
         
-        // Pass 3: Resolve static variables
-        tempResult = tempResult.replace(/%(\w+)%/g, (match, varName) => {
+        // Pass 1: Resolve built-in time variables
+        result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
+            const now = new Date();
+            const istOptions = { timeZone: 'Asia/Kolkata' };
+            switch (varName) {
+                case 'hour':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[0];
+                case 'hour_short':
+                    return now.toLocaleString('en-IN', { hour: 'numeric', hour12: true, ...istOptions }).split(' ')[0];
+                case 'hour_of_day':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: false, ...istOptions });
+                case 'hour_of_day_short':
+                    return now.toLocaleString('en-IN', { hour: 'numeric', hour12: false, ...istOptions });
+                case 'minute':
+                    return now.toLocaleString('en-IN', { minute: '2-digit', ...istOptions });
+                case 'second':
+                    return now.toLocaleString('en-IN', { second: '2-digit', ...istOptions });
+                case 'millisecond':
+                    return now.getMilliseconds().toString().padStart(3, '0');
+                case 'am/pm':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[1].toUpperCase();
+                case 'name':
+                    return senderName;
+            }
+            return match;
+        });
+
+        // Pass 2: Resolve static variables from DB
+        result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
-                changed = true;
                 return staticVar.value;
             }
             return match;
         });
 
-        return { result: tempResult, changed };
-    };
+        // Pass 3: Resolve other random variables
+        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+            if (type === 'num') {
+                const [min, max] = param1.split('_').map(Number);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                const length = parseInt(param1);
+                return generateRandom(type, length);
+            }
+        });
 
-    let resolved = { result, changed: true };
-    while (resolved.changed && iterationCount < maxIterations) {
-        resolved = resolvePass(resolved.result);
-        result = resolved.result;
+        // Pass 4: Resolve custom random variables
+        // This regex now correctly identifies the custom random variables
+        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%\w+%).)*?)%/g;
+        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            const tokens = smartSplitTokens(tokensString);
+            if (tokens.length === 0) {
+                console.warn(`⚠️ No valid tokens found in custom random variable: ${match}`);
+                return '';
+            }
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            return selectedTokens.join(' ');
+        });
+
+        if (result === initialResult) {
+            // No more variables to resolve, exit the loop
+            break;
+        }
+
         iterationCount++;
     }
 
@@ -493,6 +515,7 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
 
     return result;
 }
+
 
 // NEW FUNCTION: sender string ko parse karne ke liye
 function extractSenderNameAndContext(sender) {
@@ -733,7 +756,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        reply = resolveVariablesRecursively(reply);
+        reply = resolveVariablesRecursively(reply, senderName);
         
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
