@@ -362,11 +362,17 @@ function convertNewlinesBeforeSave(text) {
 function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
+
+    const lowerCaseAlphabet = 'abcdefghijklmnopqrstuvwxyz';
+    const upperCaseAlphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const symbols = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~';
+    const grawlixes = '#$%&@*!';
     
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve built-in time variables and the new random variable
+        // Pass 1: Resolve built-in time variables
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
@@ -393,7 +399,91 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return match;
         });
 
-        // Pass 2: Resolve the new random custom variable
+        // Pass 2: Resolve the new random variables
+        result = result.replace(/%rndm_num_(\d+)_(\d+)%/g, (match, min, max) => {
+            const minNum = parseInt(min, 10);
+            const maxNum = parseInt(max, 10);
+            return Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+        });
+        
+        result = result.replace(/%rndm_abc_lower_(\d+)%/g, (match, length) => {
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += lowerCaseAlphabet.charAt(Math.floor(Math.random() * lowerCaseAlphabet.length));
+            }
+            return result;
+        });
+        
+        result = result.replace(/%rndm_abc_upper_(\d+)%/g, (match, length) => {
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += upperCaseAlphabet.charAt(Math.floor(Math.random() * upperCaseAlphabet.length));
+            }
+            return result;
+        });
+        
+        result = result.replace(/%rndm_abc_(\d+)%/g, (match, length) => {
+            const chars = lowerCaseAlphabet + upperCaseAlphabet;
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        });
+        
+        result = result.replace(/%rndm_abcnum_lower_(\d+)%/g, (match, length) => {
+            const chars = lowerCaseAlphabet + numbers;
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        });
+
+        result = result.replace(/%rndm_abcnum_upper_(\d+)%/g, (match, length) => {
+            const chars = upperCaseAlphabet + numbers;
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        });
+
+        result = result.replace(/%rndm_abcnum_(\d+)%/g, (match, length) => {
+            const chars = lowerCaseAlphabet + upperCaseAlphabet + numbers;
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        });
+        
+        result = result.replace(/%rndm_ascii_(\d+)%/g, (match, length) => {
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                // Generate a random printable ASCII character (32 to 126)
+                result += String.fromCharCode(Math.floor(Math.random() * (126 - 32 + 1)) + 32);
+            }
+            return result;
+        });
+
+        result = result.replace(/%rndm_symbol_(\d+)%/g, (match, length) => {
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += symbols.charAt(Math.floor(Math.random() * symbols.length));
+            }
+            return result;
+        });
+
+        result = result.replace(/%rndm_grawlix_(\d+)%/g, (match, length) => {
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += grawlixes.charAt(Math.floor(Math.random() * grawlixes.length));
+            }
+            return result;
+        });
+        
+        // Pass 3: Resolve the new random custom variable
         result = result.replace(/%rndm_custom_(\d+)_([^%]+)%/g, (match, length, content) => {
             const count = parseInt(length, 10);
             const choices = content.split(/[,\u201a]/).map(s => s.trim()); // Split by comma or special comma (‚)
@@ -408,7 +498,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return selected.join('');
         });
         
-        // Pass 3: Resolve static variables from DB
+        // Pass 4: Resolve static variables from DB
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
