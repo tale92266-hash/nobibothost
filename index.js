@@ -441,15 +441,21 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve custom random variables first (highest precedence)
-        // Corrected regex to handle nested variables gracefully using a non-greedy approach
-        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%|➡️‚⬅️).)*?)%/g;
-        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
-            const count = parseInt(countStr, 10);
+        // Step 0: Legacy syntax ko braces me convert karo
+        // Use a non-greedy regex that handles nested content properly by checking for the ending %
+        result = result.replace(/%rndm_custom_(\d+)_((?:[^%]|%[^%]+%)+?)%/g, (match, countStr, tokensString) => {
+            return `%rndm_custom_${countStr}_{${tokensString}}%`;
+        });
+        
+        // Pass 1: Resolve braced custom random variables (highest precedence)
+        // Corrected regex to handle nested variables gracefully and non-greedy
+        const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*?)\}%/g;
+        result = result.replace(customRandomBraced, (match, countStr, tokensString) => {
+            const count = Math.max(1, parseInt(countStr || "1", 10));
             const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) return '';
-            const selectedTokens = pickNUniqueRandomly(tokens, count);
-            return selectedTokens.join(' ');
+            if (!tokens || tokens.length === 0) return "";
+            const selected = pickNUniqueRandomly(tokens, count);
+            return selected.join(" ");
         });
 
         // Pass 2: Resolve other random variables
