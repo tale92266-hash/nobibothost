@@ -1262,6 +1262,7 @@ body {
 
 #botStatusBtn.bot-loading {
     background: linear-gradient(135deg, var(--gray-500), var(--gray-600));
+    color: var(--light);
     animation: none;
 }
 
