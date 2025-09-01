@@ -99,7 +99,13 @@ let settings = {
         cooldown: 2
     },
     // NEW: Bot Online status
-    isBotOnline: true
+    isBotOnline: true,
+    // NEW: Temporary Hide settings
+    temporaryHide: {
+        enabled: false,
+        matchType: 'EXACT',
+        triggerText: 'nobi papa hide me'
+    }
 };
 let lastReplyTimes = {}; // Stores { senderName: timestamp }
 
@@ -568,6 +574,74 @@ async function processMessage(msg, sessionId = "default", sender) {
                 userMatch = true;
             }
         }
+        
+        // NEW: Temporary Hide logic
+        let temporaryHideMatch = false;
+        if (settings.temporaryHide.enabled) {
+            const triggerTexts = settings.temporaryHide.triggerText.split('//').map(t => t.trim()).filter(Boolean);
+            for (const trigger of triggerTexts) {
+                if (settings.temporaryHide.matchType === 'EXACT' && trigger.toLowerCase() === msg) {
+                    temporaryHideMatch = true;
+                    break;
+                } else if (settings.temporaryHide.matchType === 'PATTERN') {
+                    let regexStr = trigger.replace(/\*/g, '.*');
+                    if (new RegExp(`^${regexStr}$`, 'i').test(msg)) {
+                        temporaryHideMatch = true;
+                        break;
+                    }
+                } else if (settings.temporaryHide.matchType === 'EXPERT') {
+                    try {
+                        if (new RegExp(trigger, 'i').test(msg)) {
+                            temporaryHideMatch = true;
+                            break;
+                        }
+                    } catch {}
+                }
+            }
+        }
+
+        if (temporaryHideMatch) {
+            // Find a rule that matches the user's message
+            let replyRule = RULES.find(r => {
+                let patterns = r.KEYWORDS.split('//').map(p => p.trim()).filter(Boolean);
+                for (let pattern of patterns) {
+                    if (r.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) return true;
+                    if (r.RULE_TYPE === "PATTERN") {
+                        let regexStr = pattern.replace(/\*/g, ".*");
+                        if (new RegExp(`^${regexStr}$`, "i").test(msg)) return true;
+                    }
+                    if (r.RULE_TYPE === "EXPERT") {
+                        try {
+                            if (new RegExp(pattern, "i").test(msg)) return true;
+                        } catch {}
+                    }
+                }
+                return false;
+            });
+            
+            // If a reply rule is found, process the reply
+            if (replyRule) {
+                let replies = replyRule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+                if (replyRule.REPLIES_TYPE === "ALL") {
+                    replies = replies.slice(0, 20);
+                    reply = replies.join(" ");
+                } else if (replyRule.REPLIES_TYPE === "ONE") {
+                    reply = replies[0];
+                } else {
+                    reply = pick(replies);
+                }
+            }
+
+            // Now, add the user to ignored list for the rest of the rules
+            if (!IGNORED_OVERRIDE_USERS.includes(senderName)) {
+                IGNORED_OVERRIDE_USERS.push(senderName);
+                await saveIgnoredOverrideUsers();
+                console.log(`👤 User "${senderName}" has been temporarily hidden.`);
+            }
+
+            // No need to check other rules
+            break;
+        }
 
         if (!userMatch) {
             continue;
@@ -735,6 +809,7 @@ app.get("/api/settings", async (req, res) => {
         const settingsData = {
             preventRepeatingRule: settings.preventRepeatingRule,
             isBotOnline: settings.isBotOnline,
+            temporaryHide: settings.temporaryHide, // NEW: added temporaryHide settings
             ignoredOverrideUsers: IGNORED_OVERRIDE_USERS,
             specificOverrideUsers: SPECIFIC_OVERRIDE_USERS
         };
@@ -754,6 +829,21 @@ app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
         res.json({ success: true, message: "Repeating rule setting updated successfully." });
     } catch (error) {
         console.error("❌ Failed to update repeating rule setting:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+// NEW ENDPOINT: Update temporary hide setting
+app.post("/api/settings/temporary-hide", async (req, res) => {
+    try {
+        const { enabled, matchType, triggerText } = req.body;
+        settings.temporaryHide.enabled = enabled;
+        settings.temporaryHide.matchType = matchType;
+        settings.temporaryHide.triggerText = triggerText;
+        await saveSettings();
+        res.json({ success: true, message: "Temporary hide setting updated successfully." });
+    } catch (error) {
+        console.error("❌ Failed to update temporary hide setting:", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
 });
