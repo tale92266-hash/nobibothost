@@ -11,13 +11,12 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const server = require("http").createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server, { cors: { origin: "*" } });
+const { Server } = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
 
 // Chat History Storage
-let recentChatMessages = []; // Store last 10 chat messages globally
+let recentChatMessages = [];
 const MAX_CHAT_HISTORY = 10;
 
 // NEW: Add a readiness flag
@@ -68,7 +67,7 @@ const Variable = mongoose.model("Variable", variableSchema);
 
 // NEW: Mongoose model for global settings
 const settingsSchema = new mongoose.Schema({
-    settings_type: { type: String, required: true, unique: true }, // 'override_lists' or 'global_settings'
+    settings_type: { type: String, required: true, unique: true },
     settings_data: mongoose.Schema.Types.Mixed
 });
 
@@ -105,12 +104,12 @@ let settings = {
         enabled: false,
         matchType: 'EXACT',
         triggerText: 'nobi papa hide me',
-        // NEW: Temporary Unhide settings
-        unhideEnabled: true, // by default enabled
+        unhideEnabled: true,
         unhideTriggerText: 'nobi papa start',
+        unhideMatchType: 'EXACT'
     }
 };
-let lastReplyTimes = {}; // Stores { senderName: timestamp }
+let lastReplyTimes = {};
 
 // Helper functions
 async function loadAllRules() {
@@ -145,6 +144,7 @@ async function loadSettingsFromFiles() {
                     triggerText: 'nobi papa hide me',
                     unhideEnabled: true,
                     unhideTriggerText: 'nobi papa start',
+                    unhideMatchType: 'EXACT'
                 };
             }
             if (settings.temporaryHide.unhideEnabled === undefined) {
@@ -152,6 +152,9 @@ async function loadSettingsFromFiles() {
             }
             if (settings.temporaryHide.unhideTriggerText === undefined) {
                 settings.temporaryHide.unhideTriggerText = 'nobi papa start';
+            }
+            if (settings.temporaryHide.unhideMatchType === undefined) {
+                settings.temporaryHide.unhideMatchType = 'EXACT';
             }
             console.log('⚙️ Settings loaded from local file.');
             loaded = true;
@@ -184,6 +187,7 @@ async function restoreSettingsFromDb() {
                 triggerText: 'nobi papa hide me',
                 unhideEnabled: true,
                 unhideTriggerText: 'nobi papa start',
+                unhideMatchType: 'EXACT'
             };
         }
         if (settings.temporaryHide.unhideEnabled === undefined) {
@@ -191,6 +195,9 @@ async function restoreSettingsFromDb() {
         }
         if (settings.temporaryHide.unhideTriggerText === undefined) {
             settings.temporaryHide.unhideTriggerText = 'nobi papa start';
+        }
+        if (settings.temporaryHide.unhideMatchType === undefined) {
+            settings.temporaryHide.unhideMatchType = 'EXACT';
         }
         fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
         console.log('✅ Global settings restored from MongoDB.');
@@ -589,7 +596,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     // NEW: Check for unhide trigger FIRST
     let unhideTriggered = false;
     if (settings.temporaryHide.unhideEnabled) {
-        if (matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.matchType)) {
+        if (matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.unhideMatchType)) {
             console.log(`✅ Unhide trigger received from user: ${senderName}`);
             
             // Unhide logic: remove user from the ignored list for this specific context
@@ -850,7 +857,7 @@ app.get("/api/settings", async (req, res) => {
         const settingsData = {
             preventRepeatingRule: settings.preventRepeatingRule,
             isBotOnline: settings.isBotOnline,
-            temporaryHide: settings.temporaryHide, // NEW: added temporaryHide settings
+            temporaryHide: settings.temporaryHide,
             ignoredOverrideUsers: IGNORED_OVERRIDE_USERS,
             specificOverrideUsers: SPECIFIC_OVERRIDE_USERS
         };
@@ -877,13 +884,14 @@ app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
 // NEW ENDPOINT: Update temporary hide setting
 app.post("/api/settings/temporary-hide", async (req, res) => {
     try {
-        const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText } = req.body;
+        const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType } = req.body;
         settings.temporaryHide.enabled = enabled;
         settings.temporaryHide.matchType = matchType;
         settings.temporaryHide.triggerText = triggerText;
         // NEW: Add unhide settings
         settings.temporaryHide.unhideEnabled = unhideEnabled;
         settings.temporaryHide.unhideTriggerText = unhideTriggerText;
+        settings.temporaryHide.unhideMatchType = unhideMatchType;
         await saveSettings();
         res.json({ success: true, message: "Temporary hide setting updated successfully." });
     } catch (error) {
@@ -1160,14 +1168,26 @@ app.post("/webhook", async (req, res) => {
     res.json({ replies: [{ message: replyText }] });
 });
 
-app.get("/stats", (req, res) => {
-res.json({
-totalUsers: stats.totalUsers.length,
-totalMsgs: stats.totalMsgs,
-todayUsers: stats.todayUsers.length,
-todayMsgs: stats.todayMsgs,
-nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
-});
+app.get("/stats", async (req, res) => {
+    try {
+        const totalUsersCount = await User.countDocuments();
+        const totalUserList = await User.find({}, 'senderName -_id'); // Fetch only senderName
+        
+        // Convert list of objects to array of strings
+        const userNames = totalUserList.map(user => user.senderName);
+
+        res.json({
+            totalUsers: totalUsersCount,
+            totalMsgs: stats.totalMsgs,
+            todayUsers: stats.todayUsers.length,
+            todayMsgs: stats.todayMsgs,
+            nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length,
+            totalUserNames: userNames // Send the list of names
+        });
+    } catch (err) {
+        console.error('Failed to fetch stats with user names:', err);
+        res.status(500).json({ error: "Failed to fetch stats" });
+    }
 });
 
 app.use(express.static("public"));
