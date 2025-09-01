@@ -792,8 +792,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Added loading state
         saveRuleBtn.disabled = true;
-        saveRuleBtn.querySelector('i').classList.add('d-none');
-        saveRuleBtn.querySelector('span.spinner-border').style.display = 'inline-block';
+        const saveBtnIcon = saveRuleBtn.querySelector('i');
+        const saveBtnSpinner = saveRuleBtn.querySelector('span.spinner-border');
+        if (saveBtnIcon) saveBtnIcon.classList.add('d-none');
+        if (saveBtnSpinner) saveBtnSpinner.style.display = 'inline-block';
+        
 
         try {
             const response = await fetch('/api/rules/update', {
@@ -815,8 +818,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } finally {
             // Restore button state
             saveRuleBtn.disabled = false;
-            saveRuleBtn.querySelector('i').classList.remove('d-none');
-            saveRuleBtn.querySelector('span.spinner-border').style.display = 'none';
+            if (saveBtnIcon) saveBtnIcon.classList.remove('d-none');
+            if (saveBtnSpinner) saveBtnSpinner.style.display = 'none';
         }
     }
 
@@ -927,9 +930,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const variableData = { name: variableName, value: variableValue };
         const payload = { type: currentVariableName ? 'edit' : 'add', variable: variableData, oldName: currentVariableName };
 
+        const saveBtnIcon = saveVariableBtn.querySelector('i');
+        const saveBtnSpinner = saveVariableBtn.querySelector('span.spinner-border');
         saveVariableBtn.disabled = true;
-        saveVariableBtn.querySelector('i').classList.add('d-none');
-        saveVariableBtn.querySelector('span.spinner-border').style.display = 'inline-block';
+        if (saveBtnIcon) saveBtnIcon.classList.add('d-none');
+        if (saveBtnSpinner) saveBtnSpinner.style.display = 'inline-block';
         
         try {
             const response = await fetch('/api/variables/update', {
@@ -950,8 +955,8 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Network error occurred', 'fail');
         } finally {
             saveVariableBtn.disabled = false;
-            saveVariableBtn.querySelector('i').classList.remove('d-none');
-            saveVariableBtn.querySelector('span.spinner-border').style.display = 'none';
+            if (saveBtnIcon) saveBtnIcon.classList.remove('d-none');
+            if (saveBtnSpinner) saveBtnSpinner.style.display = 'none';
         }
     }
     
