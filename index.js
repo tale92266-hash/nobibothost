@@ -437,18 +437,16 @@ function pickNUniqueRandomly(tokens, count) {
 function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
-    
+
     while (iterationCount < maxIterations) {
         const initialResult = result;
-        
+
         // Step 0: Legacy syntax ko braces me convert karo
-        // Use a non-greedy regex that handles nested content properly by checking for the ending %
         result = result.replace(/%rndm_custom_(\d+)_((?:[^%]|%[^%]+%)+?)%/g, (match, countStr, tokensString) => {
             return `%rndm_custom_${countStr}_{${tokensString}}%`;
         });
-        
-        // Pass 1: Resolve braced custom random variables (highest precedence)
-        // Corrected regex to handle nested variables gracefully and non-greedy
+
+        // Step 1: Braced rndm_custom handle karo
         const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*?)\}%/g;
         result = result.replace(customRandomBraced, (match, countStr, tokensString) => {
             const count = Math.max(1, parseInt(countStr || "1", 10));
@@ -458,7 +456,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return selected.join(" ");
         });
 
-        // Pass 2: Resolve other random variables
+        // Step 2: Other rndm types
         result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
             if (type === 'num') {
                 const [min, max] = param1.split('_').map(Number);
@@ -469,7 +467,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             }
         });
 
-        // Pass 3: Resolve built-in time variables
+        // Step 3: Time / built-in vars
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
@@ -496,27 +494,20 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return match;
         });
 
-        // Pass 4: Resolve static variables from DB
+        // Step 4: Static vars (from DB)
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
-            if (staticVar) {
-                return staticVar.value;
-            }
+            if (staticVar) return staticVar.value;
             return match;
         });
 
-        if (result === initialResult) {
-            // No more variables to resolve, exit the loop
-            break;
-        }
-
+        if (result === initialResult) break;
         iterationCount++;
     }
 
     if (iterationCount === maxIterations) {
-        console.warn('⚠️ Variable resolution reached max iterations. There might be a circular reference or a parsing error.');
+        console.warn('⚠️ Variable resolution max iterations reached, maybe circular reference.');
     }
-
     return result;
 }
 
