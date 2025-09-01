@@ -1003,6 +1003,11 @@ body {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed); /* Purple for Repeating Rule */
     color: var(--white);
 }
+/* NEW: Custom styles for Temporary Hide card */
+.settings-card[data-setting="temporary-hide"] .settings-card-icon {
+    background: linear-gradient(135deg, #d97706, #b45309); /* Orange for Temporary Hide */
+    color: var(--white);
+}
 
 /* Settings Card Icons - Different Colors and Better Contrast */
 .settings-card[data-setting="export"] .settings-card-icon {
