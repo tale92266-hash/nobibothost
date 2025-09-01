@@ -1229,14 +1229,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // NEW: Function to update the bot status UI
     function updateBotStatusUI() {
+        const iconElement = botStatusBtn.querySelector('i');
+        
+        // Remove existing state classes and animations
+        botStatusBtn.classList.remove('bot-on', 'bot-off', 'bot-loading');
+        iconElement.classList.remove('fa-spin', 'fa-power-off', 'fa-spinner');
+    
         if (currentSettings.isBotOnline) {
             botStatusBtn.classList.add('bot-on');
-            botStatusBtn.classList.remove('bot-off', 'bot-loading');
-            botStatusText.innerHTML = '<i class="fas fa-power-off me-2"></i> Bot Running';
+            botStatusText.textContent = 'Bot Running';
+            iconElement.classList.add('fa-power-off');
         } else {
             botStatusBtn.classList.add('bot-off');
-            botStatusBtn.classList.remove('bot-on', 'bot-loading');
-            botStatusText.innerHTML = '<i class="fas fa-power-off me-2"></i> Bot Off';
+            botStatusText.textContent = 'Bot Off';
+            iconElement.classList.add('fa-power-off');
         }
     }
     
@@ -1248,7 +1254,9 @@ document.addEventListener("DOMContentLoaded", () => {
             // Show loading state while toggling
             botStatusBtn.classList.remove('bot-on', 'bot-off');
             botStatusBtn.classList.add('bot-loading');
-            botStatusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Toggling...';
+            botStatusBtn.querySelector('i').classList.add('fa-spinner', 'fa-spin');
+            botStatusBtn.querySelector('i').classList.remove('fa-power-off');
+            botStatusText.textContent = 'Toggling...';
 
             const response = await fetch('/api/bot/status', {
                 method: 'POST',
