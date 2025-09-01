@@ -51,7 +51,6 @@
             display: flex;
             flex-direction: column;
             background: var(--bg-light);
-            position: relative;
         }
 
         /* Header */
@@ -63,9 +62,9 @@
             align-items: center;
             gap: 12px;
             box-shadow: var(--shadow);
-            position: relative;
             z-index: 100;
             flex-shrink: 0;
+            min-height: 64px;
         }
 
         .avatar {
@@ -215,18 +214,12 @@
             background: var(--primary-dark);
         }
 
-        /* Chat Messages Container */
-        .chat-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0; /* Important for flexbox scrolling */
-        }
-
+        /* Chat Messages */
         .chat-messages {
             flex: 1;
             overflow-y: auto;
             padding: 12px 16px;
+            padding-bottom: 80px; /* Extra padding for fixed footer */
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -319,18 +312,25 @@
             animation-delay: 0.4s;
         }
 
-        /* Message Input - Fixed at bottom */
-        .message-input-container {
-            padding: 8px 16px 16px;
+        /* Fixed Footer - Message Input */
+        .chat-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: var(--bg-light);
+            border-top: 1px solid var(--border-light);
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)); /* iOS safe area */
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .message-input-container {
             display: flex;
             align-items: flex-end;
             gap: 8px;
-            flex-shrink: 0;
-            border-top: 1px solid var(--border-light);
-            position: sticky;
-            bottom: 0;
-            z-index: 50;
+            max-width: 100%;
         }
 
         .message-input-wrapper {
@@ -342,6 +342,12 @@
             padding: 8px 16px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             min-height: 48px;
+            border: 1px solid var(--border-light);
+        }
+
+        [data-theme="dark"] .message-input-wrapper {
+            background: var(--message-bg-received);
+            border-color: var(--border-light);
         }
 
         .message-input {
@@ -355,6 +361,11 @@
             resize: none;
             font-family: inherit;
             background: transparent;
+            color: var(--text-primary);
+        }
+
+        .message-input::placeholder {
+            color: var(--text-secondary);
         }
 
         .attach-btn {
@@ -365,6 +376,11 @@
             cursor: pointer;
             margin-right: 8px;
             padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .attach-btn:hover {
+            color: var(--primary);
         }
 
         .send-btn {
@@ -379,17 +395,21 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
+            transition: all 0.2s;
             flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
         }
 
         .send-btn:hover:not(:disabled) {
             background: var(--primary-dark);
+            transform: scale(1.05);
         }
 
         .send-btn:disabled {
             background: var(--text-secondary);
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
 
         /* Animations */
@@ -498,12 +518,24 @@
                 max-width: 85%;
             }
 
-            .message-input-container {
-                padding: 8px 12px 12px;
+            .chat-footer {
+                padding: 8px 12px;
+                padding-bottom: calc(8px + env(safe-area-inset-bottom));
             }
 
             .chat-header {
                 padding: 12px;
+            }
+
+            .chat-messages {
+                padding-bottom: 90px; /* More padding on mobile */
+            }
+        }
+
+        /* Special handling for mobile keyboards */
+        @media (max-height: 600px) {
+            .chat-messages {
+                padding-bottom: 70px;
             }
         }
     </style>
@@ -570,21 +602,20 @@
                 </div>
             </header>
 
-            <!-- Chat Content -->
-            <div class="chat-content">
-                <!-- Messages -->
-                <main class="chat-messages" id="chatMessages">
-                    <div class="typing-indicator" id="typingIndicator">
-                        <div class="typing-dots">
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
-                        </div>
+            <!-- Messages -->
+            <main class="chat-messages" id="chatMessages">
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
                     </div>
-                </main>
+                </div>
+            </main>
 
-                <!-- Message Input -->
-                <footer class="message-input-container">
+            <!-- Fixed Footer - Message Input -->
+            <footer class="chat-footer">
+                <div class="message-input-container">
                     <div class="message-input-wrapper">
                         <button class="attach-btn">
                             <i class="fas fa-plus"></i>
@@ -594,8 +625,8 @@
                     <button class="send-btn" id="sendBtn" disabled>
                         <i class="fas fa-paper-plane"></i>
                     </button>
-                </footer>
-            </div>
+                </div>
+            </footer>
         </div>
     </div>
 
