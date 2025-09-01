@@ -9,7 +9,7 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 const app = express();
 const PORT = process.env.PORT || 10000;
-const SERVER_URL = process.env.PORT || `http://localhost:${PORT}`;
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, { cors: { origin: "*" } });
@@ -24,7 +24,9 @@ const MAX_CHAT_HISTORY = 10;
 let isReady = false;
 
 // MongoDB Connection & Models
-mongoose.connect(process.env.MONGODB_URI).then(() => console.log("⚡ MongoDB connected successfully!")).catch((err) => console.error("❌ MongoDB connection error:", err));
+mongoose.connect(process.env.MONGODB_URI)
+.then(() => console.log("⚡ MongoDB connected successfully!"))
+.catch(err => console.error("❌ MongoDB connection error:", err));
 
 // UPDATED: User model to remove the problematic 'email' field and set 'senderName' as unique.
 const userSchema = new mongoose.Schema({
@@ -101,11 +103,11 @@ let settings = {
     // NEW: Temporary Hide and Unhide settings
     temporaryHide: {
         enabled: false,
-        matchType: "EXACT",
-        triggerText: "nobi papa hide me",
+        matchType: 'EXACT',
+        triggerText: 'nobi papa hide me',
         unhideEnabled: true,
-        unhideTriggerText: "nobi papa start",
-        unhideMatchType: "EXACT"
+        unhideTriggerText: 'nobi papa start',
+        unhideMatchType: 'EXACT'
     }
 };
 let lastReplyTimes = {};
@@ -125,13 +127,13 @@ async function loadAllVariables() {
 async function loadSettingsFromFiles() {
     let loaded = false;
     if (fs.existsSync(ignoredOverrideUsersFile) && fs.existsSync(specificOverrideUsersFile)) {
-        IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, "utf8"));
-        SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, "utf8"));
+        IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8'));
+        SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8'));
         console.log(`🔍 Override users loaded from local files.`);
         loaded = true;
     }
     if (fs.existsSync(settingsFilePath)) {
-        const fileContent = fs.readFileSync(settingsFilePath, "utf8");
+        const fileContent = fs.readFileSync(settingsFilePath, 'utf8');
         try {
             const loadedSettings = JSON.parse(fileContent);
             settings = { ...settings, ...loadedSettings };
@@ -139,26 +141,26 @@ async function loadSettingsFromFiles() {
             if (!settings.temporaryHide) {
                 settings.temporaryHide = {
                     enabled: false,
-                    matchType: "EXACT",
-                    triggerText: "nobi papa hide me",
+                    matchType: 'EXACT',
+                    triggerText: 'nobi papa hide me',
                     unhideEnabled: true,
-                    unhideTriggerText: "nobi papa start",
-                    unhideMatchType: "EXACT"
+                    unhideTriggerText: 'nobi papa start',
+                    unhideMatchType: 'EXACT'
                 };
             }
             if (settings.temporaryHide.unhideEnabled === undefined) {
                 settings.temporaryHide.unhideEnabled = true;
             }
             if (settings.temporaryHide.unhideTriggerText === undefined) {
-                settings.temporaryHide.unhideTriggerText = "nobi papa start";
+                settings.temporaryHide.unhideTriggerText = 'nobi papa start';
             }
             if (settings.temporaryHide.unhideMatchType === undefined) {
-                settings.temporaryHide.unhideMatchType = "EXACT";
+                settings.temporaryHide.unhideMatchType = 'EXACT';
             }
-            console.log("⚙️ Settings loaded from local file.");
+            console.log('⚙️ Settings loaded from local file.');
             loaded = true;
         } catch (e) {
-            console.error("❌ Failed to parse settings.json:", e);
+            console.error('❌ Failed to parse settings.json:', e);
         }
     }
     return loaded;
@@ -166,40 +168,40 @@ async function loadSettingsFromFiles() {
 
 // NEW: Function to restore settings from MongoDB and create local files
 async function restoreSettingsFromDb() {
-    const overrideSettings = await Settings.findOne({ settings_type: "override_lists" });
+    const overrideSettings = await Settings.findOne({ settings_type: 'override_lists' });
     if (overrideSettings) {
         IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
         SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
         fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
         fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
-        console.log("✅ Override lists restored from MongoDB.");
+        console.log('✅ Override lists restored from MongoDB.');
     }
 
-    const globalSettings = await Settings.findOne({ settings_type: "global_settings" });
+    const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
     if (globalSettings) {
         settings = { ...settings, ...globalSettings.settings_data };
         // Ensure temporaryHide sub-object exists and has default values
         if (!settings.temporaryHide) {
             settings.temporaryHide = {
                 enabled: false,
-                matchType: "EXACT",
-                triggerText: "nobi papa hide me",
+                matchType: 'EXACT',
+                triggerText: 'nobi papa hide me',
                 unhideEnabled: true,
-                unhideTriggerText: "nobi papa start",
-                unhideMatchType: "EXACT"
+                unhideTriggerText: 'nobi papa start',
+                unhideMatchType: 'EXACT'
             };
         }
         if (settings.temporaryHide.unhideEnabled === undefined) {
             settings.temporaryHide.unhideEnabled = true;
         }
         if (settings.temporaryHide.unhideTriggerText === undefined) {
-            settings.temporaryHide.unhideTriggerText = "nobi papa start";
+            settings.temporaryHide.unhideTriggerText = 'nobi papa start';
         }
         if (settings.temporaryHide.unhideMatchType === undefined) {
-            settings.temporaryHide.unhideMatchType = "EXACT";
+            settings.temporaryHide.unhideMatchType = 'EXACT';
         }
         fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
-        console.log("✅ Global settings restored from MongoDB.");
+        console.log('✅ Global settings restored from MongoDB.');
     }
 }
 
@@ -207,15 +209,15 @@ async function restoreSettingsFromDb() {
 const migrateOldSettings = async () => {
     // Migrate override users
     if (fs.existsSync(ignoredOverrideUsersFile) || fs.existsSync(specificOverrideUsersFile)) {
-        const ignored = fs.existsSync(ignoredOverrideUsersFile) ? JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, "utf8")) : [];
-        const specific = fs.existsSync(specificOverrideUsersFile) ? JSON.parse(fs.readFileSync(specificOverrideUsersFile, "utf8")) : [];
+        const ignored = fs.existsSync(ignoredOverrideUsersFile) ? JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8')) : [];
+        const specific = fs.existsSync(specificOverrideUsersFile) ? JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8')) : [];
 
         await Settings.findOneAndUpdate(
-            { settings_type: "override_lists" },
+            { settings_type: 'override_lists' },
             { settings_data: { ignored, specific } },
             { upsert: true, new: true }
         );
-        console.log("✅ Old override lists migrated to MongoDB.");
+        console.log('✅ Old override lists migrated to MongoDB.');
         // Clean up old files
         fs.unlinkSync(ignoredOverrideUsersFile);
         fs.unlinkSync(specificOverrideUsersFile);
@@ -223,13 +225,13 @@ const migrateOldSettings = async () => {
 
     // Migrate global settings
     if (fs.existsSync(settingsFilePath)) {
-        const oldSettings = JSON.parse(fs.readFileSync(settingsFilePath, "utf8"));
+        const oldSettings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
         await Settings.findOneAndUpdate(
-            { settings_type: "global_settings" },
+            { settings_type: 'global_settings' },
             { settings_data: oldSettings },
             { upsert: true, new: true }
         );
-        console.log("✅ Old global settings migrated to MongoDB.");
+        console.log('✅ Old global settings migrated to MongoDB.');
         // Clean up old file
         fs.unlinkSync(settingsFilePath);
     }
@@ -244,8 +246,8 @@ const syncData = async () => {
 
         fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
 
-        const dbWelcomedUsers = await User.find({}, "senderName");
-        welcomedUsers = dbWelcomedUsers.map((u) => u.senderName);
+        const dbWelcomedUsers = await User.find({}, 'senderName');
+        welcomedUsers = dbWelcomedUsers.map(u => u.senderName);
         fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 
         await loadAllRules();
@@ -254,7 +256,7 @@ const syncData = async () => {
         // NEW: Load settings from files first, if not present, restore from DB
         const settingsLoaded = await loadSettingsFromFiles();
         if (!settingsLoaded) {
-            console.log("⚠️ Settings files not found. Restoring from MongoDB...");
+            console.log('⚠️ Settings files not found. Restoring from MongoDB...');
             await restoreSettingsFromDb();
         }
 
@@ -267,10 +269,11 @@ const syncData = async () => {
         }
 
         emitStats();
-
+        
         // NEW: Set the flag to true after successful data sync
         isReady = true;
-        console.log("✅ Server is ready to handle requests.");
+        console.log('✅ Server is ready to handle requests.');
+
     } catch (err) {
         console.error("❌ Data sync error:", err);
     }
@@ -292,16 +295,16 @@ function saveVariables() {
 async function saveIgnoredOverrideUsers() {
     fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
-        { settings_type: "override_lists" },
-        { "settings_data.ignored": IGNORED_OVERRIDE_USERS, "settings_data.specific": SPECIFIC_OVERRIDE_USERS },
+        { settings_type: 'override_lists' },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
         { upsert: true, new: true }
     );
 }
 async function saveSpecificOverrideUsers() {
     fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
-        { settings_type: "override_lists" },
-        { "settings_data.ignored": IGNORED_OVERRIDE_USERS, "settings_data.specific": SPECIFIC_OVERRIDE_USERS },
+        { settings_type: 'override_lists' },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
         { upsert: true, new: true }
     );
 }
@@ -310,8 +313,8 @@ async function saveSpecificOverrideUsers() {
 async function saveSettings() {
     fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
     await Settings.findOneAndUpdate(
-        { settings_type: "global_settings" },
-        { settings_data: settings },
+        { settings_type: 'global_settings' },
+        { 'settings_data': settings },
         { upsert: true, new: true }
     );
 }
@@ -337,9 +340,7 @@ const scheduleDailyReset = () => {
     }, timeUntilMidnight);
 };
 
-function pick(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function emitStats() {
     io.emit("statsUpdate", {
@@ -353,36 +354,36 @@ function emitStats() {
 
 // Random generation logic
 const charSets = {
-    lower: "abcdefghijklmnopqrstuvwxyz",
-    upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    num: "0123456789",
-    grawlix: "#$%&@*!"
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    num: '0123456789',
+    grawlix: '#$%&@*!'
 };
 
 function generateRandom(type, length, customSet) {
-    if (type === "custom" && customSet) {
+    if (type === 'custom' && customSet) {
         return pick(customSet);
     }
 
-    let result = "";
-    let characters = "";
+    let result = '';
+    let characters = '';
 
-    if (type === "num") characters = charSets.num;
-    else if (type === "lower") characters = charSets.lower;
-    else if (type === "upper") characters = charSets.upper;
-    else if (type === "abc") characters = charSets.lower + charSets.upper;
-    else if (type === "abcnum_lower") characters = charSets.lower + charSets.num;
-    else if (type === "abcnum_upper") characters = charSets.upper + charSets.num;
-    else if (type === "abcnum") characters = charSets.lower + charSets.upper + charSets.num;
-    else if (type === "grawlix") characters = charSets.grawlix;
-    else if (type === "ascii") {
+    if (type === 'num') characters = charSets.num;
+    else if (type === 'lower') characters = charSets.lower;
+    else if (type === 'upper') characters = charSets.upper;
+    else if (type === 'abc') characters = charSets.lower + charSets.upper;
+    else if (type === 'abcnum_lower') characters = charSets.lower + charSets.num;
+    else if (type === 'abcnum_upper') characters = charSets.upper + charSets.num;
+    else if (type === 'abcnum') characters = charSets.lower + charSets.upper + charSets.num;
+    else if (type === 'grawlix') characters = charSets.grawlix;
+    else if (type === 'ascii') {
         for (let i = 0; i < length; i++) {
             result += String.fromCharCode(Math.floor(Math.random() * (127 - 33 + 1)) + 33);
         }
         return result;
     }
 
-    if (!characters) return "";
+    if (!characters) return '';
 
     for (let i = 0; i < length; i++) {
         result += characters.charAt(Math.floor(Math.random() * characters.length));
@@ -393,112 +394,22 @@ function generateRandom(type, length, customSet) {
 
 // NEW: Convert literal \n to actual newlines BEFORE saving to DB
 function convertNewlinesBeforeSave(text) {
-    if (!text) return "";
-    return text.replace(/\\n/g, "\n");
-}
-
-// UPDATED: smartSplitTokens logic to use a special separator and allow commas
-function smartSplitTokens(str) {
-    if (!str) return [];
-
-    // Pehle check karo custom separator hai ya nahi
-    if (str.includes("➡️‚⬅️")) {
-        return str.split("➡️‚⬅️").map((s) => s.trim()).filter(Boolean);
-    }
-
-    // Nahi hai toh normal comma split kar
-    if (str.includes(",")) {
-        return str.split(",").map((s) => s.trim()).filter(Boolean);
-    }
-
-    // Fallback: ek hi token
-    return [str.trim()];
-}
-
-function pickNUniqueRandomly(tokens, count) {
-    const actualCount = Math.min(count, tokens.length);
-    if (actualCount === 0) return [];
-
-    if (actualCount === 1) {
-        const selected = pick(tokens);
-        console.log(`🎯 Single token selected: "${selected}"`);
-        return [selected];
-    }
-
-    const availableTokens = [...tokens];
-    const selectedTokens = [];
-
-    for (let i = 0; i < actualCount; i++) {
-        if (availableTokens.length === 0) break;
-        const randomIndex = Math.floor(Math.random() * availableTokens.length);
-        const selectedToken = availableTokens[randomIndex];
-        selectedTokens.push(selectedToken);
-        availableTokens.splice(randomIndex, 1);
-    }
-
-    console.log(`🎯 Selected ${selectedTokens.length} tokens: [${selectedTokens.join("] | [")}]`);
-    return selectedTokens;
+    if (!text) return '';
+    return text.replace(/\\n/g, '\n');
 }
 
 // UPDATED: resolveVariablesRecursively function with multi-pass logic and improved regex
 function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
-
+    
     while (iterationCount < maxIterations) {
         const initialResult = result;
-
-        // ✅ Step 1: Legacy syntax ko braces me convert karo
-        result = result.replace(/%rndm_custom_(\d+)_([\s\S]*?)%/g, (match, countStr, tokensString) => {
-            return `%rndm_custom_${countStr}_{${tokensString}}%`;
-        });
         
-        // ✅ Step 2: Built-in + static vars (pehle yeh resolve karo)
-        result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
-            const now = new Date();
-            const istOptions = { timeZone: "Asia/Kolkata" };
-            switch (varName) {
-                case "hour":
-                    return now.toLocaleString("en-IN", { hour: "2-digit", hour12: true, ...istOptions }).split(" ")[0];
-                case "hour_short":
-                    return now.toLocaleString("en-IN", { hour: "numeric", hour12: true, ...istOptions }).split(" ")[0];
-                case "hour_of_day":
-                    return now.toLocaleString("en-IN", { hour: "2-digit", hour12: false, ...istOptions });
-                case "hour_of_day_short":
-                    return now.toLocaleString("en-IN", { hour: "numeric", hour12: false, ...istOptions });
-                case "minute":
-                    return now.toLocaleString("en-IN", { minute: "2-digit", ...istOptions });
-                case "second":
-                    return now.toLocaleString("en-IN", { second: "2-digit", ...istOptions });
-                case "millisecond":
-                    return now.getMilliseconds().toString().padStart(3, "0");
-                case "am/pm":
-                    return now.toLocaleString("en-IN", { hour: "2-digit", hour12: true, ...istOptions }).split(" ")[1].toUpperCase();
-                case "name":
-                    return senderName;
-            }
-            return match;
-        });
-
-        result = result.replace(/%(\w+)%/g, (match, varName) => {
-            const staticVar = VARIABLES.find((v) => v.name === varName);
-            return staticVar ? staticVar.value : match;
-        });
-
-        // ✅ Step 3: Braced rndm_custom handle karo
-        const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*?)\}%/g;
-        result = result.replace(customRandomBraced, (match, countStr, tokensString) => {
-            const count = Math.max(1, parseInt(countStr || "1", 10));
-            const tokens = smartSplitTokens(tokensString);
-            if (!tokens || tokens.length === 0) return "";
-            const selected = pickNUniqueRandomly(tokens, count);
-            return selected.join("\n");   // 👈 ab tokens alag alag line pe
-        });
-        
-        // ✅ Step 4: Other rndm types
+        // Pass 1: Resolve other random variables
         result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === "num") {
-                const [min, max] = param1.split("_").map(Number);
+            if (type === 'num') {
+                const [min, max] = param1.split('_').map(Number);
                 return Math.floor(Math.random() * (max - min + 1)) + min;
             } else {
                 const length = parseInt(param1);
@@ -506,15 +417,57 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             }
         });
 
-        if (result === initialResult) break;
+        // Pass 2: Resolve built-in time variables
+        result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
+            const now = new Date();
+            const istOptions = { timeZone: 'Asia/Kolkata' };
+            switch (varName) {
+                case 'hour':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[0];
+                case 'hour_short':
+                    return now.toLocaleString('en-IN', { hour: 'numeric', hour12: true, ...istOptions }).split(' ')[0];
+                case 'hour_of_day':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: false, ...istOptions });
+                case 'hour_of_day_short':
+                    return now.toLocaleString('en-IN', { hour: 'numeric', hour12: false, ...istOptions });
+                case 'minute':
+                    return now.toLocaleString('en-IN', { minute: '2-digit', ...istOptions });
+                case 'second':
+                    return now.toLocaleString('en-IN', { second: '2-digit', ...istOptions });
+                case 'millisecond':
+                    return now.getMilliseconds().toString().padStart(3, '0');
+                case 'am/pm':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[1].toUpperCase();
+                case 'name':
+                    return senderName;
+            }
+            return match;
+        });
+
+        // Pass 3: Resolve static variables from DB
+        result = result.replace(/%(\w+)%/g, (match, varName) => {
+            const staticVar = VARIABLES.find(v => v.name === varName);
+            if (staticVar) {
+                return staticVar.value;
+            }
+            return match;
+        });
+
+        if (result === initialResult) {
+            // No more variables to resolve, exit the loop
+            break;
+        }
+
         iterationCount++;
     }
 
     if (iterationCount === maxIterations) {
-        console.warn("⚠️ Variable resolution max iterations reached, maybe circular reference.");
+        console.warn('⚠️ Variable resolution reached max iterations. There might be a circular reference or a parsing error.');
     }
+
     return result;
 }
+
 
 // NEW FUNCTION: sender string ko parse karne ke liye
 function extractSenderNameAndContext(sender) {
@@ -524,7 +477,7 @@ function extractSenderNameAndContext(sender) {
 
     // Remove the admin username part, if it exists, using a regex pattern
     const adminPattern = /^\(.*\)\s*/;
-    const cleanSender = sender.replace(adminPattern, "");
+    const cleanSender = sender.replace(adminPattern, '');
 
     // Check for "GC NAME: SENDER NAME" pattern
     const groupPattern = /^(.*):\s*(.*)$/;
@@ -542,8 +495,8 @@ function extractSenderNameAndContext(sender) {
 // NEW: Pattern matching function for override lists
 function matchesOverridePattern(senderName, patternList) {
     for (const pattern of patternList) {
-        const regexStr = "^" + pattern.replace(/\*/g, ".*") + "$";
-        if (new RegExp(regexStr, "i").test(senderName)) {
+        const regexStr = '^' + pattern.replace(/\*/g, '.*') + '$';
+        if (new RegExp(regexStr, 'i').test(senderName)) {
             return true;
         }
     }
@@ -552,7 +505,7 @@ function matchesOverridePattern(senderName, patternList) {
 
 // UPDATED: Check for ignored users in a specific context
 function isUserIgnored(senderName, context, ignoredList) {
-    return ignoredList.some((item) => {
+    return ignoredList.some(item => {
         const nameMatch = matchesOverridePattern(senderName, [item.name]);
         const contextMatch = matchesOverridePattern(context, [item.context]);
         return nameMatch && contextMatch;
@@ -561,17 +514,17 @@ function isUserIgnored(senderName, context, ignoredList) {
 
 // NEW: Function to check if a message matches a trigger pattern
 function matchesTrigger(message, triggerText, matchType) {
-    const triggers = triggerText.split("//").map((t) => t.trim()).filter(Boolean);
+    const triggers = triggerText.split('//').map(t => t.trim()).filter(Boolean);
     for (const trigger of triggers) {
         let match = false;
-        if (matchType === "EXACT" && trigger.toLowerCase() === message.toLowerCase()) match = true;
-        else if (matchType === "PATTERN") {
+        if (matchType === 'EXACT' && trigger.toLowerCase() === message.toLowerCase()) match = true;
+        else if (matchType === 'PATTERN') {
             let regexStr = trigger.replace(/\*/g, ".*");
             if (new RegExp(`^${regexStr}$`, "i").test(message)) match = true;
-        } else if (matchType === "EXPERT") {
+        } else if (matchType === 'EXPERT') {
             try {
                 if (new RegExp(trigger, "i").test(message)) match = true;
-            } catch (e) {}
+            } catch {}
         }
         if (match) return true;
     }
@@ -580,7 +533,7 @@ function matchesTrigger(message, triggerText, matchType) {
 
 async function processMessage(msg, sessionId = "default", sender) {
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
-
+    
     // NEW LOGIC: Highest priority check for specific override
     if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(senderName, SPECIFIC_OVERRIDE_USERS)) {
         console.log(`⚠️ User "${senderName}" is not on the specific override list. Ignoring message.`);
@@ -589,18 +542,18 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     // NEW: Check if stats is loaded before accessing it
     if (!stats) {
-        console.error("❌ Stats object is undefined. Cannot process message.");
+        console.error('❌ Stats object is undefined. Cannot process message.');
         return null;
     }
-
+    
     // NEW: Bot Online check
     if (!settings.isBotOnline) {
-        console.log("🤖 Bot is offline. Skipping message processing.");
+        console.log('🤖 Bot is offline. Skipping message processing.');
         return null;
     }
-
-    const context = isGroup ? groupName : "DM";
-
+    
+    const context = isGroup ? groupName : 'DM';
+    
     console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
 
     // NEW: Check for unhide trigger FIRST
@@ -608,15 +561,15 @@ async function processMessage(msg, sessionId = "default", sender) {
     if (settings.temporaryHide.unhideEnabled) {
         if (matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.unhideMatchType)) {
             console.log(`✅ Unhide trigger received from user: ${senderName}`);
-
+            
             // Unhide logic: remove user from the ignored list for this specific context
             const initialIgnoredCount = IGNORED_OVERRIDE_USERS.length;
-            IGNORED_OVERRIDE_USERS = IGNORED_OVERRIDE_USERS.filter((item) => {
+            IGNORED_OVERRIDE_USERS = IGNORED_OVERRIDE_USERS.filter(item => {
                 const nameMatches = matchesOverridePattern(senderName, [item.name]);
                 const contextMatches = matchesOverridePattern(context, [item.context]);
                 return !(nameMatches && contextMatches);
             });
-
+            
             if (IGNORED_OVERRIDE_USERS.length < initialIgnoredCount) {
                 await saveIgnoredOverrideUsers();
                 console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
@@ -635,13 +588,13 @@ async function processMessage(msg, sessionId = "default", sender) {
             console.log(`✅ Hide trigger received from user: ${senderName}`);
         }
     }
-
+    
     // NEW: User is ignored if they are in the context-specific list.
     const isSenderIgnored = isUserIgnored(senderName, context, IGNORED_OVERRIDE_USERS);
 
     // If unhide was triggered, or user is not ignored, continue processing.
     // If the user is globally ignored (by manual override), they will stay ignored.
-    const isGloballyIgnored = matchesOverridePattern(sender, IGNORED_OVERRIDE_USERS.map((u) => u.name));
+    const isGloballyIgnored = matchesOverridePattern(sender, IGNORED_OVERRIDE_USERS.map(u => u.name));
 
     if (isSenderIgnored && !unhideTriggered) {
         console.log(`🚫 User "${senderName}" is ignored in context "${context}". Skipping reply.`);
@@ -654,12 +607,12 @@ async function processMessage(msg, sessionId = "default", sender) {
         welcomedUsers.push(senderName);
         await User.create({ senderName, sessionId });
     }
-
+    
     // Check if the user has messaged today
     if (!stats.todayUsers.includes(senderName)) {
         stats.todayUsers.push(senderName);
     }
-
+    
     stats.totalMsgs++;
     stats.todayMsgs++;
 
@@ -684,8 +637,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
             // NEW: Ignored Override check
-            if (isSenderIgnored && !unhideTriggered) {
-                // Use the pre-computed ignored status
+            if (isSenderIgnored && !unhideTriggered) { // Use the pre-computed ignored status
                 userMatch = false;
             } else {
                 userMatch = true;
@@ -696,8 +648,8 @@ async function processMessage(msg, sessionId = "default", sender) {
             continue;
         }
 
-        let patterns = rule.KEYWORDS.split("//").map((p) => p.trim()).filter(Boolean);
-
+        let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+    
         // A rule can match on DM, Group, or both.
         // For 'WELCOME' and 'DEFAULT' rules, we will not need to parse pattern.
         // For others, a pattern can be 'DM_ONLY', 'GROUP_ONLY'
@@ -716,21 +668,22 @@ async function processMessage(msg, sessionId = "default", sender) {
         } else {
             for (let pattern of patterns) {
                 // Check if rule is for DM only or Group only
-                if (pattern.toUpperCase() === "DM_ONLY" && isGroup) {
+                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) {
                     continue; // Skip rule if it's a DM_ONLY rule but the message is from a group
-                } else if (pattern.toUpperCase() === "GROUP_ONLY" && !isGroup) {
+                } else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) {
                     continue; // Skip rule if it's a GROUP_ONLY rule but the message is a DM
                 }
-
+                
                 // Now, check for keyword matches
                 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
                 else if (rule.RULE_TYPE === "PATTERN") {
                     let regexStr = pattern.replace(/\*/g, ".*");
                     if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
-                } else if (rule.RULE_TYPE === "EXPERT") {
+                }
+                else if (rule.RULE_TYPE === "EXPERT") {
                     try {
                         if (new RegExp(pattern, "i").test(msg)) match = true;
-                    } catch (e) {}
+                    } catch {}
                 }
 
                 if (match) break;
@@ -738,7 +691,7 @@ async function processMessage(msg, sessionId = "default", sender) {
         }
 
         if (match) {
-            let replies = rule.REPLY_TEXT.split("<#>").map((r) => r.trim()).filter(Boolean);
+            let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
             if (rule.REPLIES_TYPE === "ALL") {
                 replies = replies.slice(0, 20);
                 reply = replies.join(" ");
@@ -756,18 +709,16 @@ async function processMessage(msg, sessionId = "default", sender) {
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
         reply = resolveVariablesRecursively(reply, senderName);
-
+        
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
     }
-
+    
     // NEW: If temporary hide was triggered, add user to ignored list AFTER processing reply
     if (temporaryHideTriggered) {
         const hideEntry = { name: senderName, context: context };
         // Check if the user is not already in the list for this specific context
-        const isAlreadyIgnoredInContext = IGNORED_OVERRIDE_USERS.some(
-            (item) => item.name === hideEntry.name && item.context === hideEntry.context
-        );
+        const isAlreadyIgnoredInContext = IGNORED_OVERRIDE_USERS.some(item => item.name === hideEntry.name && item.context === hideEntry.context);
         if (!isAlreadyIgnoredInContext) {
             IGNORED_OVERRIDE_USERS.push(hideEntry);
             await saveIgnoredOverrideUsers();
@@ -779,32 +730,32 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 // Socket.io connection with chat history
-io.on("connection", (socket) => {
-    console.log("⚡ New client connected");
+io.on('connection', (socket) => {
+console.log('⚡ New client connected');
 
-    // Send recent chat history to new client immediately
-    if (recentChatMessages.length > 0) {
-        console.log(`📤 Sending ${recentChatMessages.length} recent messages to new client`);
-        socket.emit("chatHistory", recentChatMessages);
-    }
+// Send recent chat history to new client immediately
+if (recentChatMessages.length > 0) {
+console.log(`📤 Sending ${recentChatMessages.length} recent messages to new client`);
+socket.emit('chatHistory', recentChatMessages);
+}
 
-    socket.on("disconnect", () => {
-        console.log("❌ Client disconnected");
-    });
+socket.on('disconnect', () => {
+console.log('❌ Client disconnected');
+});
 });
 
 // Initial Load
 (async () => {
-    await mongoose.connection.once("open", async () => {
+    await mongoose.connection.once('open', async () => {
         // PERMANENT FIX: Drop the old 'email_1' index if it exists
         try {
-            await User.collection.dropIndex("email_1");
-            console.log("✅ Old email_1 index dropped successfully.");
+            await User.collection.dropIndex('email_1');
+            console.log('✅ Old email_1 index dropped successfully.');
         } catch (error) {
-            if (error.codeName !== "IndexNotFound") {
-                console.error("❌ Failed to drop old index:", error);
+            if (error.codeName !== 'IndexNotFound') {
+                console.error('❌ Failed to drop old index:', error);
             } else {
-                console.log("🔍 Old email_1 index not found, no action needed.");
+                console.log('🔍 Old email_1 index not found, no action needed.');
             }
         }
 
@@ -820,7 +771,7 @@ io.on("connection", (socket) => {
             { path: path.join(dataDir, "variables.json"), content: [] }
         ];
 
-        files.forEach((file) => {
+        files.forEach(file => {
             if (!fs.existsSync(file.path)) {
                 fs.writeFileSync(file.path, JSON.stringify(file.content, null, 2));
             }
@@ -829,10 +780,10 @@ io.on("connection", (socket) => {
         // NEW: Load or restore settings
         const settingsLoadedFromFile = await loadSettingsFromFiles();
         if (!settingsLoadedFromFile) {
-            console.log("⚠️ Settings files not found. Restoring from MongoDB...");
+            console.log('⚠️ Settings files not found. Restoring from MongoDB...');
             await restoreSettingsFromDb();
         }
-
+        
         await syncData();
         scheduleDailyReset();
     });
@@ -843,13 +794,10 @@ app.post("/api/settings/ignored-override", async (req, res) => {
     try {
         const { users } = req.body;
         // NEW: Handle the new data structure for ignored users
-        IGNORED_OVERRIDE_USERS = users
-            .split(",")
-            .map((userString) => {
-                const [name, context] = userString.split(":").map((s) => s.trim());
-                return { name, context: context || "DM" };
-            })
-            .filter((item) => item.name);
+        IGNORED_OVERRIDE_USERS = users.split(',').map(userString => {
+            const [name, context] = userString.split(':').map(s => s.trim());
+            return { name, context: context || 'DM' };
+        }).filter(item => item.name);
         await saveIgnoredOverrideUsers();
         res.json({ success: true, message: "Ignored override users updated successfully." });
     } catch (error) {
@@ -862,7 +810,7 @@ app.post("/api/settings/ignored-override", async (req, res) => {
 app.post("/api/settings/specific-override", async (req, res) => {
     try {
         const { users } = req.body;
-        SPECIFIC_OVERRIDE_USERS = users.split(",").map((u) => u.trim()).filter(Boolean);
+        SPECIFIC_OVERRIDE_USERS = users.split(',').map(u => u.trim()).filter(Boolean);
         await saveSpecificOverrideUsers();
         res.json({ success: true, message: "Specific override users updated successfully." });
     } catch (error) {
@@ -927,8 +875,8 @@ app.post("/api/bot/status", async (req, res) => {
         const { isOnline } = req.body;
         settings.isBotOnline = isOnline;
         await saveSettings();
-        res.json({ success: true, message: `Bot status updated to ${isOnline ? "online" : "offline"}.` });
-        console.log(`🤖 Bot status has been set to ${isOnline ? "online" : "offline"}.`);
+        res.json({ success: true, message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.` });
+        console.log(`🤖 Bot status has been set to ${isOnline ? 'online' : 'offline'}.`);
     } catch (error) {
         console.error("❌ Failed to update bot status:", error);
         res.status(500).json({ success: false, message: "Server error" });
@@ -936,225 +884,230 @@ app.post("/api/bot/status", async (req, res) => {
 });
 
 app.post("/api/rules/bulk-update", async (req, res) => {
-    const session = await mongoose.startSession();
-    try {
-        await session.withTransaction(async () => {
-            const { rules } = req.body;
-            if (!Array.isArray(rules) || rules.length === 0) {
-                throw new Error("Invalid rules data - must be an array");
-            }
+const session = await mongoose.startSession();
+try {
+await session.withTransaction(async () => {
+const { rules } = req.body;
+if (!Array.isArray(rules) || rules.length === 0) {
+throw new Error('Invalid rules data - must be an array');
+}
 
-            const tempBulkOps = rules.map((rule, index) => ({
-                updateOne: {
-                    filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-                    update: { $set: { RULE_NUMBER: -(index + 1000) } },
-                    upsert: false
-                }
-            }));
+const tempBulkOps = rules.map((rule, index) => ({
+updateOne: {
+filter: { _id: new mongoose.Types.ObjectId(rule._id) },
+update: { $set: { RULE_NUMBER: -(index + 1000) } },
+upsert: false
+}
+}));
 
-            if (tempBulkOps.length > 0) {
-                await Rule.bulkWrite(tempBulkOps, { session, ordered: true });
-            }
+if (tempBulkOps.length > 0) {
+await Rule.bulkWrite(tempBulkOps, { session, ordered: true });
+}
 
-            const finalBulkOps = rules.map((rule) => ({
-                updateOne: {
-                    filter: { _id: new mongoose.Types.ObjectId(rule._id) },
-                    update: {
-                        $set: {
-                            RULE_NUMBER: rule.RULE_NUMBER,
-                            RULE_NAME: rule.RULE_NAME || "",
-                            RULE_TYPE: rule.RULE_TYPE,
-                            KEYWORDS: rule.KEYWORDS || "",
-                            REPLIES_TYPE: rule.REPLIES_TYPE,
-                            REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ""),
-                            TARGET_USERS: rule.TARGET_USERS || "ALL"
-                        }
-                    },
-                    upsert: false
-                }
-            }));
+const finalBulkOps = rules.map(rule => ({
+updateOne: {
+filter: { _id: new mongoose.Types.ObjectId(rule._id) },
+update: {
+$set: {
+RULE_NUMBER: rule.RULE_NUMBER,
+RULE_NAME: rule.RULE_NAME || '',
+RULE_TYPE: rule.RULE_TYPE,
+KEYWORDS: rule.KEYWORDS || '',
+REPLIES_TYPE: rule.REPLIES_TYPE,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
+TARGET_USERS: rule.TARGET_USERS || 'ALL'
+}
+},
+upsert: false
+}
+}));
 
-            if (finalBulkOps.length > 0) {
-                const finalResult = await Rule.bulkWrite(finalBulkOps, { session, ordered: true });
-                if (finalResult.modifiedCount !== rules.length) {
-                    throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
-                }
-            }
-        });
+if (finalBulkOps.length > 0) {
+const finalResult = await Rule.bulkWrite(finalBulkOps, { session, ordered: true });
+if (finalResult.modifiedCount !== rules.length) {
+throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
+}
+}
+});
 
-        await session.endSession();
-        await loadAllRules();
+await session.endSession();
+await loadAllRules();
 
-        const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-        const jsonRules = { rules: rulesFromDB.map((r) => r.toObject()) };
-        fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
+fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
 
-        res.json({
-            success: true,
-            message: `${req.body.rules.length} rules reordered successfully`,
-            updatedCount: req.body.rules.length,
-            totalCount: req.body.rules.length
-        });
+res.json({
+success: true,
+message: `${req.body.rules.length} rules reordered successfully`,
+updatedCount: req.body.rules.length,
+totalCount: req.body.rules.length
+});
 
-        io.emit("rulesUpdated", {
-            action: "bulk_reorder_atomic",
-            count: req.body.rules.length,
-            newOrder: RULES.map((r) => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
-        });
-    } catch (error) {
-        console.error("❌ Atomic bulk update failed:", error);
-        if (session.inTransaction()) {
-            await session.abortTransaction();
-        }
-        await session.endSession();
+io.emit('rulesUpdated', {
+action: 'bulk_reorder_atomic',
+count: req.body.rules.length,
+newOrder: RULES.map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
+});
 
-        res.json({
-            success: false,
-            message: "Failed to reorder rules atomically: " + error.message
-        });
-    }
+} catch (error) {
+console.error('❌ Atomic bulk update failed:', error);
+if (session.inTransaction()) {
+await session.abortTransaction();
+}
+await session.endSession();
+
+res.json({
+success: false,
+message: 'Failed to reorder rules atomically: ' + error.message
+});
+}
 });
 
 app.get("/api/rules", async (req, res) => {
-    try {
-        const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-        res.json(rules);
-    } catch (err) {
-        res.status(500).json({ error: "Failed to fetch rules" });
-    }
+try {
+const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+res.json(rules);
+} catch (err) {
+res.status(500).json({ error: "Failed to fetch rules" });
+}
 });
 
 app.post("/api/rules/update", async (req, res) => {
-    const { type, rule, oldRuleNumber } = req.body;
+const { type, rule, oldRuleNumber } = req.body;
 
-    try {
-        if (type === "add") {
-            const existingRule = await Rule.findOne({ RULE_NUMBER: rule.ruleNumber });
-            if (existingRule) {
-                await Rule.updateMany(
-                    { RULE_NUMBER: { $gte: rule.ruleNumber } },
-                    { $inc: { RULE_NUMBER: 1 } }
-                );
-            }
+try {
+if (type === "add") {
+const existingRule = await Rule.findOne({ RULE_NUMBER: rule.ruleNumber });
+if (existingRule) {
+await Rule.updateMany(
+{ RULE_NUMBER: { $gte: rule.ruleNumber } },
+{ $inc: { RULE_NUMBER: 1 } }
+);
+}
 
-            await Rule.create({
-                RULE_NUMBER: rule.ruleNumber,
-                RULE_NAME: rule.ruleName,
-                RULE_TYPE: rule.ruleType,
-                KEYWORDS: rule.keywords,
-                REPLIES_TYPE: rule.repliesType,
-                REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                TARGET_USERS: rule.targetUsers
-            });
-        } else if (type === "edit") {
-            if (rule.ruleNumber !== oldRuleNumber) {
-                if (rule.ruleNumber < oldRuleNumber) {
-                    await Rule.updateMany(
-                        { RULE_NUMBER: { $gte: rule.ruleNumber, $lt: oldRuleNumber } },
-                        { $inc: { RULE_NUMBER: 1 } }
-                    );
-                } else {
-                    await Rule.updateMany(
-                        { RULE_NUMBER: { $gt: oldRuleNumber, $lte: rule.ruleNumber } },
-                        { $inc: { RULE_NUMBER: -1 } }
-                    );
-                }
-            }
+await Rule.create({
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+TARGET_USERS: rule.targetUsers
+});
 
-            await Rule.findOneAndUpdate(
-                { RULE_NUMBER: oldRuleNumber },
-                {
-                    RULE_NUMBER: rule.ruleNumber,
-                    RULE_NAME: rule.ruleName,
-                    RULE_TYPE: rule.ruleType,
-                    KEYWORDS: rule.keywords,
-                    REPLIES_TYPE: rule.repliesType,
-                    REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                    TARGET_USERS: rule.TARGET_USERS
-                },
-                { new: true }
-            );
-        } else if (type === "delete") {
-            await Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber });
-            await Rule.updateMany(
-                { RULE_NUMBER: { $gt: rule.ruleNumber } },
-                { $inc: { RULE_NUMBER: -1 } }
-            );
-        }
+} else if (type === "edit") {
+if (rule.ruleNumber !== oldRuleNumber) {
+if (rule.ruleNumber < oldRuleNumber) {
+await Rule.updateMany(
+{ RULE_NUMBER: { $gte: rule.ruleNumber, $lt: oldRuleNumber } },
+{ $inc: { RULE_NUMBER: 1 } }
+);
+} else {
+await Rule.updateMany(
+{ RULE_NUMBER: { $gt: oldRuleNumber, $lte: rule.ruleNumber } },
+{ $inc: { RULE_NUMBER: -1 } }
+);
+}
+}
 
-        const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-        const jsonRules = { rules: rulesFromDB.map((r) => r.toObject()) };
-        fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+await Rule.findOneAndUpdate(
+{ RULE_NUMBER: oldRuleNumber },
+{
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+TARGET_USERS: rule.TARGET_USERS
+},
+{ new: true }
+);
 
-        await loadAllRules();
+} else if (type === "delete") {
+await Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber });
+await Rule.updateMany(
+{ RULE_NUMBER: { $gt: rule.ruleNumber } },
+{ $inc: { RULE_NUMBER: -1 } }
+);
+}
 
-        res.json({ success: true, message: "Rule updated successfully!" });
-        io.emit("rulesUpdated", { action: type, ruleNumber: rule.ruleNumber });
-    } catch (err) {
-        console.error("❌ Failed to update rule:", err);
-        res.status(500).json({ success: false, message: "Server error" });
-    }
+const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
+fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+
+await loadAllRules();
+
+res.json({ success: true, message: "Rule updated successfully!" });
+io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+
+} catch (err) {
+console.error("❌ Failed to update rule:", err);
+res.status(500).json({ success: false, message: "Server error" });
+}
 });
 
 app.get("/api/variables", async (req, res) => {
-    try {
-        const variables = await Variable.find({});
-        res.json(variables);
-    } catch (err) {
-        res.status(500).json({ error: "Failed to fetch variables" });
-    }
+try {
+const variables = await Variable.find({});
+res.json(variables);
+} catch (err) {
+res.status(500).json({ error: "Failed to fetch variables" });
+}
 });
 
 app.post("/api/variables/update", async (req, res) => {
-    const { type, variable, oldName } = req.body;
+const { type, variable, oldName } = req.body;
 
-    try {
-        const processedVariable = {
-            name: variable.name,
-            value: convertNewlinesBeforeSave(variable.value)
-        };
+try {
+const processedVariable = {
+name: variable.name,
+value: convertNewlinesBeforeSave(variable.value)
+};
 
-        if (type === "add") {
-            await Variable.create(processedVariable);
-        } else if (type === "edit") {
-            await Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true });
-        } else if (type === "delete") {
-            await Variable.deleteOne({ name: variable.name });
-        }
+if (type === "add") {
+await Variable.create(processedVariable);
+} else if (type === "edit") {
+await Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true });
+} else if (type === "delete") {
+await Variable.deleteOne({ name: variable.name });
+}
 
-        await loadAllVariables();
+await loadAllVariables();
 
-        const variablesFromDB = await Variable.find({});
-        fs.writeFileSync(variablesFilePath, JSON.stringify(variablesFromDB.map((v) => v.toObject()), null, 2));
+const variablesFromDB = await Variable.find({});
+fs.writeFileSync(variablesFilePath, JSON.stringify(variablesFromDB.map(v => v.toObject()), null, 2));
 
-        res.json({ success: true, message: "Variable updated successfully!" });
-        io.emit("variablesUpdated", { action: type, variableName: variable.name });
-    } catch (err) {
-        console.error("❌ Failed to update variable:", err);
-        res.status(500).json({ success: false, message: "Server error" });
-    }
+res.json({ success: true, message: "Variable updated successfully!" });
+io.emit('variablesUpdated', { action: type, variableName: variable.name });
+
+} catch (err) {
+console.error("❌ Failed to update variable:", err);
+res.status(500).json({ success: false, message: "Server error" });
+}
 });
 
 app.post("/webhook", async (req, res) => {
     // NEW: Check if the server is ready before processing the request
     if (!isReady) {
-        console.warn("⚠️ Server not ready. Rejecting incoming webhook.");
-        return res.status(503).send("Server is initializing. Please try again in a moment.");
+        console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
+        return res.status(503).send('Server is initializing. Please try again in a moment.');
     }
 
     const sessionId = req.body.session_id || "default_session";
     const msg = req.body.query?.message || "";
     const sender = req.body.query?.sender || "";
-
+    
     // Yahan hum sender string ko parse kar rahe hain
     const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
 
     // NEW: Bot Online check added to webhook endpoint
     if (!settings.isBotOnline) {
-        console.log("🤖 Bot is offline. Skipping message processing.");
+        console.log('🤖 Bot is offline. Skipping message processing.');
         return res.json({ replies: [] });
     }
-
+    
     // Yahaan specific override ki check lagaayi gayi hai
     if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(parsedSenderName, SPECIFIC_OVERRIDE_USERS)) {
         console.log(`⚠️ User "${parsedSenderName}" is not on the specific override list. Ignoring message.`);
@@ -1184,7 +1137,7 @@ app.post("/webhook", async (req, res) => {
     console.log(`💬 Chat history updated. Total messages: ${recentChatMessages.length}`);
 
     // Emit real-time chat message to all connected clients
-    io.emit("newMessage", messageData);
+    io.emit('newMessage', messageData);
 
     if (!replyText) return res.json({ replies: [] });
     res.json({ replies: [{ message: replyText }] });
@@ -1201,7 +1154,7 @@ app.get("/stats", async (req, res) => {
             nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
         });
     } catch (err) {
-        console.error("Failed to fetch stats:", err);
+        console.error('Failed to fetch stats:', err);
         res.status(500).json({ error: "Failed to fetch stats" });
     }
 });
@@ -1216,13 +1169,13 @@ server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
 let pinging = false;
 setInterval(async () => {
-    if (pinging) return;
-    pinging = true;
-    try {
-        await axios.get(`${SERVER_URL}/ping`);
-        console.log("🔁 Self-ping sent!");
-    } catch (err) {
-        console.log("❌ Ping failed:", err.message);
-    }
-    pinging = false;
+if (pinging) return;
+pinging = true;
+try {
+await axios.get(`${SERVER_URL}/ping`);
+console.log("🔁 Self-ping sent!");
+} catch (err) {
+console.log("❌ Ping failed:", err.message);
+}
+pinging = false;
 }, 5 * 60 * 1000);
