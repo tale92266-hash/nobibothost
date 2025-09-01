@@ -34,7 +34,6 @@ const userSchema = new mongoose.Schema({
     senderName: { type: String, required: true, unique: true }
 });
 
-const User = mongoose = require("mongoose");
 const User = mongoose.model("User", userSchema);
 
 const ruleSchema = new mongoose.Schema({
@@ -437,18 +436,15 @@ function pickNUniqueRandomly(tokens, count) {
 function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
-
-    // Use a multi-pass approach to handle nesting correctly
-    // Replaced the old regex with a more robust one
-    const resolvePass = (str) => {
-        let tempResult = str;
-        let changed = false;
-
-        // Pass 1: Resolve built-in time variables
-        tempResult = tempResult.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
+    
+    while (iterationCount < maxIterations) {
+        const initialResult = result;
+        
+        // Pass 1: Resolve built-in time and name variables
+        result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
-            changed = true;
+            
             switch (varName) {
                 case 'hour':
                     return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[0];
@@ -469,52 +465,50 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
                 case 'name':
                     return senderName;
             }
-            return match;
+            return match; // Return original if no match
         });
 
-        // Pass 2: Resolve static variables from DB
-        tempResult = tempResult.replace(/%(\w+)%/g, (match, varName) => {
+        // Pass 2: Resolve other random variables
+        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+            if (type === 'num') {
+                const [min, max] = param1.split('_').map(Number);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                const length = parseInt(param1);
+                return generateRandom(type, length);
+            }
+        });
+
+        // Pass 3: Resolve custom random variables
+        // This regex now uses a non-greedy approach for a more robust match.
+        // It looks for a sequence of characters that doesn't include the opening `%`
+        // of another variable, ensuring it matches the correct closing `%`.
+        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%rndm_custom_).)*?)%/g;
+        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            const tokens = smartSplitTokens(tokensString);
+            if (tokens.length === 0) {
+                console.warn(`⚠️ No valid tokens found in custom random variable: ${match}`);
+                return '';
+            }
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            return selectedTokens.join(' ');
+        });
+
+        // Pass 4: Resolve static variables from DB
+        result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
-                changed = true;
                 return staticVar.value;
             }
             return match;
         });
-        
-        // Pass 3: Resolve other random variables
-        tempResult = tempResult.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === 'num') {
-                const [min, max] = param1.split('_').map(Number);
-                changed = true;
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            } else {
-                const length = parseInt(param1);
-                changed = true;
-                return generateRandom(type, length);
-            }
-        });
-        
-        // Pass 4: Resolve custom random variables
-        // This regex now correctly handles nested variables by being non-greedy and
-        // looking for the first available closing `%`.
-        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%).)*)%/g;
-        tempResult = tempResult.replace(customRandomRegex, (match, countStr, tokensString) => {
-            const count = parseInt(countStr, 10);
-            const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) return '';
-            const selectedTokens = pickNUniqueRandomly(tokens, count);
-            changed = true;
-            return selectedTokens.join(' ');
-        });
 
-        return { result: tempResult, changed };
-    };
+        if (result === initialResult) {
+            // No more variables to resolve, exit the loop
+            break;
+        }
 
-    let resolved = { result, changed: true };
-    while (resolved.changed && iterationCount < maxIterations) {
-        resolved = resolvePass(resolved.result);
-        result = resolved.result;
         iterationCount++;
     }
 
