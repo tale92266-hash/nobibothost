@@ -156,7 +156,38 @@ async function restoreSettingsFromDb() {
     }
 }
 
-// UPDATED: Centralized data sync function
+// MOVED TO GLOBAL SCOPE
+const migrateOldSettings = async () => {
+    // Migrate override users
+    if (fs.existsSync(ignoredOverrideUsersFile) || fs.existsSync(specificOverrideUsersFile)) {
+        const ignored = fs.existsSync(ignoredOverrideUsersFile) ? JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8')) : [];
+        const specific = fs.existsSync(specificOverrideUsersFile) ? JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8')) : [];
+
+        await Settings.findOneAndUpdate(
+            { settings_type: 'override_lists' },
+            { settings_data: { ignored, specific } },
+            { upsert: true, new: true }
+        );
+        console.log('✅ Old override lists migrated to MongoDB.');
+        // Clean up old files
+        fs.unlinkSync(ignoredOverrideUsersFile);
+        fs.unlinkSync(specificOverrideUsersFile);
+    }
+
+    // Migrate global settings
+    if (fs.existsSync(settingsFilePath)) {
+        const oldSettings = JSON.parse(fs.readFileSync(settingsFilePath, 'utf8'));
+        await Settings.findOneAndUpdate(
+            { settings_type: 'global_settings' },
+            { settings_data: oldSettings },
+            { upsert: true, new: true }
+        );
+        console.log('✅ Old global settings migrated to MongoDB.');
+        // Clean up old file
+        fs.unlinkSync(settingsFilePath);
+    }
+};
+
 const syncData = async () => {
     try {
         stats = await Stats.findOne();
@@ -659,7 +690,12 @@ console.log('❌ Client disconnected');
             }
         });
 
-        await migrateOldSettings(); // NEW: Run migration logic
+        // NEW: Load or restore settings
+        const settingsLoadedFromFile = await loadSettingsFromFiles();
+        if (!settingsLoadedFromFile) {
+            console.log('⚠️ Settings files not found. Restoring from MongoDB...');
+            await restoreSettingsFromDb();
+        }
         
         await syncData();
         scheduleDailyReset();
