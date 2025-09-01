@@ -640,8 +640,18 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     // Update Stats
-    if (!stats.totalUsers.includes(sessionId)) stats.totalUsers.push(sessionId);
-    if (!stats.todayUsers.includes(sessionId)) stats.todayUsers.push(sessionId);
+    // Fix: Using senderName for today's user count
+    if (!welcomedUsers.includes(senderName)) {
+        welcomedUsers.push(senderName);
+        await User.create({ senderName, sessionId });
+        stats.totalUsers.push(senderName);
+    }
+    
+    // Check if the user has messaged today
+    if (!stats.todayUsers.includes(senderName)) {
+        stats.todayUsers.push(senderName);
+    }
+
     stats.totalMsgs++;
     stats.todayMsgs++;
 
