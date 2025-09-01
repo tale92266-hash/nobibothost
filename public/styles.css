@@ -1410,47 +1410,6 @@ body {
     
     .nav-item i {
         font-size: 1.1rem;
-    }
-    
-    .tab-navigation {
-        padding: 0.25rem;
-    }
-    
-    .nav-tabs {
-        gap: 0.25rem;
-    }
-    
-    .nav-tabs .nav-link {
-        padding: 0.75rem;
-        min-width: 60px;
-        justify-content: center;
-    }
-}
-
-@media (max-width: 576px) {
-    .stat-card {
-        text-align: center;
-        flex-direction: column;
-    }
-    
-    .rule-item {
-        padding: 1rem;
-    }
-    
-    .rule-content-new {
-        gap: 0.5rem;
-    }
-    
-    .nav-item span {
-        display: none;
-    }
-    
-    .nav-item {
-        min-width: 50px;
-    }
-    
-    .nav-item i {
-        font-size: 1.25rem;
         margin-bottom: 0;
     }
     
