@@ -398,10 +398,11 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: smartSplitTokens logic to use '//' as separator
+// UPDATED: smartSplitTokens logic to use a special separator and allow commas
 function smartSplitTokens(tokensString) {
-    // We now split by '//' to allow commas inside tokens
-    const tokens = tokensString.split('//').map(t => t.trim());
+    // We now split by a special separator `➡️‚⬅️` to allow commas inside tokens
+    const separator = '➡️‚⬅️';
+    const tokens = tokensString.split(separator).map(t => t.trim());
     console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
     console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
     return tokens.filter(t => t !== '');
@@ -440,11 +441,32 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve built-in time and name variables
+        // Pass 1: Resolve custom random variables first (highest precedence)
+        // Corrected regex to handle nested variables gracefully using a non-greedy approach
+        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%|➡️‚⬅️).)*?)%/g;
+        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            const tokens = smartSplitTokens(tokensString);
+            if (tokens.length === 0) return '';
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            return selectedTokens.join(' ');
+        });
+
+        // Pass 2: Resolve other random variables
+        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+            if (type === 'num') {
+                const [min, max] = param1.split('_').map(Number);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                const length = parseInt(param1);
+                return generateRandom(type, length);
+            }
+        });
+
+        // Pass 3: Resolve built-in time variables
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
-            
             switch (varName) {
                 case 'hour':
                     return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[0];
@@ -465,34 +487,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
                 case 'name':
                     return senderName;
             }
-            return match; // Return original if no match
-        });
-
-        // Pass 2: Resolve other random variables
-        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === 'num') {
-                const [min, max] = param1.split('_').map(Number);
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            } else {
-                const length = parseInt(param1);
-                return generateRandom(type, length);
-            }
-        });
-
-        // Pass 3: Resolve custom random variables
-        // This regex now uses a non-greedy approach for a more robust match.
-        // It looks for a sequence of characters that doesn't include the opening `%`
-        // of another variable, ensuring it matches the correct closing `%`.
-        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%rndm_custom_).)*?)%/g;
-        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
-            const count = parseInt(countStr, 10);
-            const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) {
-                console.warn(`⚠️ No valid tokens found in custom random variable: ${match}`);
-                return '';
-            }
-            const selectedTokens = pickNUniqueRandomly(tokens, count);
-            return selectedTokens.join(' ');
+            return match;
         });
 
         // Pass 4: Resolve static variables from DB
