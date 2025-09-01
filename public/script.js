@@ -1,7 +1,5 @@
 // file: script.js
 
-// file: script.js
-
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
@@ -746,17 +744,45 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveRule() {
         const formData = new FormData(ruleForm);
         const ruleNumber = parseInt(formData.get('ruleNumber'));
+        const targetUsersToggleValue = formData.get('targetUsersToggle');
+        const keywordsValue = formData.get('keywords');
+        const replyTextValue = formData.get('replyText');
+        
         if (!validateRuleNumber(ruleNumber, currentRuleNumber !== null)) {
             return;
         }
+
+        // Backend validation check for keywords and replies
+        if (ruleTypeSelect.value !== 'WELCOME' && ruleTypeSelect.value !== 'DEFAULT' && !keywordsValue.trim()) {
+            showToast('Keywords cannot be empty for this rule type.', 'warning');
+            return;
+        }
+        if (!replyTextValue.trim()) {
+            showToast('Reply text cannot be empty.', 'warning');
+            return;
+        }
+
+        // Handle target users logic properly
+        let targetUsersValue;
+        if (targetUsersToggleValue === 'ALL') {
+            targetUsersValue = 'ALL';
+        } else {
+            const users = document.getElementById('targetUsers').value.split(',').map(u => u.trim()).filter(u => u);
+            if (users.length === 0) {
+                showToast('Please enter at least one user for this rule type.', 'warning');
+                return;
+            }
+            targetUsersValue = users;
+        }
+
         const ruleData = {
             ruleNumber: ruleNumber,
             ruleName: formData.get('ruleName'),
             ruleType: formData.get('ruleType'),
-            keywords: formData.get('keywords'),
+            keywords: keywordsValue,
             repliesType: formData.get('repliesType'),
-            replyText: formData.get('replyText'),
-            targetUsers: formData.get('targetUsersToggle') === 'ALL' ? 'ALL' : formData.get('targetUsers').split(',').map(u => u.trim()).filter(u => u)
+            replyText: replyTextValue,
+            TARGET_USERS: targetUsersValue // Correctly assigning the validated value
         };
         const payload = {
             type: currentRuleNumber ? 'edit' : 'add',
