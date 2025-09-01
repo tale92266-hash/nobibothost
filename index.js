@@ -505,6 +505,15 @@ function matchesOverridePattern(senderName, patternList) {
     return false;
 }
 
+// UPDATED: Check for ignored users in a specific context
+function isUserIgnored(senderName, context, ignoredList) {
+    return ignoredList.some(item => {
+        const nameMatch = matchesOverridePattern(senderName, [item.name]);
+        const contextMatch = matchesOverridePattern(context, [item.context]);
+        return nameMatch && contextMatch;
+    });
+}
+
 async function processMessage(msg, sessionId = "default", sender) {
     // NEW: Check if stats is loaded before accessing it
     if (!stats) {
@@ -519,20 +528,38 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+    const context = isGroup ? groupName : 'DM';
     
-    // Yahaan ab hum senderName aur isGroup ka use kar sakte hain
-    console.log(`🔍 Processing message from: ${senderName} (Group: ${isGroup ? groupName : 'No'})`);
+    console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
 
-    // NEW: Cooldown check for repeating messages
-    if (settings.preventRepeatingRule.enabled) {
-        const lastTime = lastReplyTimes[senderName] || 0;
-        const currentTime = Date.now();
-        const cooldownMs = settings.preventRepeatingRule.cooldown * 1000;
-
-        if (currentTime - lastTime < cooldownMs) {
-            console.log(`⏳ Cooldown active for user: ${senderName}. Skipping reply.`);
-            return null; // Return early, don't send a reply
+    // NEW: Temporary hide check
+    let temporaryHideTriggered = false;
+    if (settings.temporaryHide.enabled) {
+        const triggerTexts = settings.temporaryHide.triggerText.split('//').map(t => t.trim()).filter(Boolean);
+        for (const trigger of triggerTexts) {
+            let match = false;
+            if (settings.temporaryHide.matchType === 'EXACT' && trigger.toLowerCase() === msg.toLowerCase()) match = true;
+            else if (settings.temporaryHide.matchType === 'PATTERN') {
+                let regexStr = trigger.replace(/\*/g, ".*");
+                if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+            } else if (settings.temporaryHide.matchType === 'EXPERT') {
+                try {
+                    if (new RegExp(trigger, "i").test(msg)) match = true;
+                } catch {}
+            }
+            if (match) {
+                temporaryHideTriggered = true;
+                break;
+            }
         }
+    }
+    
+    // NEW: User is ignored if they are in the context-specific list.
+    const isSenderIgnored = isUserIgnored(senderName, context, IGNORED_OVERRIDE_USERS);
+
+    if (isSenderIgnored) {
+        console.log(`🚫 User "${senderName}" is ignored in context "${context}". Skipping reply.`);
+        return null;
     }
 
     msg = msg.toLowerCase();
@@ -567,80 +594,11 @@ async function processMessage(msg, sessionId = "default", sender) {
             }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
             // NEW: Ignored Override check
-            if (IGNORED_OVERRIDE_USERS.length > 0 && matchesOverridePattern(senderName, IGNORED_OVERRIDE_USERS)) {
-                 console.log(`🚫 Ignored override match for user: ${senderName}`);
+            if (isSenderIgnored) { // Use the pre-computed ignored status
                 userMatch = false;
             } else {
                 userMatch = true;
             }
-        }
-        
-        // NEW: Temporary Hide logic
-        let temporaryHideMatch = false;
-        if (settings.temporaryHide.enabled) {
-            const triggerTexts = settings.temporaryHide.triggerText.split('//').map(t => t.trim()).filter(Boolean);
-            for (const trigger of triggerTexts) {
-                if (settings.temporaryHide.matchType === 'EXACT' && trigger.toLowerCase() === msg) {
-                    temporaryHideMatch = true;
-                    break;
-                } else if (settings.temporaryHide.matchType === 'PATTERN') {
-                    let regexStr = trigger.replace(/\*/g, '.*');
-                    if (new RegExp(`^${regexStr}$`, 'i').test(msg)) {
-                        temporaryHideMatch = true;
-                        break;
-                    }
-                } else if (settings.temporaryHide.matchType === 'EXPERT') {
-                    try {
-                        if (new RegExp(trigger, 'i').test(msg)) {
-                            temporaryHideMatch = true;
-                            break;
-                        }
-                    } catch {}
-                }
-            }
-        }
-
-        if (temporaryHideMatch) {
-            // Find a rule that matches the user's message
-            let replyRule = RULES.find(r => {
-                let patterns = r.KEYWORDS.split('//').map(p => p.trim()).filter(Boolean);
-                for (let pattern of patterns) {
-                    if (r.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) return true;
-                    if (r.RULE_TYPE === "PATTERN") {
-                        let regexStr = pattern.replace(/\*/g, ".*");
-                        if (new RegExp(`^${regexStr}$`, "i").test(msg)) return true;
-                    }
-                    if (r.RULE_TYPE === "EXPERT") {
-                        try {
-                            if (new RegExp(pattern, "i").test(msg)) return true;
-                        } catch {}
-                    }
-                }
-                return false;
-            });
-            
-            // If a reply rule is found, process the reply
-            if (replyRule) {
-                let replies = replyRule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-                if (replyRule.REPLIES_TYPE === "ALL") {
-                    replies = replies.slice(0, 20);
-                    reply = replies.join(" ");
-                } else if (replyRule.REPLIES_TYPE === "ONE") {
-                    reply = replies[0];
-                } else {
-                    reply = pick(replies);
-                }
-            }
-
-            // Now, add the user to ignored list for the rest of the rules
-            if (!IGNORED_OVERRIDE_USERS.includes(senderName)) {
-                IGNORED_OVERRIDE_USERS.push(senderName);
-                await saveIgnoredOverrideUsers();
-                console.log(`👤 User "${senderName}" has been temporarily hidden.`);
-            }
-
-            // No need to check other rules
-            break;
         }
 
         if (!userMatch) {
@@ -712,6 +670,16 @@ async function processMessage(msg, sessionId = "default", sender) {
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
     }
+    
+    // NEW: If temporary hide was triggered, add user to ignored list AFTER processing reply
+    if (temporaryHideTriggered) {
+        const hideEntry = { name: senderName, context: context };
+        if (!IGNORED_OVERRIDE_USERS.some(item => item.name === hideEntry.name && item.context === hideEntry.context)) {
+            IGNORED_OVERRIDE_USERS.push(hideEntry);
+            await saveIgnoredOverrideUsers();
+            console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
+        }
+    }
 
     return reply || null;
 }
@@ -780,7 +748,11 @@ console.log('❌ Client disconnected');
 app.post("/api/settings/ignored-override", async (req, res) => {
     try {
         const { users } = req.body;
-        IGNORED_OVERRIDE_USERS = users.split(',').map(u => u.trim()).filter(Boolean);
+        // NEW: Handle the new data structure for ignored users
+        IGNORED_OVERRIDE_USERS = users.split(',').map(userString => {
+            const [name, context] = userString.split(':').map(s => s.trim());
+            return { name, context: context || 'DM' };
+        }).filter(item => item.name);
         await saveIgnoredOverrideUsers();
         res.json({ success: true, message: "Ignored override users updated successfully." });
     } catch (error) {
