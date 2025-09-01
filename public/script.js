@@ -1231,15 +1231,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateBotStatusUI() {
         if (currentSettings.isBotOnline) {
             botStatusBtn.classList.add('bot-on');
-            botStatusBtn.classList.remove('bot-off');
-            botStatusText.textContent = 'Bot Running';
+            botStatusBtn.classList.remove('bot-off', 'bot-loading');
+            botStatusText.innerHTML = '<i class="fas fa-power-off me-2"></i> Bot Running';
         } else {
             botStatusBtn.classList.add('bot-off');
-            botStatusBtn.classList.remove('bot-on');
-            botStatusText.textContent = 'Bot Off';
+            botStatusBtn.classList.remove('bot-on', 'bot-loading');
+            botStatusText.innerHTML = '<i class="fas fa-power-off me-2"></i> Bot Off';
         }
-        // NEW: Show the button after the status is updated
-        botStatusContainer.style.display = 'block';
     }
     
     // NEW: Function to toggle bot status
@@ -1247,6 +1245,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const newStatus = !currentSettings.isBotOnline;
         
         try {
+            // Show loading state while toggling
+            botStatusBtn.classList.remove('bot-on', 'bot-off');
+            botStatusBtn.classList.add('bot-loading');
+            botStatusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Toggling...';
+
             const response = await fetch('/api/bot/status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1259,10 +1262,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 updateBotStatusUI();
                 showToast(result.message, 'success');
             } else {
+                updateBotStatusUI(); // Revert to previous state on failure
                 showToast(result.message, 'fail');
             }
         } catch (error) {
             console.error('Error toggling bot status:', error);
+            updateBotStatusUI(); // Revert to previous state on failure
             showToast('Failed to toggle bot status.', 'fail');
         }
     }
