@@ -465,6 +465,34 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Bottom Navigation Handler
+    function initBottomNavigation() {
+        const navItems = document.querySelectorAll('.nav-item');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+        if (navItems.length > 0) {
+            navItems[0].classList.add('active');
+        }
+        navItems.forEach(navItem => {
+            navItem.addEventListener('click', () => {
+                const tabName = navItem.getAttribute('data-tab');
+                navItems.forEach(item => item.classList.remove('active'));
+                navItem.classList.add('active');
+                tabPanes.forEach(pane => {
+                    pane.classList.remove('show', 'active');
+                });
+                const targetPane = document.getElementById(`${tabName}-pane`);
+                if (targetPane) {
+                    targetPane.classList.add('show', 'active');
+                }
+                if (tabName === 'rules' && allRules.length === 0) {
+                    fetchRules();
+                } else if (tabName === 'variables' && allVariables.length === 0) {
+                    fetchVariables();
+                }
+            });
+        });
+    }
+
     // Initialize
     async function init() {
         try {
@@ -898,6 +926,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // NEW Override Modal Functions
+    const overrideModalBootstrap = new bootstrap.Modal(document.getElementById("overrideModal"));
     function openOverrideModal(type) {
         currentOverrideType = type;
         const modalTitle = document.getElementById('overrideModalTitle');
@@ -912,7 +941,7 @@ document.addEventListener("DOMContentLoaded", () => {
             modalDescription.textContent = 'List users to apply all "ALL Users" rules to, overriding any other global settings.';
             usersListTextarea.value = specificOverrideUsers.join(', ');
         }
-        overrideModal.show();
+        overrideModalBootstrap.show();
     }
 
     async function saveOverrideSettings() {
@@ -936,7 +965,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     specificOverrideUsers = users.split(',').map(u => u.trim()).filter(Boolean);
                 }
-                overrideModal.hide();
+                overrideModalBootstrap.hide();
             } else {
                 showToast(result.message, 'fail');
             }
@@ -950,9 +979,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function openPreventRepeatingModal() {
         document.getElementById('preventRepeatingToggle').checked = currentSettings.preventRepeatingRule.enabled;
         document.getElementById('cooldownTime').value = currentSettings.preventRepeatingRule.cooldown;
-        
         toggleCooldownField();
-        
         preventRepeatingModalBootstrap.show();
     }
 
@@ -967,7 +994,6 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveRepeatingRuleSettings() {
         const enabled = document.getElementById('preventRepeatingToggle').checked;
         const cooldown = parseInt(document.getElementById('cooldownTime').value, 10);
-        
         if (enabled && (isNaN(cooldown) || cooldown < 1)) {
             showToast('Please enter a valid cooldown period (minimum 1 second).', 'warning');
             return;
@@ -1036,23 +1062,17 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             const response = await fetch('/api/settings');
             const data = await response.json();
-            // NEW: Parse the ignoredOverrideUsers list
-            ignoredOverrideUsers = data.ignoredOverrideUsers.map(item => ({
-                name: item.name,
-                context: item.context
-            })) || [];
+            ignoredOverrideUsers = data.ignoredOverrideUsers || [];
             specificOverrideUsers = data.specificOverrideUsers || [];
             currentSettings.preventRepeatingRule = data.preventRepeatingRule || { enabled: false, cooldown: 2 };
             currentSettings.temporaryHide = data.temporaryHide || { enabled: false, matchType: 'EXACT', triggerText: 'nobi papa hide me' };
             currentSettings.isBotOnline = data.isBotOnline ?? true;
-            console.log('⚙️ All settings fetched successfully.');
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             showToast('Failed to load settings', 'fail');
         }
     }
-
-    // NEW: Function to update the bot status UI
+    
     function updateBotStatusUI() {
         const iconElement = botStatusBtn.querySelector('i');
         botStatusBtn.classList.remove('bot-on', 'bot-off', 'bot-loading');
@@ -1068,7 +1088,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
     
-    // NEW: Function to toggle bot status
     async function toggleBotStatus() {
         const newStatus = !currentSettings.isBotOnline;
         try {
@@ -1098,7 +1117,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Event Listeners
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', openAddRuleModal);
     }
