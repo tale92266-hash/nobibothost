@@ -309,7 +309,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function addChatNavigation() {
-        // Add chat tab to bottom navigation if it doesn't exist
+        // Add chat tab to bottom navigation if it's there
         const navContainer = document.querySelector('.bottom-navigation');
         if (!navContainer) return;
 
@@ -333,21 +333,17 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // FIXED: Rule Number Validation - NO DOM MANIPULATION
     function validateRuleNumber(num, isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
-
-        if (num > maxAllowed) {
+        const isNumInvalid = num > maxAllowed || num < 1 || isNaN(num);
+        
+        if (isNumInvalid) {
             ruleNumberError.style.display = 'block';
-            if (isEditing) {
+            if (num > maxAllowed) {
                 ruleNumberError.innerText = `In edit mode, rule number cannot be greater than ${totalRules}`;
-            } else {
-                ruleNumberError.innerText = `In add mode, rule number cannot be greater than ${totalRules + 1}`;
+            } else if (num < 1) {
+                ruleNumberError.innerText = `Rule number must be at least 1`;
             }
-            return false;
-        } else if (num < 1) {
-            ruleNumberError.style.display = 'block';
-            ruleNumberError.innerText = `Rule number must be at least 1`;
             return false;
         }
 
@@ -355,67 +351,39 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
-    // FIXED: Safe Input Setup WITHOUT DOM Recreation
     function setupRuleNumberValidation(isEditing = false) {
         const maxAllowed = isEditing ? totalRules : totalRules + 1;
-
-        // Set HTML attributes safely
         ruleNumberInput.setAttribute('max', maxAllowed);
         ruleNumberInput.setAttribute('min', 1);
 
-        console.log(`🔢 Rule number validation setup: min=1, max=${maxAllowed} (${isEditing ? 'Edit' : 'Add'} mode)`);
-
-        // Remove existing event listeners by storing references
         const newHandler = function(e) {
             let value = parseInt(e.target.value);
             if (isNaN(value)) {
                 return;
             }
-
-            // Auto-correct out-of-bounds values
             if (value < 1) {
                 e.target.value = 1;
-                value = 1;
             } else if (value > maxAllowed) {
                 e.target.value = maxAllowed;
-                value = maxAllowed;
-                if (isEditing) {
-                    showToast(`Maximum rule number in edit mode is ${totalRules}`, 'warning');
-                } else {
-                    showToast(`Maximum rule number in add mode is ${totalRules + 1}`, 'warning');
-                }
+                showToast(`Maximum rule number in ${isEditing ? 'edit' : 'add'} mode is ${maxAllowed}`, 'warning');
             }
-
-            // Validate the corrected value
-            validateRuleNumber(value, isEditing);
+            validateRuleNumber(e.target.value, isEditing);
         };
 
-        // Remove previous listeners and add new one
         if (ruleNumberInput._currentHandler) {
             ruleNumberInput.removeEventListener('input', ruleNumberInput._currentHandler);
         }
         ruleNumberInput.addEventListener('input', newHandler);
-        ruleNumberInput._currentHandler = newHandler; // Store for future removal
+        ruleNumberInput._currentHandler = newHandler;
 
-        // Prevent invalid input on keydown
         const keydownHandler = function(e) {
-            // Allow backspace, delete, tab, escape, enter
-            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 ||
-                // Allow Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
-                (e.keyCode === 65 && e.ctrlKey === true) ||
-                (e.keyCode === 67 && e.ctrlKey === true) ||
-                (e.keyCode === 86 && e.ctrlKey === true) ||
-                (e.keyCode === 88 && e.ctrlKey === true) ||
-                // Allow home, end, left, right
-                (e.keyCode >= 35 && e.keyCode <= 39)) {
+            if ([8, 9, 27, 13, 46].indexOf(e.keyCode) !== -1 || (e.keyCode === 65 && e.ctrlKey === true) || (e.keyCode >= 35 && e.keyCode <= 39)) {
                 return;
             }
-            // Ensure that it is a number and stop the keypress
             if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
                 e.preventDefault();
             }
         };
-
         if (ruleNumberInput._currentKeydownHandler) {
             ruleNumberInput.removeEventListener('keydown', ruleNumberInput._currentKeydownHandler);
         }
@@ -426,73 +394,34 @@ document.addEventListener("DOMContentLoaded", () => {
     // Rule Reordering Function
     function reorderRulesArray(rules, oldRuleNumber, newRuleNumber) {
         if (oldRuleNumber === newRuleNumber) return rules;
-
-        console.log(`🔄 Reordering: Rule ${oldRuleNumber} → Rule ${newRuleNumber}`);
-
-        // Find actual array indices (not rule numbers)
         const fromIndex = rules.findIndex(r => r.RULE_NUMBER === oldRuleNumber);
-        const toIndex = newRuleNumber - 1; // Convert to 0-based index
-
-        if (fromIndex === -1) {
-            console.error('❌ Rule not found:', oldRuleNumber);
+        const toIndex = newRuleNumber - 1;
+        if (fromIndex === -1 || toIndex < 0 || toIndex >= rules.length) {
+            console.error('❌ Invalid rule or target position');
             return rules;
         }
-
-        if (toIndex < 0 || toIndex >= rules.length) {
-            console.error('❌ Invalid target position:', newRuleNumber);
-            return rules;
-        }
-
-        console.log(`📍 Moving from array index ${fromIndex} to index ${toIndex}`);
-
-        // Create copy and perform the move
         const newRules = [...rules];
-
-        // Remove element from original position
         const [movingRule] = newRules.splice(fromIndex, 1);
-        console.log(`📤 Removed rule: ${movingRule.RULE_NAME || 'Unnamed'} (was #${movingRule.RULE_NUMBER})`);
-
-        // Insert element at new position
         newRules.splice(toIndex, 0, movingRule);
-        console.log(`📥 Inserted at position ${toIndex}`);
-
-        // Reassign rule numbers sequentially (this is critical!)
-        const finalRules = newRules.map((rule, index) => ({
-            ...rule,
-            RULE_NUMBER: index + 1
-        }));
-
-        console.log('✅ New rule order:', finalRules.map(r => `#${r.RULE_NUMBER}: ${r.RULE_NAME || 'Unnamed'}`));
-
+        const finalRules = newRules.map((rule, index) => ({ ...rule, RULE_NUMBER: index + 1 }));
         return finalRules;
     }
-
+    
     // Bulk Update Rules API Call
     async function bulkUpdateRules(reorderedRules) {
         try {
-            console.log('📡 Sending bulk update for', reorderedRules.length, 'rules');
-            console.log('📊 Sample rule ', {
-                _id: reorderedRules[0]._id,
-                RULE_NUMBER: reorderedRules[0].RULE_NUMBER,
-                RULE_NAME: reorderedRules[0].RULE_NAME
-            });
-
             const response = await fetch('/api/rules/bulk-update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ rules: reorderedRules })
             });
-
             const result = await response.json();
-
             if (result.success) {
                 showToast(`${result.updatedCount} rules reordered successfully`, 'success');
                 await fetchRules();
-                // We'll also need to update the rules in the memory here if we're not reloading
             } else {
                 showToast(result.message || 'Failed to update rules order', 'fail');
             }
-
         } catch (error) {
             console.error('❌ Network error during bulk update:', error);
             showToast('Network error during bulk update: ' + error.message, 'fail');
@@ -502,7 +431,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Modal Button Management
     function configureModalButtons(modalType, mode) {
         let deleteBtn, buttonContainer;
-
         if (modalType === 'rule') {
             deleteBtn = document.getElementById('deleteRuleBtn');
             buttonContainer = document.querySelector('#ruleModal .modal-footer');
@@ -510,28 +438,18 @@ document.addEventListener("DOMContentLoaded", () => {
             deleteBtn = document.getElementById('deleteVariableBtn');
             buttonContainer = document.querySelector('.form-actions');
         }
-
         if (!deleteBtn || !buttonContainer) {
-            console.error('Modal elements not found:', modalType);
             return;
         }
-
-        console.log(`🔧 Configuring ${modalType} modal for ${mode} mode`);
-
-        // Handle delete button visibility
         if (mode === 'add') {
             deleteBtn.style.display = 'none';
             deleteBtn.style.visibility = 'hidden';
             deleteBtn.classList.add('d-none');
-            console.log('🚫 Delete button hidden for add mode');
         } else if (mode === 'edit') {
             deleteBtn.style.display = 'inline-flex';
             deleteBtn.style.visibility = 'visible';
             deleteBtn.classList.remove('d-none');
-            console.log('👁️ Delete button shown for edit mode');
         }
-
-        // Apply consistent styling to all buttons
         const allButtons = buttonContainer.querySelectorAll('.btn');
         allButtons.forEach(btn => {
             btn.style.display = btn === deleteBtn && mode === 'add' ? 'none' : 'inline-flex';
@@ -542,52 +460,8 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
-            // FIX: Syntax error
             btn.style.verticalAlign = 'middle';
             btn.style.marginLeft = '0';
-        });
-
-        console.log(`✅ ${modalType} modal configured successfully for ${mode} mode`);
-    }
-
-    // Bottom Navigation Handler
-    function initBottomNavigation() {
-        const navItems = document.querySelectorAll('.nav-item');
-        const tabPanes = document.querySelectorAll('.tab-pane');
-
-        // Set first tab as active
-        if (navItems.length > 0) {
-            navItems[0].classList.add('active');
-        }
-
-        navItems.forEach(navItem => {
-            navItem.addEventListener('click', () => {
-                const tabName = navItem.getAttribute('data-tab');
-
-                // Remove active class from all nav items
-                navItems.forEach(item => item.classList.remove('active'));
-
-                // Add active class to clicked nav item
-                navItem.classList.add('active');
-
-                // Hide all tab panes
-                tabPanes.forEach(pane => {
-                    pane.classList.remove('show', 'active');
-                });
-
-                // Show selected tab pane
-                const targetPane = document.getElementById(`${tabName}-pane`);
-                if (targetPane) {
-                    targetPane.classList.add('show', 'active');
-                }
-
-                // Load data based on tab
-                if (tabName === 'rules' && allRules.length === 0) {
-                    fetchRules();
-                } else if (tabName === 'variables' && allVariables.length === 0) {
-                    fetchVariables();
-                }
-            });
         });
     }
 
@@ -598,38 +472,27 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchStats();
             await fetchRules();
             await fetchVariables();
-            // Show loading state for bot status before fetching
-            botStatusBtn.classList.add('bot-loading');
-            botStatusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Bot Status Loading...';
             await fetchSettings();
             updateBotStatusUI();
         } catch (error) {
-            console.error('Initialization error:', error);
             showToast('Failed to initialize application', 'fail');
         }
     }
 
     // Stats Functions
     function updateStatsDisplay(data) {
-        // Update main stats cards
         const totalUsers = document.getElementById('totalUsers');
         const todayUsers = document.getElementById('todayUsers');
         const totalMsgs = document.getElementById('totalMsgs');
         const todayMsgs = document.getElementById('todayMsgs');
-
         if (totalUsers) totalUsers.textContent = data.totalUsers || 0;
         if (todayUsers) todayUsers.textContent = data.todayUsers || 0;
         if (totalMsgs) totalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
         if (todayMsgs) todayMsgs.textContent = (data.todayMsgs || 0).toLocaleString();
-
-        // Update header mini stats
         const headerTotalUsers = document.getElementById('headerTotalUsers');
         const headerTotalMsgs = document.getElementById('headerTotalMsgs');
-
         if (headerTotalUsers) headerTotalUsers.textContent = data.totalUsers || 0;
         if (headerTotalMsgs) headerTotalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
-
-        // Update last update time
         const lastUpdate = document.getElementById('lastUpdate');
         if (lastUpdate) {
             const now = new Date();
@@ -651,16 +514,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function showToast(message, type = 'success') {
         const toastElement = document.getElementById('liveToast');
         const toastBody = toastElement.querySelector('.toast-body');
-
         toastBody.textContent = message;
         toastElement.classList.remove('success', 'fail', 'warning');
         toastElement.classList.add(type);
-
-        const toastInstance = new bootstrap.Toast(toastElement, {
-            autohide: true,
-            delay: 4000
-        });
-
+        const toastInstance = new bootstrap.Toast(toastElement, { autohide: true, delay: 4000 });
         toastInstance.show();
     }
 
@@ -675,7 +532,6 @@ document.addEventListener("DOMContentLoaded", () => {
             repliesTypeField.style.display = 'block';
             replyTextField.style.display = 'block';
         }
-
         if (!document.getElementById('repliesType').value) {
             document.getElementById('repliesType').value = 'RANDOM';
         }
@@ -684,7 +540,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function toggleTargetUsersField() {
         const isTargetOrIgnored = targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED';
         targetUsersField.style.display = isTargetOrIgnored ? 'block' : 'none';
-
         if (!isTargetOrIgnored) {
             document.getElementById('targetUsers').value = "ALL";
         }
@@ -692,20 +547,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function fetchRules() {
         if (!loadingMessage) return;
-
         loadingMessage.style.display = 'block';
         rulesList.innerHTML = '';
-
         try {
             const response = await fetch('/api/rules');
             const data = await response.json();
             allRules = data;
             totalRules = data.length;
-
-            console.log(`📋 Loaded ${totalRules} rules from server`);
-
             loadingMessage.style.display = 'none';
-
             if (data.length === 0) {
                 rulesList.innerHTML = `
                     <div class="empty-state">
@@ -716,9 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 `;
                 return;
             }
-
             renderRules(data);
-
         } catch (error) {
             console.error('Failed to fetch rules:', error);
             loadingMessage.style.display = 'none';
@@ -734,7 +581,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderRules(rules, searchTerm = '') {
         rulesList.innerHTML = '';
-
         if (rules.length === 0) {
             if (searchTerm) {
                 rulesList.innerHTML = `
@@ -755,7 +601,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             return;
         }
-
         rules.forEach(rule => {
             const ruleElement = createRuleElement(rule);
             rulesList.appendChild(ruleElement);
@@ -766,15 +611,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const div = document.createElement('div');
         div.className = 'rule-item';
         div.onclick = () => openEditRuleModal(rule);
-
         const typeClass = rule.RULE_TYPE.toLowerCase();
         const targetUsers = Array.isArray(rule.TARGET_USERS) ? rule.TARGET_USERS.join(', ') : rule.TARGET_USERS;
         const isTargetSpecific = targetUsers !== 'ALL';
-
-        const truncatedReply = rule.REPLY_TEXT.length > 150 ?
-            rule.REPLY_TEXT.substring(0, 150) + '...' :
-            rule.REPLY_TEXT;
-
+        const truncatedReply = rule.REPLY_TEXT.length > 150 ? rule.REPLY_TEXT.substring(0, 150) + '...' : rule.REPLY_TEXT;
         div.innerHTML = `
             <div class="rule-header-new">
                 <div class="rule-title">
@@ -803,62 +643,43 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             </div>
         `;
-
         return div;
     }
 
-    // Search functionality
     function setupSearch() {
         const rulesSearchInput = document.getElementById('searchRules');
         const variablesSearchInput = document.getElementById('searchVariables');
-    
         if (rulesSearchInput) {
             rulesSearchInput.addEventListener('input', (e) => {
                 const searchTerm = e.target.value.toLowerCase().trim();
                 const filteredRules = allRules.filter(rule => {
-                    return (
-                        (rule.RULE_NAME || '').toLowerCase().includes(searchTerm) ||
-                        rule.RULE_TYPE.toLowerCase().includes(searchTerm) ||
-                        (rule.KEYWORDS || '').toLowerCase().includes(searchTerm) ||
-                        (rule.REPLY_TEXT || '').toLowerCase().includes(searchTerm) ||
-                        (rule.REPLIES_TYPE || '').toLowerCase().includes(searchTerm)
-                    );
+                    return ((rule.RULE_NAME || '').toLowerCase().includes(searchTerm) || rule.RULE_TYPE.toLowerCase().includes(searchTerm) || (rule.KEYWORDS || '').toLowerCase().includes(searchTerm) || (rule.REPLY_TEXT || '').toLowerCase().includes(searchTerm) || (rule.REPLIES_TYPE || '').toLowerCase().includes(searchTerm));
                 });
                 renderRules(filteredRules, searchTerm);
             });
         }
-    
         if (variablesSearchInput) {
             variablesSearchInput.addEventListener('input', (e) => {
                 const searchTerm = e.target.value.toLowerCase().trim();
                 const filteredVariables = allVariables.filter(variable => {
-                    return (
-                        (variable.name || '').toLowerCase().includes(searchTerm) ||
-                        (variable.value || '').toLowerCase().includes(searchTerm)
-                    );
+                    return ((variable.name || '').toLowerCase().includes(searchTerm) || (variable.value || '').toLowerCase().includes(searchTerm));
                 });
                 renderVariables(filteredVariables, searchTerm);
             });
         }
     }
     
-
-    // Rule Modal Functions
     function openAddRuleModal() {
         currentRuleNumber = null;
         setupRuleNumberValidation(false);
-        
         formTitle.textContent = 'Add New Rule';
-        
         ruleForm.reset();
         document.getElementById('ruleNumber').value = totalRules + 1;
         document.getElementById('ruleType').value = 'EXACT';
         document.getElementById('repliesType').value = 'RANDOM';
         document.getElementById('targetUsersToggle').value = 'ALL';
-        
         toggleFormFields('EXACT');
         toggleTargetUsersField();
-        
         configureModalButtons('rule', 'add');
         ruleModal.show();
     }
@@ -866,16 +687,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function openEditRuleModal(rule) {
         currentRuleNumber = rule.RULE_NUMBER;
         setupRuleNumberValidation(true);
-        
         formTitle.textContent = 'Edit Rule';
-        
         document.getElementById('ruleNumber').value = rule.RULE_NUMBER;
         document.getElementById('ruleName').value = rule.RULE_NAME || '';
         document.getElementById('ruleType').value = rule.RULE_TYPE;
         document.getElementById('keywords').value = rule.KEYWORDS;
         document.getElementById('repliesType').value = rule.REPLIES_TYPE;
         document.getElementById('replyText').value = rule.REPLY_TEXT;
-        
         if (Array.isArray(rule.TARGET_USERS)) {
             document.getElementById('targetUsersToggle').value = 'TARGET';
             document.getElementById('targetUsers').value = rule.TARGET_USERS.join(', ');
@@ -883,10 +701,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('targetUsersToggle').value = 'ALL';
             document.getElementById('targetUsers').value = '';
         }
-        
         toggleFormFields(rule.RULE_TYPE);
         toggleTargetUsersField();
-        
         configureModalButtons('rule', 'edit');
         ruleModal.show();
     }
@@ -894,11 +710,9 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveRule() {
         const formData = new FormData(ruleForm);
         const ruleNumber = parseInt(formData.get('ruleNumber'));
-        
         if (!validateRuleNumber(ruleNumber, currentRuleNumber !== null)) {
             return;
         }
-
         const ruleData = {
             ruleNumber: ruleNumber,
             ruleName: formData.get('ruleName'),
@@ -906,25 +720,20 @@ document.addEventListener("DOMContentLoaded", () => {
             keywords: formData.get('keywords'),
             repliesType: formData.get('repliesType'),
             replyText: formData.get('replyText'),
-            targetUsers: formData.get('targetUsersToggle') === 'ALL' ? 'ALL' : 
-                        formData.get('targetUsers').split(',').map(u => u.trim()).filter(u => u)
+            targetUsers: formData.get('targetUsersToggle') === 'ALL' ? 'ALL' : formData.get('targetUsers').split(',').map(u => u.trim()).filter(u => u)
         };
-
         const payload = {
             type: currentRuleNumber ? 'edit' : 'add',
             rule: ruleData,
             oldRuleNumber: currentRuleNumber
         };
-
         try {
             const response = await fetch('/api/rules/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             const result = await response.json();
-
             if (result.success) {
                 showToast(result.message, 'success');
                 ruleModal.hide();
@@ -940,9 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function deleteRule() {
         if (!currentRuleNumber) return;
-
         if (!confirm('Are you sure you want to delete this rule?')) return;
-
         try {
             const response = await fetch('/api/rules/update', {
                 method: 'POST',
@@ -952,9 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     rule: { ruleNumber: currentRuleNumber }
                 })
             });
-
             const result = await response.json();
-
             if (result.success) {
                 showToast('Rule deleted successfully', 'success');
                 ruleModal.hide();
@@ -982,13 +787,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderVariables(variables, searchTerm = '') {
         if (!variablesList) return;
-
         variablesList.innerHTML = '';
-        const filteredVariables = searchTerm ? variables.filter(variable => 
-            (variable.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-            (variable.value || '').toLowerCase().includes(searchTerm.toLowerCase())
-        ) : variables;
-    
+        const filteredVariables = searchTerm ? variables.filter(variable => ((variable.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (variable.value || '').toLowerCase().includes(searchTerm.toLowerCase()))) : variables;
         if (filteredVariables.length === 0) {
             variablesList.innerHTML = `
                 <div class="empty-state">
@@ -999,7 +799,6 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
             return;
         }
-
         filteredVariables.forEach(variable => {
             const variableElement = createVariableElement(variable);
             variablesList.appendChild(variableElement);
@@ -1010,18 +809,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const div = document.createElement('div');
         div.className = 'variable-item';
         div.onclick = () => openEditVariableModal(variable);
-        
-        const truncatedValue = variable.value.length > 150 ?
-            variable.value.substring(0, 150) + '...' :
-            variable.value;
-
+        const truncatedValue = variable.value.length > 150 ? variable.value.substring(0, 150) + '...' : variable.value;
         div.innerHTML = `
             <div class="variable-header">
                 <span class="variable-name">%${variable.name}%</span>
             </div>
             <div class="variable-value">${truncatedValue}</div>
         `;
-
         return div;
     }
     
@@ -1036,10 +830,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Updated openEditVariableModal to use Bootstrap modal
     function openEditVariableModal(variable) {
         currentVariableName = variable.name;
-        
         document.getElementById('variableName').value = variable.name;
         document.getElementById('variableValue').value = variable.value;
-
         configureModalButtons('variable', 'edit');
         variableModal.show();
     }
@@ -1055,32 +847,19 @@ document.addEventListener("DOMContentLoaded", () => {
     async function saveVariable() {
         const variableName = document.getElementById('variableName').value.trim();
         const variableValue = document.getElementById('variableValue').value.trim();
-
         if (!variableName || !variableValue) {
             showToast("Variable name and value cannot be empty.", "warning");
             return;
         }
-
-        const variableData = {
-            name: variableName,
-            value: variableValue
-        };
-
-        const payload = {
-            type: currentVariableName ? 'edit' : 'add',
-            variable: variableData,
-            oldName: currentVariableName
-        };
-
+        const variableData = { name: variableName, value: variableValue };
+        const payload = { type: currentVariableName ? 'edit' : 'add', variable: variableData, oldName: currentVariableName };
         try {
             const response = await fetch('/api/variables/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             const result = await response.json();
-
             if (result.success) {
                 showToast(result.message, 'success');
                 variableModal.hide();
@@ -1097,21 +876,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // Updated deleteVariable function to close the modal
     async function deleteVariable() {
         if (!currentVariableName) return;
-
         if (!confirm('Are you sure you want to delete this variable?')) return;
-
         try {
             const response = await fetch('/api/variables/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'delete',
-                    variable: { name: currentVariableName }
-                })
+                body: JSON.stringify({ type: 'delete', variable: { name: currentVariableName } })
             });
-
             const result = await response.json();
-
             if (result.success) {
                 showToast('Variable deleted successfully', 'success');
                 variableModal.hide();
@@ -1131,17 +903,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const modalTitle = document.getElementById('overrideModalTitle');
         const modalDescription = document.getElementById('overrideModalDescription');
         const usersListTextarea = document.getElementById('overrideUsersList');
-
         if (type === 'ignored') {
             modalTitle.textContent = 'Ignored Contact Override';
             modalDescription.textContent = 'List users to be ignored for all "ALL Users" rules. Rules with specific targets will not be affected.';
-            usersListTextarea.value = ignoredOverrideUsers.join(', ');
+            usersListTextarea.value = ignoredOverrideUsers.map(u => `${u.name}:${u.context}`).join(', ');
         } else if (type === 'specific') {
             modalTitle.textContent = 'Specific Contact Override';
             modalDescription.textContent = 'List users to apply all "ALL Users" rules to, overriding any other global settings.';
             usersListTextarea.value = specificOverrideUsers.join(', ');
         }
-
         overrideModal.show();
     }
 
@@ -1149,19 +919,20 @@ document.addEventListener("DOMContentLoaded", () => {
         const usersListTextarea = document.getElementById('overrideUsersList');
         const users = usersListTextarea.value;
         const endpoint = `/api/settings/${currentOverrideType}-override`;
-
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ users })
             });
-
             const result = await response.json();
             if (result.success) {
                 showToast(result.message, 'success');
                 if (currentOverrideType === 'ignored') {
-                    ignoredOverrideUsers = users.split(',').map(u => u.trim()).filter(Boolean);
+                    ignoredOverrideUsers = users.split(',').map(userString => {
+                        const [name, context] = userString.split(':').map(s => s.trim());
+                        return { name, context: context || 'DM' };
+                    }).filter(item => item.name);
                 } else {
                     specificOverrideUsers = users.split(',').map(u => u.trim()).filter(Boolean);
                 }
@@ -1175,13 +946,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     // NEW Repeating Rule Modal Functions
+    const preventRepeatingModalBootstrap = new bootstrap.Modal(document.getElementById("preventRepeatingModal"));
     function openPreventRepeatingModal() {
         document.getElementById('preventRepeatingToggle').checked = currentSettings.preventRepeatingRule.enabled;
         document.getElementById('cooldownTime').value = currentSettings.preventRepeatingRule.cooldown;
         
         toggleCooldownField();
         
-        preventRepeatingModal.show();
+        preventRepeatingModalBootstrap.show();
     }
 
     function toggleCooldownField() {
@@ -1200,22 +972,19 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Please enter a valid cooldown period (minimum 1 second).', 'warning');
             return;
         }
-
         const payload = { enabled, cooldown };
-        
         try {
             const response = await fetch('/api/settings/prevent-repeating-rule', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             const result = await response.json();
             if (result.success) {
                 showToast(result.message, 'success');
                 currentSettings.preventRepeatingRule.enabled = enabled;
                 currentSettings.preventRepeatingRule.cooldown = cooldown;
-                preventRepeatingModal.hide();
+                preventRepeatingModalBootstrap.hide();
             } else {
                 showToast(result.message, 'fail');
             }
@@ -1226,7 +995,6 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // NEW Temporary Hide Modal Functions
     const tempHideModalBootstrap = new bootstrap.Modal(document.getElementById("tempHideModal"));
-
     function openTempHideModal() {
         const tempHideSettings = currentSettings.temporaryHide || {};
         document.getElementById('tempHideToggle').checked = tempHideSettings.enabled;
@@ -1239,21 +1007,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const enabled = document.getElementById('tempHideToggle').checked;
         const matchType = document.getElementById('tempHideMatchType').value;
         const triggerText = document.getElementById('tempHideTriggerText').value;
-
         if (enabled && !triggerText.trim()) {
             showToast('Trigger text cannot be empty when the feature is enabled.', 'warning');
             return;
         }
-
         const payload = { enabled, matchType, triggerText };
-
         try {
             const response = await fetch('/api/settings/temporary-hide', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             const result = await response.json();
             if (result.success) {
                 showToast(result.message, 'success');
@@ -1267,21 +1031,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-
     // NEW: Function to fetch all settings
     async function fetchSettings() {
         try {
             const response = await fetch('/api/settings');
             const data = await response.json();
-            
-            ignoredOverrideUsers = data.ignoredOverrideUsers || [];
+            // NEW: Parse the ignoredOverrideUsers list
+            ignoredOverrideUsers = data.ignoredOverrideUsers.map(item => ({
+                name: item.name,
+                context: item.context
+            })) || [];
             specificOverrideUsers = data.specificOverrideUsers || [];
             currentSettings.preventRepeatingRule = data.preventRepeatingRule || { enabled: false, cooldown: 2 };
             currentSettings.temporaryHide = data.temporaryHide || { enabled: false, matchType: 'EXACT', triggerText: 'nobi papa hide me' };
-            currentSettings.isBotOnline = data.isBotOnline ?? true; // Use nullish coalescing for default
-            
+            currentSettings.isBotOnline = data.isBotOnline ?? true;
             console.log('⚙️ All settings fetched successfully.');
-            
         } catch (error) {
             console.error('Failed to fetch settings:', error);
             showToast('Failed to load settings', 'fail');
@@ -1291,11 +1055,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEW: Function to update the bot status UI
     function updateBotStatusUI() {
         const iconElement = botStatusBtn.querySelector('i');
-        
-        // Remove existing state classes and animations
         botStatusBtn.classList.remove('bot-on', 'bot-off', 'bot-loading');
         iconElement.classList.remove('fa-spin', 'fa-power-off', 'fa-spinner');
-    
         if (currentSettings.isBotOnline) {
             botStatusBtn.classList.add('bot-on');
             botStatusText.textContent = 'Nobi Bot Running';
@@ -1310,33 +1071,29 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEW: Function to toggle bot status
     async function toggleBotStatus() {
         const newStatus = !currentSettings.isBotOnline;
-        
         try {
-            // Show loading state while toggling
             botStatusBtn.classList.remove('bot-on', 'bot-off');
             botStatusBtn.classList.add('bot-loading');
             botStatusBtn.querySelector('i').classList.add('fa-spinner', 'fa-spin');
             botStatusBtn.querySelector('i').classList.remove('fa-power-off');
             botStatusText.textContent = 'Toggling...';
-
             const response = await fetch('/api/bot/status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ isOnline: newStatus })
             });
             const result = await response.json();
-
             if (result.success) {
                 currentSettings.isBotOnline = newStatus;
                 updateBotStatusUI();
                 showToast(result.message, 'success');
             } else {
-                updateBotStatusUI(); // Revert to previous state on failure
+                updateBotStatusUI();
                 showToast(result.message, 'fail');
             }
         } catch (error) {
             console.error('Error toggling bot status:', error);
-            updateBotStatusUI(); // Revert to previous state on failure
+            updateBotStatusUI();
             showToast('Failed to toggle bot status.', 'fail');
         }
     }
@@ -1345,42 +1102,32 @@ document.addEventListener("DOMContentLoaded", () => {
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', openAddRuleModal);
     }
-
     if (saveRuleBtn) {
         saveRuleBtn.addEventListener('click', saveRule);
     }
-
     if (deleteRuleBtn) {
         deleteRuleBtn.addEventListener('click', deleteRule);
     }
-
     if (ruleTypeSelect) {
         ruleTypeSelect.addEventListener('change', (e) => {
             toggleFormFields(e.target.value);
         });
     }
-
     if (targetUsersToggle) {
         targetUsersToggle.addEventListener('change', toggleTargetUsersField);
     }
-
     if (addVariableBtn) {
         addVariableBtn.addEventListener('click', openAddVariableModal);
     }
-
     if (saveVariableBtn) {
         saveVariableBtn.addEventListener('click', saveVariable);
     }
-
     if (deleteVariableBtn) {
         deleteVariableBtn.addEventListener('click', deleteVariable);
     }
-    
     if (cancelVariableBtn) {
         cancelVariableBtn.addEventListener('click', cancelVariableEdit);
     }
-
-    // NEW Event Listeners for overrides
     if (ignoredOverrideBtn) {
         ignoredOverrideBtn.addEventListener('click', () => openOverrideModal('ignored'));
     }
@@ -1390,8 +1137,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveOverrideBtn) {
         saveOverrideBtn.addEventListener('click', saveOverrideSettings);
     }
-    
-    // NEW Event Listeners for repeating rule
     if (preventRepeatingBtn) {
         preventRepeatingBtn.addEventListener('click', openPreventRepeatingModal);
     }
@@ -1401,29 +1146,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveRepeatingBtn) {
         saveRepeatingBtn.addEventListener('click', saveRepeatingRuleSettings);
     }
-
-    // NEW Event listeners for temporary hide
     if (tempHideBtn) {
         tempHideBtn.addEventListener('click', openTempHideModal);
     }
     if (saveTempHideBtn) {
         saveTempHideBtn.addEventListener('click', saveTempHideSettings);
     }
-
-    // NEW Event Listener for bot status button
     if (botStatusBtn) {
         botStatusBtn.addEventListener('click', toggleBotStatus);
     }
-    
-    // Initialize the app
     setupSearch();
     init();
-
-    // Socket event listeners
     socket.on('rulesUpdated', () => {
         fetchRules();
     });
-
     socket.on('variablesUpdated', () => {
         fetchVariables();
     });
