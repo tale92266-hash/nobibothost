@@ -84,6 +84,9 @@ let stats;
 let welcomedUsers;
 let RULES = [];
 let VARIABLES = [];
+// NEW: In-memory history for previous message/reply variables
+let messageHistory = [];
+const MAX_HISTORY = 50;
 
 // NEW: Override lists
 const ignoredOverrideUsersFile = path.join(__dirname, "data", "ignored_override_users.json");
@@ -359,7 +362,7 @@ function convertNewlinesBeforeSave(text) {
 }
 
 // UPDATED: resolveVariablesRecursively function with new random variables and capturing groups
-function resolveVariablesRecursively(text, senderName, regexMatch = null, maxIterations = 10) {
+function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, regexMatch = null, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
@@ -372,7 +375,105 @@ function resolveVariablesRecursively(text, senderName, regexMatch = null, maxIte
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve built-in time variables
+        // Pass 1: Resolve new variables first, as they are most specific
+        result = result.replace(/%message(?:_(\d+))?%/g, (match, maxLength) => {
+            const message = receivedMessage || '';
+            if (maxLength) {
+                return message.substring(0, parseInt(maxLength, 10));
+            }
+            return message;
+        });
+
+        // Previous message variables
+        result = result.replace(/%prev_message_(\d+)(?:,(\d+))?_(\d+)(?:_(\d+))?%/g, (match, ruleId1, ruleId2, offset, maxLength) => {
+            const ruleIds = [ruleId1, ruleId2].filter(Boolean).map(id => parseInt(id, 10));
+            const historyOffset = parseInt(offset, 10);
+            
+            const filteredHistory = messageHistory.filter(item => {
+                if (!item.ruleId) return ruleIds.includes(0);
+                return ruleIds.includes(item.ruleId);
+            });
+            
+            if (historyOffset < filteredHistory.length) {
+                let message = filteredHistory[historyOffset].userMessage;
+                if (maxLength) {
+                    message = message.substring(0, parseInt(maxLength, 10));
+                }
+                return message;
+            }
+            return match;
+        });
+        
+        // Previous reply variables
+        result = result.replace(/%prev_reply_(\d+)(?:,(\d+))?_(\d+)(?:_(\d+))?%/g, (match, ruleId1, ruleId2, offset, maxLength) => {
+            const ruleIds = [ruleId1, ruleId2].filter(Boolean).map(id => parseInt(id, 10));
+            const historyOffset = parseInt(offset, 10);
+
+            const filteredHistory = messageHistory.filter(item => {
+                if (!item.ruleId) return ruleIds.includes(0);
+                return ruleIds.includes(item.ruleId);
+            });
+
+            if (historyOffset < filteredHistory.length) {
+                let reply = filteredHistory[historyOffset].botReply;
+                if (maxLength) {
+                    reply = reply.substring(0, parseInt(maxLength, 10));
+                }
+                return reply;
+            }
+            return match;
+        });
+        
+        // Processing time variable
+        result = result.replace(/%processing_time%/g, () => processingTime.toString());
+
+        // Date & Time variables (extended)
+        const now = new Date();
+        const istOptions = { timeZone: 'Asia/Kolkata' };
+
+        result = result.replace(/%day_of_month_short%/g, now.getDate());
+        result = result.replace(/%day_of_month%/g, now.toLocaleString('en-IN', { day: '2-digit', ...istOptions }));
+        result = result.replace(/%month_short%/g, now.getMonth() + 1);
+        result = result.replace(/%month%/g, now.toLocaleString('en-IN', { month: '2-digit', ...istOptions }));
+        result = result.replace(/%month_name_short%/g, now.toLocaleString('en-IN', { month: 'short', ...istOptions }));
+        result = result.replace(/%month_name%/g, now.toLocaleString('en-IN', { month: 'long', ...istOptions }));
+        result = result.replace(/%year_short%/g, now.getFullYear().toString().slice(-2));
+        result = result.replace(/%year%/g, now.getFullYear());
+        result = result.replace(/%day_of_week_short%/g, now.toLocaleString('en-IN', { weekday: 'short', ...istOptions }));
+        result = result.replace(/%day_of_week%/g, now.toLocaleString('en-IN', { weekday: 'long', ...istOptions }));
+
+        // Countdown variables
+        result = result.replace(/%countdown(?:_days)?_(\d+)%/g, (match, unixTimestamp, isDays) => {
+            const targetDate = new Date(parseInt(unixTimestamp, 10) * 1000);
+            const diffSeconds = (targetDate.getTime() - now.getTime()) / 1000;
+            
+            if (match.includes('_days')) {
+                return Math.floor(diffSeconds / (60 * 60 * 24));
+            }
+            
+            const days = Math.floor(diffSeconds / (60 * 60 * 24));
+            const hours = Math.floor((diffSeconds % (60 * 60 * 24)) / (60 * 60));
+            const minutes = Math.floor((diffSeconds % (60 * 60)) / 60);
+            const seconds = Math.floor(diffSeconds % 60);
+            
+            return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+        });
+        
+        // Day of year and Week of year (ISO 8601)
+        result = result.replace(/%day_of_year%/g, () => {
+            const startOfYear = new Date(now.getFullYear(), 0, 0);
+            const diff = now.getTime() - startOfYear.getTime();
+            const oneDay = 1000 * 60 * 60 * 24;
+            return Math.floor(diff / oneDay);
+        });
+        result = result.replace(/%week_of_year%/g, () => {
+            const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+        });
+
+        // Existing variables (no change)
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
@@ -595,6 +696,7 @@ function matchesTrigger(message, triggerText, matchType) {
 }
 
 async function processMessage(msg, sessionId = "default", sender) {
+    const startTime = process.hrtime();
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
     
     // NEW LOGIC: Highest priority check for specific override
@@ -689,6 +791,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Match Rules
     let reply = null;
     let regexMatch = null;
+    let matchedRuleId = null;
 
     for (let rule of RULES) {
         let userMatch = false;
@@ -756,7 +859,10 @@ async function processMessage(msg, sessionId = "default", sender) {
                     } catch {}
                 }
 
-                if (match) break;
+                if (match) {
+                    matchedRuleId = rule.RULE_NUMBER;
+                    break;
+                }
             }
         }
 
@@ -774,11 +880,14 @@ async function processMessage(msg, sessionId = "default", sender) {
             break;
         }
     }
+    
+    const endTime = process.hrtime(startTime);
+    const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        reply = resolveVariablesRecursively(reply, senderName, regexMatch);
+        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, regexMatch);
         
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
@@ -794,6 +903,17 @@ async function processMessage(msg, sessionId = "default", sender) {
             await saveIgnoredOverrideUsers();
             console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
         }
+    }
+    
+    // NEW: Add to message history
+    messageHistory.unshift({
+        userMessage: msg,
+        botReply: reply,
+        ruleId: matchedRuleId,
+        timestamp: new Date().toISOString()
+    });
+    if (messageHistory.length > MAX_HISTORY) {
+        messageHistory.pop();
     }
 
     return reply || null;
