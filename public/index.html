@@ -557,11 +557,12 @@
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-eye-slash"></i> Temporary Hide Trigger</h5>
+                    <h5 class="modal-title"><i class="fas fa-eye-slash"></i> Temporary Hide Settings</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
+                        <h6 class="mb-3">Hide Trigger</h6>
                         <div class="form-check form-switch d-flex align-items-center justify-content-between mb-3">
                             <label class="form-check-label" for="tempHideToggle">
                                 Enable Hide Trigger
@@ -574,11 +575,19 @@
                         <textarea class="form-control" id="tempHideTriggerText" rows="3" placeholder="e.g., nobi papa hide me"></textarea>
                         <small class="form-text text-muted">Use // to separate multiple keywords. Use * for wildcards in Pattern matching.</small>
                     </div>
+                    <div class="form-group">
+                        <label for="tempHideMatchType">Hide Match Type</label>
+                        <select class="form-select" id="tempHideMatchType">
+                            <option value="EXACT">Exact Match</option>
+                            <option value="PATTERN">Pattern Match</option>
+                            <option value="EXPERT">Expert (Regex)</option>
+                        </select>
+                    </div>
                     
                     <hr class="my-4">
                     
                     <div class="form-group">
-                        <h6 class="mb-3">Temporary Unhide Trigger</h6>
+                        <h6 class="mb-3">Unhide Trigger</h6>
                         <div class="form-check form-switch d-flex align-items-center justify-content-between mb-3">
                             <label class="form-check-label" for="tempUnhideToggle">
                                 Enable Unhide Trigger
@@ -591,10 +600,9 @@
                         <textarea class="form-control" id="tempUnhideTriggerText" rows="3" placeholder="e.g., nobi papa start"></textarea>
                         <small class="form-text text-muted">Use // to separate multiple keywords. Use * for wildcards in Pattern matching.</small>
                     </div>
-                    
                     <div class="form-group">
-                        <label for="tempHideMatchType">Match Type (for both triggers)</label>
-                        <select class="form-select" id="tempHideMatchType">
+                        <label for="tempUnhideMatchType">Unhide Match Type</label>
+                        <select class="form-select" id="tempUnhideMatchType">
                             <option value="EXACT">Exact Match</option>
                             <option value="PATTERN">Pattern Match</option>
                             <option value="EXPERT">Expert (Regex)</option>
