@@ -64,9 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const tempUnhideTriggerTextarea = document.getElementById('tempUnhideTriggerText');
     const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 
-    // Remove old DOM for User List
-    const totalUsersListContainer = null;
-
 
     // Variables
     let currentRuleNumber = null;
@@ -538,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
             lastUpdate.textContent = now.toLocaleTimeString();
         }
     }
-
+    
     async function fetchStats() {
         try {
             const response = await fetch('/stats');
