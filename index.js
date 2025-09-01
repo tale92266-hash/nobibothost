@@ -441,77 +441,57 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     // Use a Map to store placeholders and original variable names
     const placeholderMap = new Map();
     let placeholderCounter = 0;
-
-    // First, find all static and other random variables and replace them with placeholders
-    const staticAndRandomRegex = /%(\w+)%/g;
-    result = result.replace(staticAndRandomRegex, (match) => {
-        const placeholder = `__VAR_PLACEHOLDER_${placeholderCounter++}__`;
-        placeholderMap.set(placeholder, match);
-        return placeholder;
-    });
-
-    while (iterationCount < maxIterations) {
-        let hasVariables = false;
-        let previousResult = result;
+    
+    const resolveAndReplace = (str) => {
+        let tempResult = str;
+        let hasChanges = false;
         
-        // Fix: Use a more robust regex to find custom random variables
-        // This regex now correctly identifies the custom random variables
-        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%\d+%|%[\w_]+%).)*)%/g;
-        result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
+        // 1. Resolve custom random variables
+        tempResult = tempResult.replace(/%rndm_custom_(\d+)_((?:(?!%rndm_custom_|\W)\w+\s*(?:,(?!\s*%rndm_custom_|\W))?)+)%/g, (match, countStr, tokensString) => {
             const count = parseInt(countStr, 10);
-            console.log(`🎲 Processing custom random FIRST: count=${count}`);
-            console.log(`🎲 Raw tokens string: "${tokensString}"`);
-
             const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) {
-                console.warn(`⚠️ No valid tokens found in: ${fullMatch}`);
-                return '';
-            }
-
+            if (tokens.length === 0) return '';
             const selectedTokens = pickNUniqueRandomly(tokens, count);
-            let finalResult = selectedTokens.join(' ');
-
-            console.log(`✅ Custom random result: "${finalResult}"`);
-            hasVariables = true;
-            return finalResult;
+            hasChanges = true;
+            return selectedTokens.join(' ');
         });
 
-        if (result === previousResult) {
-            break;
-        }
-
-        iterationCount++;
-    }
-
-    // Finally, resolve the placeholders
-    for (const [placeholder, originalVariable] of placeholderMap.entries()) {
-        const varName = originalVariable.replace(/%/g, '');
-        let varValue = '';
-
-        // Find the actual value for the original variable name
-        const staticVar = VARIABLES.find(v => v.name === varName);
-        if (staticVar) {
-            varValue = staticVar.value;
-        } else {
-            // Check for other random variables here, since they were also replaced by placeholders
-            const otherRandomRegex = /%rndm_(\w+)_(\w+)(?:_([^%]+))?%/;
-            const match = originalVariable.match(otherRandomRegex);
-            if (match) {
-                const [fullMatch, type, param1, param2] = match;
-                if (type === 'num') {
-                    const [min, max] = param1.split('_').map(Number);
-                    varValue = Math.floor(Math.random() * (max - min + 1)) + min;
-                } else {
-                    const length = parseInt(param1);
-                    varValue = generateRandom(type, length);
-                }
+        // 2. Resolve other random variables (num, lower, etc.)
+        tempResult = tempResult.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+            let varValue = '';
+            if (type === 'num') {
+                const [min, max] = param1.split('_').map(Number);
+                varValue = Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                const length = parseInt(param1);
+                varValue = generateRandom(type, length);
             }
+            hasChanges = true;
+            return varValue;
+        });
+        
+        // 3. Resolve static variables from DB
+        tempResult = tempResult.replace(/%(\w+)%/g, (match, varName) => {
+            const staticVar = VARIABLES.find(v => v.name === varName);
+            if (staticVar) {
+                hasChanges = true;
+                return staticVar.value;
+            }
+            return match;
+        });
+
+        if (!hasChanges) {
+            return tempResult;
         }
 
-        result = result.split(placeholder).join(varValue);
-    }
-
-    console.log(`✅ Final resolved result completed`);
+        // Recursively resolve new variables that may have appeared
+        if (tempResult !== str) {
+            return resolveAndReplace(tempResult);
+        }
+        return tempResult;
+    };
+    
+    result = resolveAndReplace(result);
     return result;
 }
 
