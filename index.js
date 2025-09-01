@@ -400,12 +400,40 @@ function convertNewlinesBeforeSave(text) {
 
 // Updated smartSplitTokens logic
 function smartSplitTokens(tokensString) {
+    // This function needs to be aware of commas inside nested variables.
+    // We'll use a simple approach: split by comma, but rejoin if a token starts and ends with a variable pattern.
+    const tokens = tokensString.split(',').map(t => t.trim());
+    const result = [];
+    let currentToken = '';
+
+    for (const token of tokens) {
+        currentToken += (currentToken ? ',' : '') + token;
+        // Simple check to see if the string seems to be a complete variable
+        if (currentToken.startsWith('%') && currentToken.endsWith('%')) {
+            result.push(currentToken);
+            currentToken = '';
+        } else if (!currentToken.includes('%')) {
+            // If it doesn't contain a %, it's just plain text, push it and reset
+            result.push(currentToken);
+            currentToken = '';
+        }
+        // If it's still an open variable, continue accumulating.
+    }
+    // Push any remaining token
+    if (currentToken) {
+        result.push(currentToken);
+    }
+    
+    // A more robust but complex approach would involve tracking parentheses or brackets.
+    // For now, let's assume variables don't contain commas inside their names.
+    // The previous regex was `/(?![^%]*%)`, which tried to handle this but failed.
+    // A simpler approach might be more reliable. Let's stick to a simpler, corrected regex for now.
+    
+    // Resetting to the simple-but-correct approach for custom randoms
+    const finalTokens = tokensString.split('//').map(t => t.trim()).filter(Boolean);
     console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
-    // Split by comma followed by any whitespace, but only if not inside a variable.
-    // This is handled by a simple regex now that the nested variables are placeholders.
-    const tokens = tokensString.split(/,(?![^%]*%)/g).map(t => t.trim());
-    console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
-    return tokens.filter(t => t !== '');
+    console.log(`🎯 Total ${finalTokens.length} tokens found: [${finalTokens.join('] | [')}]`);
+    return finalTokens;
 }
 
 function pickNUniqueRandomly(tokens, count) {
@@ -433,65 +461,64 @@ function pickNUniqueRandomly(tokens, count) {
     return selectedTokens;
 }
 
-// UPDATED: resolveVariablesRecursively function
+// NEW and CORRECTED: resolveVariablesRecursively function
 function resolveVariablesRecursively(text, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
-    // Use a Map to store placeholders and original variable names
-    const placeholderMap = new Map();
-    let placeholderCounter = 0;
-    
-    const resolveAndReplace = (str) => {
-        let tempResult = str;
-        let hasChanges = false;
-        
-        // 1. Resolve custom random variables
-        tempResult = tempResult.replace(/%rndm_custom_(\d+)_((?:(?!%rndm_custom_|\W)\w+\s*(?:,(?!\s*%rndm_custom_|\W))?)+)%/g, (match, countStr, tokensString) => {
+    while (iterationCount < maxIterations) {
+        const initialResult = result;
+
+        // Step 1: Handle custom random variables first, which are the most complex.
+        // We'll use a capturing group for the content inside the custom variable,
+        // and a non-capturing group to make sure we don't accidentally capture nested variables.
+        // The pattern now looks for `%rndm_custom_1_...%`
+        result = result.replace(/%rndm_custom_(\d+)_((?:(?!%).)*)%/g, (match, countStr, tokensString) => {
             const count = parseInt(countStr, 10);
-            const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) return '';
+            const tokens = tokensString.split(',').map(t => t.trim()).filter(Boolean);
+            
+            if (tokens.length === 0) {
+                console.warn(`⚠️ No valid tokens found in custom random variable: ${match}`);
+                return '';
+            }
+            
             const selectedTokens = pickNUniqueRandomly(tokens, count);
-            hasChanges = true;
-            return selectedTokens.join(' ');
+            const finalResult = selectedTokens.join(' ');
+            return finalResult;
         });
 
-        // 2. Resolve other random variables (num, lower, etc.)
-        tempResult = tempResult.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            let varValue = '';
+        // Step 2: Handle other types of random variables
+        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
             if (type === 'num') {
                 const [min, max] = param1.split('_').map(Number);
-                varValue = Math.floor(Math.random() * (max - min + 1)) + min;
+                return Math.floor(Math.random() * (max - min + 1)) + min;
             } else {
                 const length = parseInt(param1);
-                varValue = generateRandom(type, length);
+                return generateRandom(type, length);
             }
-            hasChanges = true;
-            return varValue;
         });
         
-        // 3. Resolve static variables from DB
-        tempResult = tempResult.replace(/%(\w+)%/g, (match, varName) => {
+        // Step 3: Handle static variables
+        result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
-                hasChanges = true;
                 return staticVar.value;
             }
             return match;
         });
 
-        if (!hasChanges) {
-            return tempResult;
+        if (result === initialResult) {
+            // No more variables to resolve, exit the loop
+            break;
         }
 
-        // Recursively resolve new variables that may have appeared
-        if (tempResult !== str) {
-            return resolveAndReplace(tempResult);
-        }
-        return tempResult;
-    };
-    
-    result = resolveAndReplace(result);
+        iterationCount++;
+    }
+
+    if (iterationCount === maxIterations) {
+        console.warn('⚠️ Variable resolution reached max iterations. There might be a circular reference or a parsing error.');
+    }
+
     return result;
 }
 
