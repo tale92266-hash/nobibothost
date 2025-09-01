@@ -53,16 +53,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const botStatusText = document.getElementById('botStatusText');
     const botStatusContainer = document.querySelector('.bot-status-container');
     
-    // NEW DOM for Temporary Hide
+    // NEW DOM for Temporary Hide & Unhide
     const tempHideBtn = document.getElementById('tempHideBtn');
     const tempHideModal = new bootstrap.Modal(document.getElementById("tempHideModal"));
     const tempHideToggle = document.getElementById('tempHideToggle');
+    const tempUnhideToggle = document.getElementById('tempUnhideToggle');
     const tempHideMatchTypeSelect = document.getElementById('tempHideMatchType');
     const tempHideTriggerTextarea = document.getElementById('tempHideTriggerText');
+    const tempUnhideTriggerTextarea = document.getElementById('tempUnhideTriggerText');
     const saveTempHideBtn = document.getElementById('saveTempHideBtn');
-    // NEW DOM for Temporary Unhide
-    const tempHideUnHideToggle = document.getElementById('tempHideUnHideToggle');
-    const tempHideUnHideTriggerText = document.getElementById('tempHideUnHideTriggerText');
 
 
     // Variables
@@ -1031,20 +1030,19 @@ document.addEventListener("DOMContentLoaded", () => {
     function openTempHideModal() {
         const tempHideSettings = currentSettings.temporaryHide || {};
         document.getElementById('tempHideToggle').checked = tempHideSettings.enabled;
+        document.getElementById('tempUnhideToggle').checked = tempHideSettings.unhideEnabled;
         document.getElementById('tempHideMatchType').value = tempHideSettings.matchType || 'EXACT';
         document.getElementById('tempHideTriggerText').value = tempHideSettings.triggerText || '';
-        // NEW: Unhide settings
-        document.getElementById('tempHideUnHideToggle').checked = tempHideSettings.unhideEnabled;
-        document.getElementById('tempHideUnHideTriggerText').value = tempHideSettings.unhideTriggerText || '';
+        document.getElementById('tempUnhideTriggerText').value = tempHideSettings.unhideTriggerText || '';
         tempHideModalBootstrap.show();
     }
 
     async function saveTempHideSettings() {
         const enabled = document.getElementById('tempHideToggle').checked;
+        const unhideEnabled = document.getElementById('tempUnhideToggle').checked;
         const matchType = document.getElementById('tempHideMatchType').value;
         const triggerText = document.getElementById('tempHideTriggerText').value;
-        const unhideEnabled = document.getElementById('tempHideUnHideToggle').checked;
-        const unhideTriggerText = document.getElementById('tempHideUnHideTriggerText').value;
+        const unhideTriggerText = document.getElementById('tempUnhideTriggerText').value;
 
         if (enabled && !triggerText.trim()) {
             showToast('Hide trigger text cannot be empty when the feature is enabled.', 'warning');
