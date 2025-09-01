@@ -358,7 +358,7 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: resolveVariablesRecursively function without random variables
+// UPDATED: resolveVariablesRecursively function with new random variables
 function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
@@ -366,7 +366,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve built-in time variables
+        // Pass 1: Resolve built-in time variables and the new random variable
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
@@ -393,7 +393,22 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return match;
         });
 
-        // Pass 2: Resolve static variables from DB
+        // Pass 2: Resolve the new random custom variable
+        result = result.replace(/%rndm_custom_(\d+)_([^%]+)%/g, (match, length, content) => {
+            const count = parseInt(length, 10);
+            const choices = content.split(/[,\u201a]/).map(s => s.trim()); // Split by comma or special comma (‚)
+            
+            // Fisher-Yates shuffle algorithm
+            for (let i = choices.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [choices[i], choices[j]] = [choices[j], choices[i]];
+            }
+            
+            const selected = choices.slice(0, Math.min(count, choices.length));
+            return selected.join('');
+        });
+        
+        // Pass 3: Resolve static variables from DB
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
