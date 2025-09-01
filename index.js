@@ -448,35 +448,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         const initialResult = result;
 
-        // Step 0: Legacy syntax ko braces me convert karo
-        result = result.replace(/%rndm_custom_(\d+)_([\s\S]*?)%/g, (match, countStr, tokensString) => {
-            const lastPercentIndex = match.lastIndexOf("%");
-            const inside = match.substring(match.indexOf("_") + 1, lastPercentIndex);
-            return `%rndm_custom_${countStr}_{${inside}}%`;
-        });
-
-        // Step 1: Braced rndm_custom handle karo
-        const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*)\}%/g;
-        result = result.replace(customRandomBraced, (match, countStr, tokensString) => {
-            const count = Math.max(1, parseInt(countStr || "1", 10));
-            const tokens = smartSplitTokens(tokensString);
-            if (!tokens || tokens.length === 0) return "";
-            const selected = pickNUniqueRandomly(tokens, count);
-            return selected.join(" ");
-        });
-
-        // Step 2: Other rndm types
-        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === "num") {
-                const [min, max] = param1.split("_").map(Number);
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            } else {
-                const length = parseInt(param1);
-                return generateRandom(type, length);
-            }
-        });
-
-        // Step 3: Time / built-in vars
+        // Step 1: Time / built-in vars
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: "Asia/Kolkata" };
@@ -503,11 +475,39 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return match;
         });
 
-        // Step 4: Static vars (from DB)
+        // Step 2: Static vars (from DB)
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find((v) => v.name === varName);
             if (staticVar) return staticVar.value;
             return match;
+        });
+        
+        // Step 3: Legacy syntax ko braces me convert karo
+        result = result.replace(/%rndm_custom_(\d+)_([\s\S]*?)%/g, (match, countStr, tokensString) => {
+            const lastPercentIndex = match.lastIndexOf("%");
+            const inside = match.substring(match.indexOf("_") + 1, lastPercentIndex);
+            return `%rndm_custom_${countStr}_{${inside}}%`;
+        });
+
+        // Step 4: Braced rndm_custom handle karo
+        const customRandomBraced = /%rndm_custom(?:_(\d+))?_\{([\s\S]*)\}%/g;
+        result = result.replace(customRandomBraced, (match, countStr, tokensString) => {
+            const count = Math.max(1, parseInt(countStr || "1", 10));
+            const tokens = smartSplitTokens(tokensString);
+            if (!tokens || tokens.length === 0) return "";
+            const selected = pickNUniqueRandomly(tokens, count);
+            return selected.join("\n");
+        });
+        
+        // Step 5: Other rndm types
+        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+            if (type === "num") {
+                const [min, max] = param1.split("_").map(Number);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                const length = parseInt(param1);
+                return generateRandom(type, length);
+            }
         });
 
         if (result === initialResult) break;
