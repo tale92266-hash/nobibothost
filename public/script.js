@@ -789,6 +789,12 @@ document.addEventListener("DOMContentLoaded", () => {
             rule: ruleData,
             oldRuleNumber: currentRuleNumber
         };
+
+        // Added loading state
+        saveRuleBtn.disabled = true;
+        saveRuleBtn.querySelector('i').classList.add('d-none');
+        saveRuleBtn.querySelector('span.spinner-border').style.display = 'inline-block';
+
         try {
             const response = await fetch('/api/rules/update', {
                 method: 'POST',
@@ -806,6 +812,11 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error('Error saving rule:', error);
             showToast('Network error occurred', 'fail');
+        } finally {
+            // Restore button state
+            saveRuleBtn.disabled = false;
+            saveRuleBtn.querySelector('i').classList.remove('d-none');
+            saveRuleBtn.querySelector('span.spinner-border').style.display = 'none';
         }
     }
 
@@ -915,6 +926,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const variableData = { name: variableName, value: variableValue };
         const payload = { type: currentVariableName ? 'edit' : 'add', variable: variableData, oldName: currentVariableName };
+
+        saveVariableBtn.disabled = true;
+        saveVariableBtn.querySelector('i').classList.add('d-none');
+        saveVariableBtn.querySelector('span.spinner-border').style.display = 'inline-block';
+        
         try {
             const response = await fetch('/api/variables/update', {
                 method: 'POST',
@@ -932,6 +948,10 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error('Error saving variable:', error);
             showToast('Network error occurred', 'fail');
+        } finally {
+            saveVariableBtn.disabled = false;
+            saveVariableBtn.querySelector('i').classList.remove('d-none');
+            saveVariableBtn.querySelector('span.spinner-border').style.display = 'none';
         }
     }
     
