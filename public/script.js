@@ -50,6 +50,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const botStatusBtn = document.getElementById('botStatusBtn');
     const botStatusText = document.getElementById('botStatusText');
     const botStatusContainer = document.querySelector('.bot-status-container');
+    
+    // NEW DOM for Temporary Hide
+    const tempHideBtn = document.getElementById('tempHideBtn');
+    const tempHideModal = new bootstrap.Modal(document.getElementById("tempHideModal"));
+    const tempHideToggle = document.getElementById('tempHideToggle');
+    const tempHideMatchTypeSelect = document.getElementById('tempHideMatchType');
+    const tempHideTriggerTextarea = document.getElementById('tempHideTriggerText');
+    const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 
 
     // Variables
@@ -68,7 +76,12 @@ document.addEventListener("DOMContentLoaded", () => {
             enabled: false,
             cooldown: 2
         },
-        isBotOnline: true
+        isBotOnline: true,
+        temporaryHide: {
+            enabled: false,
+            matchType: 'EXACT',
+            triggerText: 'nobi papa hide me'
+        }
     };
 
     // Socket connection for real-time stats
@@ -585,6 +598,9 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchStats();
             await fetchRules();
             await fetchVariables();
+            // Show loading state for bot status before fetching
+            botStatusBtn.classList.add('bot-loading');
+            botStatusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Bot Status Loading...';
             await fetchSettings();
             updateBotStatusUI();
         } catch (error) {
@@ -1207,6 +1223,50 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Failed to save repeating rule settings.', 'fail');
         }
     }
+    
+    // NEW Temporary Hide Modal Functions
+    const tempHideModalBootstrap = new bootstrap.Modal(document.getElementById("tempHideModal"));
+
+    function openTempHideModal() {
+        const tempHideSettings = currentSettings.temporaryHide || {};
+        document.getElementById('tempHideToggle').checked = tempHideSettings.enabled;
+        document.getElementById('tempHideMatchType').value = tempHideSettings.matchType || 'EXACT';
+        document.getElementById('tempHideTriggerText').value = tempHideSettings.triggerText || '';
+        tempHideModalBootstrap.show();
+    }
+
+    async function saveTempHideSettings() {
+        const enabled = document.getElementById('tempHideToggle').checked;
+        const matchType = document.getElementById('tempHideMatchType').value;
+        const triggerText = document.getElementById('tempHideTriggerText').value;
+
+        if (enabled && !triggerText.trim()) {
+            showToast('Trigger text cannot be empty when the feature is enabled.', 'warning');
+            return;
+        }
+
+        const payload = { enabled, matchType, triggerText };
+
+        try {
+            const response = await fetch('/api/settings/temporary-hide', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                currentSettings.temporaryHide = payload;
+                tempHideModalBootstrap.hide();
+            } else {
+                showToast(result.message, 'fail');
+            }
+        } catch (error) {
+            showToast('Failed to save settings.', 'fail');
+        }
+    }
+
 
     // NEW: Function to fetch all settings
     async function fetchSettings() {
@@ -1217,6 +1277,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ignoredOverrideUsers = data.ignoredOverrideUsers || [];
             specificOverrideUsers = data.specificOverrideUsers || [];
             currentSettings.preventRepeatingRule = data.preventRepeatingRule || { enabled: false, cooldown: 2 };
+            currentSettings.temporaryHide = data.temporaryHide || { enabled: false, matchType: 'EXACT', triggerText: 'nobi papa hide me' };
             currentSettings.isBotOnline = data.isBotOnline ?? true; // Use nullish coalescing for default
             
             console.log('⚙️ All settings fetched successfully.');
@@ -1237,11 +1298,11 @@ document.addEventListener("DOMContentLoaded", () => {
     
         if (currentSettings.isBotOnline) {
             botStatusBtn.classList.add('bot-on');
-            botStatusText.textContent = 'Bot Running';
+            botStatusText.textContent = 'Nobi Bot Running';
             iconElement.classList.add('fa-power-off');
         } else {
             botStatusBtn.classList.add('bot-off');
-            botStatusText.textContent = 'Bot Off';
+            botStatusText.textContent = 'Nobi Bot Off';
             iconElement.classList.add('fa-power-off');
         }
     }
@@ -1339,6 +1400,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (saveRepeatingBtn) {
         saveRepeatingBtn.addEventListener('click', saveRepeatingRuleSettings);
+    }
+
+    // NEW Event listeners for temporary hide
+    if (tempHideBtn) {
+        tempHideBtn.addEventListener('click', openTempHideModal);
+    }
+    if (saveTempHideBtn) {
+        saveTempHideBtn.addEventListener('click', saveTempHideSettings);
     }
 
     // NEW Event Listener for bot status button
