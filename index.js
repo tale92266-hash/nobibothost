@@ -398,10 +398,11 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: smartSplitTokens logic to use '//' as separator
+// UPDATED: smartSplitTokens logic to use a special separator and allow commas
 function smartSplitTokens(tokensString) {
-    // We now split by '//' to allow commas inside tokens
-    const tokens = tokensString.split('//').map(t => t.trim());
+    // We now split by a special separator `➡️‚⬅️` to allow commas inside tokens
+    const separator = '➡️‚⬅️';
+    const tokens = tokensString.split(separator).map(t => t.trim());
     console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
     console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
     return tokens.filter(t => t !== '');
@@ -440,9 +441,29 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve built-in time variables
-        // This regex now uses a non-capturing group (?:...) to make sure it doesn't interfere
-        // with other variables.
+        // Pass 1: Resolve custom random variables first (highest precedence)
+        // Corrected regex to handle nested variables gracefully using a non-greedy approach
+        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%).)*?)%/g;
+        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
+            const count = parseInt(countStr, 10);
+            const tokens = smartSplitTokens(tokensString);
+            if (tokens.length === 0) return '';
+            const selectedTokens = pickNUniqueRandomly(tokens, count);
+            return selectedTokens.join(' ');
+        });
+
+        // Pass 2: Resolve other random variables
+        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
+            if (type === 'num') {
+                const [min, max] = param1.split('_').map(Number);
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            } else {
+                const length = parseInt(param1);
+                return generateRandom(type, length);
+            }
+        });
+
+        // Pass 3: Resolve built-in time variables
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
@@ -469,38 +490,13 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return match;
         });
 
-        // Pass 2: Resolve static variables from DB
+        // Pass 4: Resolve static variables from DB
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
                 return staticVar.value;
             }
             return match;
-        });
-
-        // Pass 3: Resolve other random variables
-        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === 'num') {
-                const [min, max] = param1.split('_').map(Number);
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            } else {
-                const length = parseInt(param1);
-                return generateRandom(type, length);
-            }
-        });
-
-        // Pass 4: Resolve custom random variables
-        // This regex now correctly identifies the custom random variables
-        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%).)*?)%/g;
-        result = result.replace(customRandomRegex, (match, countStr, tokensString) => {
-            const count = parseInt(countStr, 10);
-            const tokens = smartSplitTokens(tokensString);
-            if (tokens.length === 0) {
-                console.warn(`⚠️ No valid tokens found in custom random variable: ${match}`);
-                return '';
-            }
-            const selectedTokens = pickNUniqueRandomly(tokens, count);
-            return selectedTokens.join(' ');
         });
 
         if (result === initialResult) {
