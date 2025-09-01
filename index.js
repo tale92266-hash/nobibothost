@@ -352,53 +352,13 @@ function emitStats() {
     });
 }
 
-// Random generation logic
-const charSets = {
-    lower: 'abcdefghijklmnopqrstuvwxyz',
-    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    num: '0123456789',
-    grawlix: '#$%&@*!'
-};
-
-function generateRandom(type, length, customSet) {
-    if (type === 'custom' && customSet) {
-        return pick(customSet);
-    }
-
-    let result = '';
-    let characters = '';
-
-    if (type === 'num') characters = charSets.num;
-    else if (type === 'lower') characters = charSets.lower;
-    else if (type === 'upper') characters = charSets.upper;
-    else if (type === 'abc') characters = charSets.lower + charSets.upper;
-    else if (type === 'abcnum_lower') characters = charSets.lower + charSets.num;
-    else if (type === 'abcnum_upper') characters = charSets.upper + charSets.num;
-    else if (type === 'abcnum') characters = charSets.lower + charSets.upper + charSets.num;
-    else if (type === 'grawlix') characters = charSets.grawlix;
-    else if (type === 'ascii') {
-        for (let i = 0; i < length; i++) {
-            result += String.fromCharCode(Math.floor(Math.random() * (127 - 33 + 1)) + 33);
-        }
-        return result;
-    }
-
-    if (!characters) return '';
-
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-
-    return result;
-}
-
 // NEW: Convert literal \n to actual newlines BEFORE saving to DB
 function convertNewlinesBeforeSave(text) {
     if (!text) return '';
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: resolveVariablesRecursively function with multi-pass logic and improved regex
+// UPDATED: resolveVariablesRecursively function without random variables
 function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
@@ -406,18 +366,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         const initialResult = result;
         
-        // Pass 1: Resolve other random variables
-        result = result.replace(/%rndm_(\w+)_(\w+)(?:_([^%]+))?%/g, (match, type, param1, param2) => {
-            if (type === 'num') {
-                const [min, max] = param1.split('_').map(Number);
-                return Math.floor(Math.random() * (max - min + 1)) + min;
-            } else {
-                const length = parseInt(param1);
-                return generateRandom(type, length);
-            }
-        });
-
-        // Pass 2: Resolve built-in time variables
+        // Pass 1: Resolve built-in time variables
         result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
             const now = new Date();
             const istOptions = { timeZone: 'Asia/Kolkata' };
@@ -444,7 +393,7 @@ function resolveVariablesRecursively(text, senderName, maxIterations = 10) {
             return match;
         });
 
-        // Pass 3: Resolve static variables from DB
+        // Pass 2: Resolve static variables from DB
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = VARIABLES.find(v => v.name === varName);
             if (staticVar) {
