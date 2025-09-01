@@ -1238,7 +1238,7 @@ document.addEventListener("DOMContentLoaded", () => {
             botStatusBtn.classList.remove('bot-on');
             botStatusText.textContent = 'Bot Off';
         }
-         // NEW: Show the button after the status is updated
+        // NEW: Show the button after the status is updated
         botStatusContainer.style.display = 'block';
     }
     
