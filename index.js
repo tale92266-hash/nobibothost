@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
 const server = require("http").createServer(app);
-const { Server } = require("socket.io"); // Corrected import
+const { Server } = require("socket.io");
 const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.json({ limit: "1mb" }));
@@ -1172,21 +1172,15 @@ app.post("/webhook", async (req, res) => {
 app.get("/stats", async (req, res) => {
     try {
         const totalUsersCount = await User.countDocuments();
-        const totalUserList = await User.find({}, 'senderName -_id'); // Fetch only senderName
-        
-        // Convert list of objects to array of strings
-        const userNames = totalUserList.map(user => user.senderName);
-
         res.json({
             totalUsers: totalUsersCount,
             totalMsgs: stats.totalMsgs,
             todayUsers: stats.todayUsers.length,
             todayMsgs: stats.todayMsgs,
-            nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length,
-            totalUserNames: userNames // Send the list of names
+            nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
         });
     } catch (err) {
-        console.error('Failed to fetch stats with user names:', err);
+        console.error('Failed to fetch stats:', err);
         res.status(500).json({ error: "Failed to fetch stats" });
     }
 });
