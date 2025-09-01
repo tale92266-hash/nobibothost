@@ -433,7 +433,7 @@ function pickNUniqueRandomly(tokens, count) {
     return selectedTokens;
 }
 
-// Updated resolveVariablesRecursively function
+// UPDATED: resolveVariablesRecursively function
 function resolveVariablesRecursively(text, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
@@ -453,9 +453,10 @@ function resolveVariablesRecursively(text, maxIterations = 10) {
     while (iterationCount < maxIterations) {
         let hasVariables = false;
         let previousResult = result;
-
-        // STEP 1: Process Custom Random Variables using placeholders
-        const customRandomRegex = /%rndm_custom_(\d+)_([^%]+)%/g;
+        
+        // Fix: Use a more robust regex to find custom random variables
+        // This regex now correctly identifies the custom random variables
+        const customRandomRegex = /%rndm_custom_(\d+)_((?:(?!%\d+%|%[\w_]+%).)*)%/g;
         result = result.replace(customRandomRegex, (fullMatch, countStr, tokensString) => {
             const count = parseInt(countStr, 10);
             console.log(`🎲 Processing custom random FIRST: count=${count}`);
@@ -577,8 +578,9 @@ function matchesTrigger(message, triggerText, matchType) {
 }
 
 async function processMessage(msg, sessionId = "default", sender) {
-    // NEW: Check if the sender is in the specific override list first.
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+    
+    // NEW LOGIC: Highest priority check for specific override
     if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(senderName, SPECIFIC_OVERRIDE_USERS)) {
         console.log(`⚠️ User "${senderName}" is not on the specific override list. Ignoring message.`);
         return null;
@@ -650,14 +652,13 @@ async function processMessage(msg, sessionId = "default", sender) {
     if (!welcomedUsers.includes(senderName)) {
         welcomedUsers.push(senderName);
         await User.create({ senderName, sessionId });
-        stats.totalUsers.push(senderName);
     }
     
     // Check if the user has messaged today
     if (!stats.todayUsers.includes(senderName)) {
         stats.todayUsers.push(senderName);
     }
-
+    
     stats.totalMsgs++;
     stats.todayMsgs++;
 
@@ -675,7 +676,7 @@ async function processMessage(msg, sessionId = "default", sender) {
         let userMatch = false;
         const targetUsers = rule.TARGET_USERS || "ALL";
 
-        // NEW: Specific Override check (Highest Priority) - REMOVED
+        // NEW: Specific Override check (Highest Priority) - REMOVED from this block
         if (rule.RULE_TYPE === "IGNORED") {
             if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
                 userMatch = true;
