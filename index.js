@@ -399,13 +399,21 @@ function convertNewlinesBeforeSave(text) {
 }
 
 // UPDATED: smartSplitTokens logic to use a special separator and allow commas
-function smartSplitTokens(tokensString) {
-    // We now split by a special separator `➡️‚⬅️` to allow commas inside tokens
-    const separator = '➡️‚⬅️';
-    const tokens = tokensString.split(separator).map(t => t.trim());
-    console.log(`🧩 Smart splitting tokens: "${tokensString}"`);
-    console.log(`🎯 Total ${tokens.length} tokens found: [${tokens.join('] | [')}]`);
-    return tokens.filter(t => t !== '');
+function smartSplitTokens(str) {
+  if (!str) return [];
+
+  // Pehle check karo custom separator hai ya nahi
+  if (str.includes("➡️‚⬅️")) {
+    return str.split("➡️‚⬅️").map(s => s.trim()).filter(Boolean);
+  }
+
+  // Nahi hai toh normal comma split kar
+  if (str.includes(",")) {
+    return str.split(",").map(s => s.trim()).filter(Boolean);
+  }
+
+  // Fallback: ek hi token
+  return [str.trim()];
 }
 
 function pickNUniqueRandomly(tokens, count) {
