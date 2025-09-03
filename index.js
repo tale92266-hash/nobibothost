@@ -131,7 +131,10 @@ let settings = {
         triggerText: 'nobi papa hide me',
         unhideEnabled: true,
         unhideTriggerText: 'nobi papa start',
-        unhideMatchType: 'EXACT'
+        unhideMatchType: 'EXACT',
+        // NEW: Add reply messages for hide and unhide triggers
+        hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
+        unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
     }
 };
 let lastReplyTimes = {};
@@ -169,7 +172,9 @@ async function loadSettingsFromFiles() {
                     triggerText: 'nobi papa hide me',
                     unhideEnabled: true,
                     unhideTriggerText: 'nobi papa start',
-                    unhideMatchType: 'EXACT'
+                    unhideMatchType: 'EXACT',
+                    hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
+                    unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
                 };
             }
             if (settings.temporaryHide.unhideEnabled === undefined) {
@@ -180,6 +185,13 @@ async function loadSettingsFromFiles() {
             }
             if (settings.temporaryHide.unhideMatchType === undefined) {
                 settings.temporaryHide.unhideMatchType = 'EXACT';
+            }
+            // NEW: Ensure reply fields exist with default values
+            if (settings.temporaryHide.hideReply === undefined) {
+                settings.temporaryHide.hideReply = 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.';
+            }
+            if (settings.temporaryHide.unhideReply === undefined) {
+                settings.temporaryHide.unhideReply = 'Mai wapas aa gaya, abhi aapko reply karunga.';
             }
             console.log('⚙️ Settings loaded from local file.');
             loaded = true;
@@ -212,7 +224,9 @@ async function restoreSettingsFromDb() {
                 triggerText: 'nobi papa hide me',
                 unhideEnabled: true,
                 unhideTriggerText: 'nobi papa start',
-                unhideMatchType: 'EXACT'
+                unhideMatchType: 'EXACT',
+                hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
+                unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
             };
         }
         if (settings.temporaryHide.unhideEnabled === undefined) {
@@ -223,6 +237,13 @@ async function restoreSettingsFromDb() {
         }
         if (settings.temporaryHide.unhideMatchType === undefined) {
             settings.temporaryHide.unhideMatchType = 'EXACT';
+        }
+        // NEW: Ensure reply fields exist with default values
+        if (settings.temporaryHide.hideReply === undefined) {
+            settings.temporaryHide.hideReply = 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.';
+        }
+        if (settings.temporaryHide.unhideReply === undefined) {
+            settings.temporaryHide.unhideReply = 'Mai wapas aa gaya, abhi aapko reply karunga.';
         }
         fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
         console.log('✅ Global settings restored from MongoDB.');
@@ -798,7 +819,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             }
         }
     }
-
+    
     // NEW: Temporary hide check
     let temporaryHideTriggered = false;
     if (settings.temporaryHide.enabled) {
@@ -810,6 +831,27 @@ async function processMessage(msg, sessionId = "default", sender) {
     
     // NEW: User is ignored if they are in the context-specific list.
     const isSenderIgnored = isUserIgnored(senderName, context, IGNORED_OVERRIDE_USERS);
+
+    // If a hide or unhide trigger was activated, we reply with the specific reply
+    if (temporaryHideTriggered && settings.temporaryHide.hideReply) {
+        const reply = resolveVariablesRecursively(settings.temporaryHide.hideReply, senderName, msg, 0, groupName, isGroup, null, null, stats.totalMsgs);
+        
+        // Add to ignored list AFTER we get the reply text
+        const hideEntry = { name: senderName, context: context };
+        const isAlreadyIgnoredInContext = IGNORED_OVERRIDE_USERS.some(item => item.name === hideEntry.name && item.context === hideEntry.context);
+        if (!isAlreadyIgnoredInContext) {
+            IGNORED_OVERRIDE_USERS.push(hideEntry);
+            await saveIgnoredOverrideUsers();
+            console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
+        }
+        return reply;
+    }
+    
+    if (unhideTriggered && settings.temporaryHide.unhideReply) {
+        const reply = resolveVariablesRecursively(settings.temporaryHide.unhideReply, senderName, msg, 0, groupName, isGroup, null, null, stats.totalMsgs);
+        return reply;
+    }
+
 
     // If unhide was triggered, or user is not ignored, continue processing.
     // If the user is globally ignored (by manual override), they will stay ignored.
@@ -982,18 +1024,6 @@ async function processMessage(msg, sessionId = "default", sender) {
         await messageStats.save();
     }
     
-    // NEW: If temporary hide was triggered, add user to ignored list AFTER processing reply
-    if (temporaryHideTriggered) {
-        const hideEntry = { name: senderName, context: context };
-        // Check if the user is not already in the list for this specific context
-        const isAlreadyIgnoredInContext = IGNORED_OVERRIDE_USERS.some(item => item.name === hideEntry.name && item.context === hideEntry.context);
-        if (!isAlreadyIgnoredInContext) {
-            IGNORED_OVERRIDE_USERS.push(hideEntry);
-            await saveIgnoredOverrideUsers();
-            console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
-        }
-    }
-    
     // NEW: Add to message history
     messageHistory.unshift({
         userMessage: msg,
@@ -1057,8 +1087,8 @@ console.log('❌ Client disconnected');
         });
 
         // NEW: Load or restore settings
-        const settingsLoadedFromFile = await loadSettingsFromFiles();
-        if (!settingsLoadedFromFile) {
+        const settingsLoaded = await loadSettingsFromFiles();
+        if (!settingsLoaded) {
             console.log('⚠️ Settings files not found. Restoring from MongoDB...');
             await restoreSettingsFromDb();
         }
@@ -1132,7 +1162,7 @@ app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
 // NEW ENDPOINT: Update temporary hide setting
 app.post("/api/settings/temporary-hide", async (req, res) => {
     try {
-        const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType } = req.body;
+        const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } = req.body;
         settings.temporaryHide.enabled = enabled;
         settings.temporaryHide.matchType = matchType;
         settings.temporaryHide.triggerText = triggerText;
@@ -1140,6 +1170,9 @@ app.post("/api/settings/temporary-hide", async (req, res) => {
         settings.temporaryHide.unhideEnabled = unhideEnabled;
         settings.temporaryHide.unhideTriggerText = unhideTriggerText;
         settings.temporaryHide.unhideMatchType = unhideMatchType;
+        // NEW: Add reply fields to settings
+        settings.temporaryHide.hideReply = hideReply;
+        settings.temporaryHide.unhideReply = unhideReply;
         await saveSettings();
         res.json({ success: true, message: "Temporary hide setting updated successfully." });
     } catch (error) {
