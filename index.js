@@ -74,6 +74,27 @@ const settingsSchema = new mongoose.Schema({
 
 const Settings = mongoose.model("Settings", settingsSchema);
 
+// NEW: Schema for user-specific message and reply counts
+const messageStatsSchema = new mongoose.Schema({
+    sessionId: { type: String, required: true, unique: true },
+    senderName: { type: String, required: true },
+    isGroup: { type: Boolean, required: true },
+    groupName: { type: String },
+    receivedCount: { type: Number, default: 0 },
+    replyCount: { type: Number, default: 0 },
+    // For %reply_count_0% variable
+    ruleReplyCounts: {
+        type: Map,
+        of: Number,
+        default: {}
+    },
+    // For daily stats
+    lastActiveDate: { type: String }
+});
+
+const MessageStats = mongoose.model("MessageStats", messageStatsSchema);
+
+
 // Persistent Stats
 const statsFilePath = path.join(__dirname, "data", "stats.json");
 const welcomedUsersFilePath = path.join(__dirname, "data", "welcomed_users.json");
@@ -362,7 +383,7 @@ function convertNewlinesBeforeSave(text) {
 }
 
 // UPDATED: resolveVariablesRecursively function with new random variables and capturing groups
-function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, groupName, isGroup, regexMatch = null, matchedRuleId = null, totalMsgs = 0, maxIterations = 10) {
+function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, groupName, isGroup, regexMatch = null, matchedRuleId = null, totalMsgs = 0, messageStats = null, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
@@ -508,6 +529,30 @@ function resolveVariablesRecursively(text, senderName, receivedMessage, processi
         // NEW: Add new variables based on the request
         result = result.replace(/%rule_id%/g, () => matchedRuleId ? matchedRuleId.toString() : 'N/A');
         result = result.replace(/%reply_count_overall%/g, () => totalMsgs.toString());
+        
+        // NEW: Add other requested variables
+        if (messageStats) {
+            result = result.replace(/%received_count%/g, () => messageStats.receivedCount.toString());
+            result = result.replace(/%reply_count%/g, () => messageStats.replyCount.toString());
+            result = result.replace(/%reply_count_day%/g, () => messageStats.lastActiveDate === today ? messageStats.replyCount.toString() : '0');
+            result = result.replace(/%reply_count_contacts%/g, () => !messageStats.isGroup ? messageStats.replyCount.toString() : '0');
+            result = result.replace(/%reply_count_groups%/g, () => messageStats.isGroup ? messageStats.replyCount.toString() : '0');
+            
+            // Handle %reply_count_0% variable
+            const ruleReplyCountRegex = /%reply_count_([0-9,]+)%/g;
+            result = result.replace(ruleReplyCountRegex, (match, ruleIds) => {
+                const ids = ruleIds.split(',').map(id => id.trim());
+                let count = 0;
+                ids.forEach(id => {
+                    const ruleId = parseInt(id);
+                    if (!isNaN(ruleId)) {
+                        count += messageStats.ruleReplyCounts.get(ruleId.toString()) || 0;
+                    }
+                });
+                return count.toString();
+            });
+        }
+
 
         // Pass 2: Resolve the new random variables
         result = result.replace(/%rndm_num_(\d+)_(\d+)%/g, (match, min, max) => {
@@ -775,8 +820,34 @@ async function processMessage(msg, sessionId = "default", sender) {
         return null;
     }
 
-    // Update Stats
-    // Fix: Using senderName for today's user count
+    // UPDATED: Find or create user-specific message stats
+    let messageStats = await MessageStats.findOne({ sessionId: sessionId });
+
+    const today = new Date().toLocaleDateString();
+
+    if (!messageStats) {
+        messageStats = new MessageStats({
+            sessionId,
+            senderName,
+            isGroup,
+            groupName: isGroup ? groupName : null,
+            lastActiveDate: today
+        });
+    } else {
+        if (messageStats.lastActiveDate !== today) {
+            // Reset daily stats
+            messageStats.lastActiveDate = today;
+            messageStats.receivedCount = 0;
+            // Note: replyCount and ruleReplyCounts are not reset daily
+        }
+    }
+    
+    // Update received count
+    messageStats.receivedCount++;
+    await messageStats.save();
+
+
+    // Update global stats
     if (!welcomedUsers.includes(senderName)) {
         welcomedUsers.push(senderName);
         await User.create({ senderName, sessionId });
@@ -895,11 +966,18 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        // UPDATED: Pass matchedRuleId and stats.totalMsgs to resolveVariablesRecursively
-        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs);
+        // UPDATED: Pass messageStats object
+        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
         
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
+        
+        // UPDATED: Update user-specific reply counts
+        messageStats.replyCount++;
+        // Update rule-specific reply count
+        const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
+        messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
+        await messageStats.save();
     }
     
     // NEW: If temporary hide was triggered, add user to ignored list AFTER processing reply
