@@ -16,7 +16,6 @@ const {
     saveSpecificOverrideUsers,
     saveSettings,
     stats,
-    isReady,
     RULES,
     VARIABLES,
     IGNORED_OVERRIDE_USERS,
@@ -27,6 +26,7 @@ const {
     emitStats
 } = require("./dataManager");
 const { processMessage } = require("./messageProcessor");
+const state = require('./state'); // <-- state object import kiya gaya
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -387,7 +387,7 @@ app.post("/api/variables/update", async (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-    if (!isReady) {
+    if (!state.isReady) { // <-- isReady ko ab state object se check kiya jayega
         console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
         return res.status(503).send('Server is initializing. Please try again in a moment.');
     }
@@ -435,3 +435,18 @@ app.use(express.static("public"));
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
+
+// server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`)); // <-- Yeh line hata di gayi hai
+
+// let pinging = false;
+// setInterval(async () => {
+//     if (pinging) return;
+//     pinging = true;
+//     try {
+//         await axios.get(`${SERVER_URL}/ping`);
+//         console.log("🔁 Self-ping sent!");
+//     } catch (err) {
+//         console.log("❌ Ping failed:", err.message);
+//     }
+//     pinging = false;
+// }, 5 * 60 * 1000);
