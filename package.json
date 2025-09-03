@@ -1,17 +1,96 @@
 {
   "name": "nobi-chat-bot",
   "version": "1.0.0",
-  "description": "Friendly Nobi Chat Bot with live stats",
+  "description": "Friendly Nobi Chat Bot with live stats and modular architecture",
   "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
   "scripts": {
     "prestart": "npm install",
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "dev:inspect": "nodemon --inspect index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "echo \"No linting configured\"",
+    "build": "echo \"No build process needed\"",
+    "postinstall": "echo \"Installation completed successfully\"",
+    "clean": "rm -rf node_modules package-lock.json",
+    "reinstall": "npm run clean && npm install",
+    "check": "npm outdated",
+    "audit": "npm audit --audit-level moderate"
   },
+  "keywords": [
+    "chatbot",
+    "nodejs",
+    "express",
+    "mongodb",
+    "socket.io",
+    "webhook",
+    "messaging",
+    "automation",
+    "rules-engine"
+  ],
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "url": "https://github.com/yourusername"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/nobi-chat-bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/nobi-chat-bot/issues"
+  },
+  "homepage": "https://github.com/yourusername/nobi-chat-bot#readme",
   "dependencies": {
-    "axios": "^1.7.0",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2",
-    "mongoose": "^8.0.0"
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "mongoose": "^8.7.0",
+    "socket.io": "^4.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "directories": {
+    "config": "config",
+    "services": "services",
+    "routes": "routes",
+    "utils": "utils",
+    "data": "data",
+    "public": "public"
+  },
+  "files": [
+    "index.js",
+    "config/",
+    "services/",
+    "routes/",
+    "utils/",
+    "public/",
+    "README.md"
+  ],
+  "nodemonConfig": {
+    "watch": [
+      "index.js",
+      "config/",
+      "services/",
+      "routes/",
+      "utils/"
+    ],
+    "ext": "js,json",
+    "ignore": [
+      "node_modules/",
+      "data/",
+      "public/"
+    ],
+    "delay": "1000"
+  },
+  "config": {
+    "port": "10000"
   }
 }
