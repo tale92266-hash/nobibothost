@@ -1253,78 +1253,101 @@ res.status(500).json({ error: "Failed to fetch rules" });
 });
 
 app.post("/api/rules/update", async (req, res) => {
-const { type, rule, oldRuleNumber } = req.body;
+    const { type, rule, oldRuleNumber } = req.body;
+    try {
+        const session = await mongoose.startSession();
+        await session.startTransaction();
 
-try {
-if (type === "add") {
-const existingRule = await Rule.findOne({ RULE_NUMBER: rule.ruleNumber });
-if (existingRule) {
-await Rule.updateMany(
-{ RULE_NUMBER: { $gte: rule.ruleNumber } },
-{ $inc: { RULE_NUMBER: 1 } }
-);
-}
+        try {
+            if (type === "add") {
+                // Shift rules up to make space for the new rule
+                await Rule.updateMany(
+                    { RULE_NUMBER: { $gte: rule.ruleNumber } },
+                    { $inc: { RULE_NUMBER: 1 } },
+                    { session }
+                );
 
-await Rule.create({
-RULE_NUMBER: rule.ruleNumber,
-RULE_NAME: rule.ruleName,
-RULE_TYPE: rule.ruleType,
-KEYWORDS: rule.keywords,
-REPLIES_TYPE: rule.repliesType,
-REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-TARGET_USERS: rule.targetUsers
-});
+                await Rule.create([{
+                    RULE_NUMBER: rule.ruleNumber,
+                    RULE_NAME: rule.ruleName,
+                    RULE_TYPE: rule.ruleType,
+                    KEYWORDS: rule.keywords,
+                    REPLIES_TYPE: rule.repliesType,
+                    REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+                    TARGET_USERS: rule.targetUsers
+                }], { session });
 
-} else if (type === "edit") {
-if (rule.ruleNumber !== oldRuleNumber) {
-if (rule.ruleNumber < oldRuleNumber) {
-await Rule.updateMany(
-{ RULE_NUMBER: { $gte: rule.ruleNumber, $lt: oldRuleNumber } },
-{ $inc: { RULE_NUMBER: 1 } }
-);
-} else {
-await Rule.updateMany(
-{ RULE_NUMBER: { $gt: oldRuleNumber, $lte: rule.ruleNumber } },
-{ $inc: { RULE_NUMBER: -1 } }
-);
-}
-}
+            } else if (type === "edit") {
+                if (rule.ruleNumber !== oldRuleNumber) {
+                    const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
+                    const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
+                    
+                    // Re-numbering logic
+                    if (rule.ruleNumber < oldRuleNumber) {
+                        // Move rule up, shift others down
+                        await Rule.updateMany(
+                            { RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } },
+                            { $inc: { RULE_NUMBER: 1 } },
+                            { session }
+                        );
+                    } else {
+                        // Move rule down, shift others up
+                        await Rule.updateMany(
+                            { RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } },
+                            { $inc: { RULE_NUMBER: -1 } },
+                            { session }
+                        );
+                    }
+                }
 
-await Rule.findOneAndUpdate(
-{ RULE_NUMBER: oldRuleNumber },
-{
-RULE_NUMBER: rule.ruleNumber,
-RULE_NAME: rule.ruleName,
-RULE_TYPE: rule.ruleType,
-KEYWORDS: rule.keywords,
-REPLIES_TYPE: rule.repliesType,
-REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-TARGET_USERS: rule.TARGET_USERS
-},
-{ new: true }
-);
+                // Update the rule with its new number and data
+                await Rule.findOneAndUpdate(
+                    { RULE_NUMBER: oldRuleNumber },
+                    {
+                        RULE_NUMBER: rule.ruleNumber,
+                        RULE_NAME: rule.ruleName,
+                        RULE_TYPE: rule.ruleType,
+                        KEYWORDS: rule.keywords,
+                        REPLIES_TYPE: rule.repliesType,
+                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+                        TARGET_USERS: rule.TARGET_USERS
+                    },
+                    { new: true, session }
+                );
 
-} else if (type === "delete") {
-await Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber });
-await Rule.updateMany(
-{ RULE_NUMBER: { $gt: rule.ruleNumber } },
-{ $inc: { RULE_NUMBER: -1 } }
-);
-}
+            } else if (type === "delete") {
+                // First, delete the rule
+                await Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
+                
+                // Then, shift remaining rules up
+                await Rule.updateMany(
+                    { RULE_NUMBER: { $gt: rule.ruleNumber } },
+                    { $inc: { RULE_NUMBER: -1 } },
+                    { session }
+                );
+            }
 
-const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
-const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
-fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
+            await session.commitTransaction();
+            session.endSession();
 
-await loadAllRules();
+            const rulesFromDB = await Rule.find({}).sort({ RULE_NUMBER: 1 });
+            const jsonRules = { rules: rulesFromDB.map(r => r.toObject()) };
+            fs.writeFileSync(path.join(__dirname, "data", "funrules.json"), JSON.stringify(jsonRules, null, 2));
 
-res.json({ success: true, message: "Rule updated successfully!" });
-io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+            await loadAllRules();
+            res.json({ success: true, message: "Rule updated successfully!" });
+            io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
 
-} catch (err) {
-console.error("❌ Failed to update rule:", err);
-res.status(500).json({ success: false, message: "Server error" });
-}
+        } catch (err) {
+            await session.abortTransaction();
+            session.endSession();
+            console.error("❌ Failed to update rule:", err);
+            res.status(500).json({ success: false, message: "Server error: " + err.message });
+        }
+    } catch (err) {
+        console.error("❌ Failed to start session or transaction:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
 });
 
 app.get("/api/variables", async (req, res) => {
