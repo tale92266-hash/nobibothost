@@ -59,6 +59,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const tempHideTriggerTextarea = document.getElementById('tempHideTriggerText');
     const tempUnhideTriggerTextarea = document.getElementById('tempUnhideTriggerText');
     const saveTempHideBtn = document.getElementById('saveTempHideBtn');
+    // NEW: DOM for hide/unhide replies
+    const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
+    const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 
     // Variables
     let currentRuleNumber = null;
@@ -83,7 +86,9 @@ document.addEventListener("DOMContentLoaded", () => {
             triggerText: 'nobi papa hide me',
             unhideEnabled: true,
             unhideTriggerText: 'nobi papa start',
-            unhideMatchType: 'EXACT'
+            unhideMatchType: 'EXACT',
+            hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
+            unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
         }
     };
 
@@ -1156,6 +1161,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (tempUnhideTriggerTextarea) {
             tempUnhideTriggerTextarea.value = currentSettings.temporaryHide.unhideTriggerText;
         }
+        // NEW: Set values for reply textareas
+        if (tempHideReplyTextarea) {
+            tempHideReplyTextarea.value = currentSettings.temporaryHide.hideReply;
+        }
+        if (tempUnhideReplyTextarea) {
+            tempUnhideReplyTextarea.value = currentSettings.temporaryHide.unhideReply;
+        }
     }
 
     function showTempHideModal() {
@@ -1170,6 +1182,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const unhideEnabled = tempUnhideToggle.checked;
         const unhideMatchType = tempUnhideMatchTypeSelect.value;
         const unhideTriggerText = tempUnhideTriggerTextarea.value.trim();
+        // NEW: Get reply text values
+        const hideReply = tempHideReplyTextarea.value.trim();
+        const unhideReply = tempUnhideReplyTextarea.value.trim();
         
         try {
             const response = await fetch('/api/settings/temporary-hide', {
@@ -1183,7 +1198,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     triggerText,
                     unhideEnabled,
                     unhideTriggerText,
-                    unhideMatchType
+                    unhideMatchType,
+                    // NEW: Add reply fields to payload
+                    hideReply,
+                    unhideReply
                 })
             });
             
@@ -1195,7 +1213,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     triggerText,
                     unhideEnabled,
                     unhideTriggerText,
-                    unhideMatchType
+                    unhideMatchType,
+                    hideReply,
+                    unhideReply
                 };
                 showToast(result.message, 'success');
                 tempHideModal.hide();
