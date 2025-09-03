@@ -78,10 +78,31 @@ io.on('connection', (socket) => {
     if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
     }
+    
+    // Sabse pehle saare data ko sync karo aur isReady flag set karo
     await syncData(io);
+    
+    // Fir server ko listen karna shuru karo
+    server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
+    
+    // Aur fir baaki ke kaam karo
     scheduleDailyReset();
+    
+    let pinging = false;
+    setInterval(async () => {
+        if (pinging) return;
+        pinging = true;
+        try {
+            await axios.get(`${SERVER_URL}/ping`);
+            console.log("🔁 Self-ping sent!");
+        } catch (err) {
+            console.log("❌ Ping failed:", err.message);
+        }
+        pinging = false;
+    }, 5 * 60 * 1000);
 })();
 
+// ENDPOINTS
 app.post("/api/settings/ignored-override", async (req, res) => {
     try {
         const { users } = req.body;
@@ -370,7 +391,6 @@ app.post("/api/variables/update", async (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
-    // Yahan hum isReady check karenge
     if (!isReady) {
         console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
         return res.status(503).send('Server is initializing. Please try again in a moment.');
