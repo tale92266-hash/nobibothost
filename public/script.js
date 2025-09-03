@@ -178,9 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Add chat tab to navigation
-    // addChatNavigation();
-    
     function addChatMessage(messageData) {
         const { sessionId, userMessage, botReply, timestamp, senderName, groupName } = messageData;
         // Create message object
@@ -314,28 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
             pauseBtn.classList.remove('btn-outline-warning');
             pauseBtn.classList.add('btn-outline-secondary');
             showToast('Chat resumed', 'success');
-        }
-    }
-
-    function addChatNavigation() {
-        // Add chat tab to bottom navigation if it's there
-        const navContainer = document.querySelector('.bottom-navigation');
-        if (!navContainer) return;
-        const chatNavExists = document.querySelector('[data-tab="chat"]');
-        if (chatNavExists) return;
-        const chatNavItem = document.createElement('div');
-        chatNavItem.className = 'nav-item';
-        chatNavItem.setAttribute('data-tab', 'chat');
-        chatNavItem.innerHTML = `
-            <i class="fas fa-comments"></i>
-            <span>Chat</span>
-        `;
-        // Insert before settings tab
-        const settingsTab = document.querySelector('[data-tab="settings"]');
-        if (settingsTab) {
-            navContainer.insertBefore(chatNavItem, settingsTab);
-        } else {
-            navContainer.appendChild(chatNavItem);
         }
     }
 
@@ -652,6 +627,19 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById('repliesType').value = 'RANDOM';
         }
     }
+    
+    function toggleOwnerFormFields(ruleType) {
+        if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
+            ownerKeywordsField.style.display = 'none';
+            ownerRepliesTypeField.style.display = 'none';
+            ownerReplyTextField.style.display = 'block';
+            document.getElementById('ownerKeywords').value = "ALL";
+        } else {
+            ownerKeywordsField.style.display = 'block';
+            ownerRepliesTypeField.style.display = 'block';
+            ownerReplyTextField.style.display = 'block';
+        }
+    }
 
     function toggleTargetUsersField() {
         const isTargetOrIgnored = targetUsersToggle.value === 'TARGET' || targetUsersToggle.value === 'IGNORED';
@@ -753,10 +741,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // FIXED: Form validation with proper server communication
-    function validateRuleForm() {
-        const ruleNumber = document.getElementById('ruleNumber').value.trim();
-        const keywords = document.getElementById('keywords').value.trim();
-        const replyText = document.getElementById('replyText').value.trim();
+    function validateRuleForm(isOwner = false) {
+        const ruleNumberInput = isOwner ? document.getElementById('ownerRuleNumber') : document.getElementById('ruleNumber');
+        const keywordsInput = isOwner ? document.getElementById('ownerKeywords') : document.getElementById('keywords');
+        const replyTextInput = isOwner ? document.getElementById('ownerReplyText') : document.getElementById('replyText');
+        
+        const ruleNumber = ruleNumberInput.value.trim();
+        const keywords = keywordsInput.value.trim();
+        const replyText = replyTextInput.value.trim();
         
         if (!ruleNumber || !keywords || !replyText) {
             showToast('Please fill all required fields', 'warning');
@@ -1115,6 +1107,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // NEW: Override Users Functions
+    async function fetchOwners() {
+        try {
+            const response = await fetch('/api/owners');
+            const data = await response.json();
+            ownersList = data.owners || [];
+            ownersListTextarea.value = ownersList.join(', ');
+        } catch (error) {
+            console.error('Failed to fetch owners:', error);
+            showToast('Failed to fetch owners list.', 'fail');
+        }
+    }
+
     function updateOverrideUsersList() {
         ignoredOverrideUsers = currentSettings.ignoredOverrideUsers || [];
         specificOverrideUsers = currentSettings.specificOverrideUsers || [];
@@ -1422,6 +1426,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('ownerReplyText').value = rule.REPLY_TEXT || '';
         configureModalButtons('ownerRule', 'edit');
         setupOwnerRuleNumberValidation(true);
+        toggleOwnerFormFields(rule.RULE_TYPE);
         ownerRuleModal.show();
     }
     
@@ -1434,6 +1439,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('ownerRepliesType').value = 'RANDOM';
         configureModalButtons('ownerRule', 'add');
         setupOwnerRuleNumberValidation(false);
+        toggleOwnerFormFields('EXACT');
         ownerRuleModal.show();
     }
     
@@ -1603,17 +1609,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (ownerRuleTypeSelect) {
         ownerRuleTypeSelect.addEventListener('change', (e) => {
-            const ruleType = e.target.value;
-            if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
-                ownerKeywordsField.style.display = 'none';
-                ownerRepliesTypeField.style.display = 'none';
-                ownerReplyTextField.style.display = 'block';
-                document.getElementById('ownerKeywords').value = "ALL";
-            } else {
-                ownerKeywordsField.style.display = 'block';
-                ownerRepliesTypeField.style.display = 'block';
-                ownerReplyTextField.style.display = 'block';
-            }
+            toggleOwnerFormFields(e.target.value);
         });
     }
 
