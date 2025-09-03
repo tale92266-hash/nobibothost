@@ -971,14 +971,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // NEW: Bot Status Functions
+    // FIXED: Bot Status Functions
     function updateBotStatusUI() {
         if (botStatusBtn) {
             const isOnline = currentSettings.isBotOnline;
-            botStatusBtn.className = isOnline ? 'bot-on' : 'bot-off';
+            botStatusBtn.classList.remove('bot-on', 'bot-off', 'bot-loading');
+            botStatusBtn.classList.add(isOnline ? 'bot-on' : 'bot-off');
             const statusText = document.getElementById('botStatusText');
             if (statusText) {
-                statusText.textContent = isOnline ? 'Bot is Online' : 'Bot is Offline';
+                statusText.innerHTML = isOnline ? 'Bot is Online' : 'Bot is Offline';
             }
         }
     }
