@@ -454,7 +454,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Bottom Navigation Handler
     function initBottomNavigation() {
         const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
-        const tabPanes = document.querySelectorAll('#mainTabContent .tab-pane');
+        const mainTabPanes = document.querySelectorAll('#mainTabContent .tab-pane');
+        const additionalTabsContainer = document.querySelector('#additional-pane .tab-navigation');
         const additionalTabs = document.querySelectorAll('#additional-pane .tab-navigation .nav-item');
         const additionalTabContents = document.querySelectorAll('#additional-pane .tab-content .tab-pane');
 
@@ -466,7 +467,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 navItems.forEach(item => item.classList.remove('active'));
                 navItem.classList.add('active');
 
-                tabPanes.forEach(pane => {
+                mainTabPanes.forEach(pane => {
                     pane.classList.remove('show', 'active');
                 });
 
