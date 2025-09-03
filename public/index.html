@@ -344,6 +344,31 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="tab-pane fade" id="additional-pane" role="tabpanel">
+                    <div class="tab-content-wrapper">
+                        <div class="tab-navigation">
+                            <ul class="nav nav-tabs">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="automation-tab" data-bs-toggle="tab" href="#automation-content">Automation</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="owner-tab" data-bs-toggle="tab" href="#owner-content">Owner</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="automation-content" role="tabpanel">
+                                <h3>Automation Settings</h3>
+                                <p>This section will contain settings related to automated tasks.</p>
+                            </div>
+                            <div class="tab-pane fade" id="owner-content" role="tabpanel">
+                                <h3>Owner Commands</h3>
+                                <p>This section will manage bot owner-specific commands.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
@@ -368,6 +393,10 @@
         <div class="nav-item" data-tab="settings">
             <i class="fas fa-cog"></i>
             <span>Settings</span>
+        </div>
+        <div class="nav-item" data-tab="additional">
+            <i class="fas fa-ellipsis-h"></i>
+            <span>Additional</span>
         </div>
     </nav>
 
