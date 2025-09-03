@@ -587,6 +587,12 @@
                         </select>
                     </div>
                     
+                    <div class="form-group mt-3">
+                        <label for="tempHideReplyText">Hide Reply Text</label>
+                        <textarea class="form-control" id="tempHideReplyText" rows="3" placeholder="e.g., Aapko ab chup kar diya gaya hai."></textarea>
+                        <small class="form-text text-muted">This reply will be sent when the hide trigger is matched.</small>
+                    </div>
+                    
                     <hr class="my-4">
                     
                     <div class="form-group">
@@ -610,6 +616,12 @@
                             <option value="PATTERN">Pattern Match</option>
                             <option value="EXPERT">Expert (Regex)</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-group mt-3">
+                        <label for="tempUnhideReplyText">Unhide Reply Text</label>
+                        <textarea class="form-control" id="tempUnhideReplyText" rows="3" placeholder="e.g., Mai wapas aa gaya."></textarea>
+                        <small class="form-text text-muted">This reply will be sent when the unhide trigger is matched.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
