@@ -382,7 +382,7 @@ function convertNewlinesBeforeSave(text) {
     return text.replace(/\\n/g, '\n');
 }
 
-// UPDATED: resolveVariablesRecursively function with new random variables and capturing groups
+// UPDATED: resolveVariablesRecursively function with all new variables
 function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, groupName, isGroup, regexMatch = null, matchedRuleId = null, totalMsgs = 0, messageStats = null, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
