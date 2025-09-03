@@ -478,13 +478,29 @@ document.addEventListener("DOMContentLoaded", () => {
     async function init() {
         try {
             initBottomNavigation();
+            showLoading(); // Show spinner before starting fetch requests
             await fetchStats();
             await fetchRules();
             await fetchVariables();
             await fetchSettings();
             updateBotStatusUI();
+            hideLoading(); // Hide spinner after all requests are complete
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
+            hideLoading(); // Hide spinner on error
+        }
+    }
+
+    // Loading State Management (FIX)
+    function showLoading() {
+        if (loadingMessage) {
+            loadingMessage.style.display = 'flex';
+        }
+    }
+
+    function hideLoading() {
+        if (loadingMessage) {
+            loadingMessage.style.display = 'none';
         }
     }
 
@@ -559,14 +575,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function fetchRules() {
         if (!loadingMessage) return;
-        loadingMessage.style.display = 'block';
+        
         rulesList.innerHTML = '';
         try {
             const response = await fetch('/api/rules');
             const data = await response.json();
             allRules = data;
             totalRules = data.length;
-            loadingMessage.style.display = 'none';
             if (data.length === 0) {
                 rulesList.innerHTML = `
                     <div class="empty-state">
@@ -581,7 +596,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error('Failed to fetch rules:', error);
-            loadingMessage.style.display = 'none';
             rulesList.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-exclamation-triangle fa-3x"></i>
