@@ -435,18 +435,3 @@ app.use(express.static("public"));
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
-
-server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
-
-let pinging = false;
-setInterval(async () => {
-if (pinging) return;
-pinging = true;
-try {
-await axios.get(`${SERVER_URL}/ping`);
-console.log("🔁 Self-ping sent!");
-} catch (err) {
-console.log("❌ Ping failed:", err.message);
-}
-pinging = false;
-}, 5 * 60 * 1000);
