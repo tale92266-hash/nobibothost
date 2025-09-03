@@ -966,7 +966,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        // UPDATED: Pass messageStats object
+        // UPDATED: Pass matchedRuleId and stats.totalMsgs to resolveVariablesRecursively
         reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
         
         // NEW: Update last reply time if a reply is sent
@@ -974,9 +974,11 @@ async function processMessage(msg, sessionId = "default", sender) {
         
         // UPDATED: Update user-specific reply counts
         messageStats.replyCount++;
-        // Update rule-specific reply count
-        const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
-        messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
+        // UPDATED: Check for matchedRuleId before updating rule-specific count
+        if (matchedRuleId) {
+            const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
+            messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
+        }
         await messageStats.save();
     }
     
