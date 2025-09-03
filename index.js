@@ -1,3 +1,5 @@
+// file: index.js
+
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -86,7 +88,7 @@ io.on('connection', (socket) => {
         fs.mkdirSync(dataDir, { recursive: true });
     }
     await syncData();
-    emitStats();
+    emitStats(); // <-- Ye line yaha se remove hogi
     scheduleDailyReset();
 })();
 
