@@ -63,6 +63,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
     const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 
+    // NEW DOM for Owner and Owner Rules
+    const manageOwnersBtn = document.getElementById('manageOwnersBtn');
+    const ownersModal = new bootstrap.Modal(document.getElementById("ownerModal"));
+    const ownersListTextarea = document.getElementById('ownersList');
+    const saveOwnersBtn = document.getElementById('saveOwnersBtn');
+    const ownerRulesList = document.getElementById('ownerRulesList');
+    const addOwnerRuleBtn = document.getElementById('addOwnerRuleBtn');
+    const ownerRuleModal = new bootstrap.Modal(document.getElementById("ownerRuleModal"));
+    const ownerRuleFormTitle = document.getElementById('ownerRuleFormTitle');
+    const ownerRuleNumberInput = document.getElementById('ownerRuleNumber');
+    const ownerRuleNumberError = document.getElementById('ownerRuleNumberError');
+    const ownerRuleForm = document.getElementById('ownerRuleForm');
+    const deleteOwnerRuleBtn = document.getElementById('deleteOwnerRuleBtn');
+    const saveOwnerRuleBtn = document.getElementById('saveOwnerRuleBtn');
+    const ownerRuleTypeSelect = document.getElementById('ownerRuleType');
+    const ownerKeywordsField = document.getElementById('ownerKeywordsField');
+    const ownerRepliesTypeField = document.getElementById('ownerRepliesTypeField');
+    const ownerReplyTextField = document.getElementById('ownerReplyTextField');
+    let allOwnerRules = [];
+    let currentOwnerRuleNumber = null;
+    
     // Variables
     let currentRuleNumber = null;
     let currentVariableName = null;
@@ -73,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEW: Override list variables
     let ignoredOverrideUsers = [];
     let specificOverrideUsers = [];
+    let ownersList = [];
     let currentOverrideType = null;
     let currentSettings = {
         preventRepeatingRule: {
@@ -423,6 +445,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (modalType === 'variable') {
             deleteBtn = document.getElementById('deleteVariableBtn');
             buttonContainer = document.querySelector('.form-actions');
+        } else if (modalType === 'ownerRule') {
+            deleteBtn = document.getElementById('deleteOwnerRuleBtn');
+            buttonContainer = document.querySelector('#ownerRuleModal .modal-footer');
         }
         if (!deleteBtn || !buttonContainer) {
             return;
@@ -446,7 +471,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
-            btn.style.verticalAlign = 'middle';
+            btn.style.vertical-align = 'middle';
             btn.style.marginLeft = '0';
         });
     }
@@ -493,6 +518,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 const targetPane = document.getElementById(`${subTabName}-pane`);
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
+                }
+                if (subTabName === 'owner-name') {
+                    fetchOwnerRules();
                 }
             });
         });
@@ -1247,6 +1275,192 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Network error: Failed to save settings', 'fail');
         }
     }
+    
+    // NEW: Owner Functions
+    async function fetchOwners() {
+        try {
+            const response = await fetch('/api/owners');
+            const data = await response.json();
+            ownersList = data.owners || [];
+            ownersListTextarea.value = ownersList.join(', ');
+        } catch (error) {
+            console.error('Failed to fetch owners:', error);
+            showToast('Failed to fetch owners list.', 'fail');
+        }
+    }
+    
+    async function saveOwners() {
+        const owners = ownersListTextarea.value.split(',').map(name => name.trim()).filter(Boolean);
+        try {
+            const response = await fetch('/api/owners/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ owners })
+            });
+            const result = await response.json();
+            if (result.success) {
+                ownersList = owners;
+                showToast(result.message, 'success');
+                ownersModal.hide();
+            } else {
+                showToast(result.message || 'Failed to save owners.', 'fail');
+            }
+        } catch (error) {
+            console.error('Failed to save owners:', error);
+            showToast('Network error: Failed to save owners.', 'fail');
+        }
+    }
+    
+    async function fetchOwnerRules() {
+        ownerRulesList.innerHTML = '';
+        try {
+            const response = await fetch('/api/owner-rules');
+            const data = await response.json();
+            allOwnerRules = data;
+            if (data.length === 0) {
+                ownerRulesList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-plus-circle fa-3x"></i>
+                        <h5>No Owner Rules Found</h5>
+                        <p>Add your first owner rule here!</p>
+                    </div>
+                `;
+            } else {
+                displayOwnerRules(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch owner rules:', error);
+            ownerRulesList.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    <h5>Error Loading Owner Rules</h5>
+                    <p>Please try refreshing the page</p>
+                </div>
+            `;
+        }
+    }
+
+    function displayOwnerRules(rules) {
+        ownerRulesList.innerHTML = '';
+        rules.forEach(rule => {
+            const ruleElement = createOwnerRuleElement(rule);
+            ownerRulesList.appendChild(ruleElement);
+        });
+    }
+
+    function createOwnerRuleElement(rule) {
+        const ruleDiv = document.createElement('div');
+        ruleDiv.className = 'rule-item';
+        ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
+        const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
+        
+        ruleDiv.innerHTML = `
+            <div class="rule-header-new">
+                <div class="rule-title">
+                    <span class="rule-number-new">${rule.RULE_NUMBER}</span>
+                    <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Rule'}</span>
+                </div>
+                <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
+            </div>
+            <div class="rule-content-new">
+                <div class="rule-line">
+                    <strong>Keywords:</strong> ${rule.KEYWORDS || 'N/A'}
+                </div>
+                <div class="rule-reply">
+                    <strong>Reply:</strong>
+                    <div class="reply-text">${(rule.REPLY_TEXT || 'No reply text').substring(0, 200)}${rule.REPLY_TEXT && rule.REPLY_TEXT.length > 200 ? '...' : ''}</div>
+                </div>
+            </div>
+        `;
+        ruleDiv.addEventListener('click', () => editOwnerRule(rule));
+        return ruleDiv;
+    }
+
+    function editOwnerRule(rule) {
+        currentOwnerRuleNumber = rule.RULE_NUMBER;
+        ownerRuleFormTitle.textContent = 'Edit Owner Rule';
+        ownerRuleNumberInput.value = rule.RULE_NUMBER;
+        document.getElementById('ownerRuleName').value = rule.RULE_NAME || '';
+        document.getElementById('ownerRuleType').value = rule.RULE_TYPE;
+        document.getElementById('ownerKeywords').value = rule.KEYWORDS || '';
+        document.getElementById('ownerRepliesType').value = rule.REPLIES_TYPE;
+        document.getElementById('ownerReplyText').value = rule.REPLY_TEXT || '';
+        configureModalButtons('ownerRule', 'edit');
+        ownerRuleModal.show();
+    }
+    
+    function addNewOwnerRule() {
+        currentOwnerRuleNumber = null;
+        ownerRuleFormTitle.textContent = 'Add New Owner Rule';
+        ownerRuleForm.reset();
+        ownerRuleNumberInput.value = allOwnerRules.length + 1;
+        document.getElementById('ownerRuleType').value = 'EXACT';
+        document.getElementById('ownerRepliesType').value = 'RANDOM';
+        configureModalButtons('ownerRule', 'add');
+        ownerRuleModal.show();
+    }
+    
+    async function saveOwnerRule() {
+        const isEditing = currentOwnerRuleNumber !== null;
+        const ruleData = {
+            ruleNumber: parseInt(ownerRuleNumberInput.value),
+            ruleName: document.getElementById('ownerRuleName').value.trim(),
+            ruleType: document.getElementById('ownerRuleType').value,
+            keywords: document.getElementById('ownerKeywords').value.trim(),
+            repliesType: document.getElementById('ownerRepliesType').value,
+            replyText: document.getElementById('ownerReplyText').value.trim()
+        };
+
+        try {
+            const response = await fetch('/api/owner-rules/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: isEditing ? 'edit' : 'add',
+                    rule: ruleData,
+                    oldRuleNumber: currentOwnerRuleNumber
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast(result.message, 'success');
+                ownerRuleModal.hide();
+                await fetchOwnerRules();
+            } else {
+                showToast(result.message || 'Failed to save owner rule', 'fail');
+            }
+        } catch (error) {
+            console.error('Failed to save owner rule:', error);
+            showToast('Network error: Failed to save owner rule', 'fail');
+        }
+    }
+
+    async function deleteOwnerRule() {
+        if (currentOwnerRuleNumber === null) return;
+        if (!confirm('Are you sure you want to delete this owner rule?')) return;
+        try {
+            const response = await fetch('/api/owner-rules/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'delete',
+                    rule: { ruleNumber: currentOwnerRuleNumber }
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                showToast('Owner rule deleted successfully!', 'success');
+                ownerRuleModal.hide();
+                await fetchOwnerRules();
+                currentOwnerRuleNumber = null;
+            } else {
+                showToast(result.message || 'Failed to delete owner rule', 'fail');
+            }
+        } catch (error) {
+            console.error('Failed to delete owner rule:', error);
+            showToast('Network error: Failed to delete owner rule', 'fail');
+        }
+    }
 
     // Event Listeners
     if (addRuleBtn) {
@@ -1322,6 +1536,47 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveTempHideBtn) {
         saveTempHideBtn.addEventListener('click', saveTempHideSettings);
     }
+    
+    // NEW: Owner Event Listeners
+    if (manageOwnersBtn) {
+        manageOwnersBtn.addEventListener('click', () => {
+            fetchOwners();
+            ownersModal.show();
+        });
+    }
+
+    if (saveOwnersBtn) {
+        saveOwnersBtn.addEventListener('click', saveOwners);
+    }
+
+    if (addOwnerRuleBtn) {
+        addOwnerRuleBtn.addEventListener('click', addNewOwnerRule);
+    }
+
+    if (saveOwnerRuleBtn) {
+        saveOwnerRuleBtn.addEventListener('click', saveOwnerRule);
+    }
+
+    if (deleteOwnerRuleBtn) {
+        deleteOwnerRuleBtn.addEventListener('click', deleteOwnerRule);
+    }
+
+    if (ownerRuleTypeSelect) {
+        ownerRuleTypeSelect.addEventListener('change', (e) => {
+            const ruleType = e.target.value;
+            if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
+                ownerKeywordsField.style.display = 'none';
+                ownerRepliesTypeField.style.display = 'none';
+                ownerReplyTextField.style.display = 'block';
+                document.getElementById('ownerKeywords').value = "ALL";
+            } else {
+                ownerKeywordsField.style.display = 'block';
+                ownerRepliesTypeField.style.display = 'block';
+                ownerReplyTextField.style.display = 'block';
+            }
+        });
+    }
+
 
     // Search functionality
     const rulesSearchInput = document.getElementById('searchRules');
