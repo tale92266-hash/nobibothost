@@ -1,3 +1,5 @@
+// file: models/Stats.js
+
 const mongoose = require("mongoose");
 
 const statsSchema = new mongoose.Schema({
