@@ -179,8 +179,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Add chat tab to navigation
-    addChatNavigation();
-
+    // addChatNavigation();
+    
     function addChatMessage(messageData) {
         const { sessionId, userMessage, botReply, timestamp, senderName, groupName } = messageData;
         // Create message object
@@ -393,6 +393,29 @@ document.addEventListener("DOMContentLoaded", () => {
         ruleNumberInput.addEventListener('keydown', keydownHandler);
         ruleNumberInput._currentKeydownHandler = keydownHandler;
     }
+    
+    function setupOwnerRuleNumberValidation(isEditing = false) {
+        const maxAllowed = isEditing ? allOwnerRules.length : allOwnerRules.length + 1;
+        ownerRuleNumberInput.setAttribute('max', maxAllowed);
+        ownerRuleNumberInput.setAttribute('min', 1);
+        const newHandler = function(e) {
+            let value = parseInt(e.target.value);
+            if (isNaN(value)) {
+                return;
+            }
+            if (value < 1) {
+                e.target.value = 1;
+            } else if (value > maxAllowed) {
+                e.target.value = maxAllowed;
+                showToast(`Maximum rule number in ${isEditing ? 'edit' : 'add'} mode is ${maxAllowed}`, 'warning');
+            }
+        };
+        if (ownerRuleNumberInput._currentHandler) {
+            ownerRuleNumberInput.removeEventListener('input', ownerRuleNumberInput._currentHandler);
+        }
+        ownerRuleNumberInput.addEventListener('input', newHandler);
+        ownerRuleNumberInput._currentHandler = newHandler;
+    }
 
     // Rule Reordering Function
     function reorderRulesArray(rules, oldRuleNumber, newRuleNumber) {
@@ -479,24 +502,36 @@ document.addEventListener("DOMContentLoaded", () => {
     // Bottom Navigation Handler
     function initBottomNavigation() {
         const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
-        const tabPanes = document.querySelectorAll('.tab-pane');
-
+        const mainTabPanes = document.querySelectorAll('#mainTabContent .tab-pane');
+        
         navItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
                 const tabName = navItem.getAttribute('data-tab');
+                
                 navItems.forEach(item => item.classList.remove('active'));
                 navItem.classList.add('active');
-                tabPanes.forEach(pane => {
+
+                mainTabPanes.forEach(pane => {
                     pane.classList.remove('show', 'active');
                 });
                 const targetPane = document.getElementById(`${tabName}-pane`);
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
                 }
-                if (tabName === 'rules' && allRules.length === 0) {
+                
+                if (tabName === 'rules') {
                     fetchRules();
-                } else if (tabName === 'variables' && allVariables.length === 0) {
+                } else if (tabName === 'variables') {
                     fetchVariables();
+                } else if (tabName === 'additional') {
+                    // Activate first sub-tab by default
+                    const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
+                    const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
+                    if (subNavItems.length > 0) {
+                        subNavItems[0].classList.add('active');
+                        subTabPanes[0].classList.add('show', 'active');
+                    }
+                    fetchOwnerRules();
                 }
             });
         });
@@ -1386,6 +1421,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('ownerRepliesType').value = rule.REPLIES_TYPE;
         document.getElementById('ownerReplyText').value = rule.REPLY_TEXT || '';
         configureModalButtons('ownerRule', 'edit');
+        setupOwnerRuleNumberValidation(true);
         ownerRuleModal.show();
     }
     
@@ -1397,6 +1433,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('ownerRuleType').value = 'EXACT';
         document.getElementById('ownerRepliesType').value = 'RANDOM';
         configureModalButtons('ownerRule', 'add');
+        setupOwnerRuleNumberValidation(false);
         ownerRuleModal.show();
     }
     
@@ -1461,7 +1498,7 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Network error: Failed to delete owner rule', 'fail');
         }
     }
-
+    
     // Event Listeners
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', addNewRule);
@@ -1554,7 +1591,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     if (saveOwnerRuleBtn) {
-        saveOwnerRuleBtn.addEventListener('click', saveOwnerRule);
+        saveOwnerRuleBtn.addEventListener('click', (e) => {
+             e.preventDefault();
+             saveOwnerRule();
+        });
     }
 
     if (deleteOwnerRuleBtn) {
@@ -1577,7 +1617,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-
     // Search functionality
     const rulesSearchInput = document.getElementById('searchRules');
     if (rulesSearchInput) {
@@ -1599,7 +1638,6 @@ document.addEventListener("DOMContentLoaded", () => {
             displayVariables(filteredVariables);
         });
     }
-
 
     // Initialize the app
     init();
