@@ -362,7 +362,7 @@ function convertNewlinesBeforeSave(text) {
 }
 
 // UPDATED: resolveVariablesRecursively function with new random variables and capturing groups
-function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, regexMatch = null, maxIterations = 10) {
+function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, groupName, isGroup, regexMatch = null, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
@@ -498,6 +498,11 @@ function resolveVariablesRecursively(text, senderName, receivedMessage, processi
                     return senderName;
             }
             return match;
+        });
+        
+        // NEW: Inbuilt variable for GC/DM name
+        result = result.replace(/%gc%/g, () => {
+            return isGroup ? `${groupName} GC` : 'CHAT';
         });
 
         // Pass 2: Resolve the new random variables
@@ -827,7 +832,6 @@ async function processMessage(msg, sessionId = "default", sender) {
             if (senderName && !welcomedUsers.includes(senderName)) {
                 match = true;
                 welcomedUsers.push(senderName);
-                saveWelcomedUsers();
                 await User.create({ senderName, sessionId });
             }
         } else if (rule.RULE_TYPE === "DEFAULT") {
@@ -842,7 +846,7 @@ async function processMessage(msg, sessionId = "default", sender) {
                 }
                 
                 // Now, check for keyword matches
-                if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg) match = true;
+                if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
                 else if (rule.RULE_TYPE === "PATTERN") {
                     let regexStr = pattern.replace(/\*/g, ".*");
                     if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
@@ -887,7 +891,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, regexMatch);
+        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch);
         
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
@@ -1304,6 +1308,7 @@ app.post("/webhook", async (req, res) => {
         return res.json({ replies: [] });
     }
 
+    // UPDATED: Pass groupName and isGroup to processMessage
     const replyText = await processMessage(msg, sessionId, sender);
 
     // Create message object for history
@@ -1369,3 +1374,4 @@ console.log("❌ Ping failed:", err.message);
 }
 pinging = false;
 }, 5 * 60 * 1000);
+
