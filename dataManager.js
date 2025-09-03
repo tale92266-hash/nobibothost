@@ -3,6 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Rule, Variable, Settings, Stats, User } = require("./db");
+const state = require('./state');
 
 const today = new Date().toLocaleDateString();
 
@@ -36,8 +37,6 @@ let settings = {
         unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
     }
 };
-
-let isReady = false;
 
 function emitStats(io) {
     if (stats) {
@@ -185,7 +184,7 @@ async function syncData(io) {
 
         emitStats(io);
         
-        isReady = true;
+        state.isReady = true; // <-- Ab state object ko update kiya jaayega
         console.log('✅ Server is ready to handle requests.');
     } catch (err) {
         console.error("❌ Data sync error:", err);
@@ -206,7 +205,6 @@ module.exports = {
     IGNORED_OVERRIDE_USERS,
     SPECIFIC_OVERRIDE_USERS,
     settings,
-    isReady,
     loadAllRules,
     loadAllVariables,
     emitStats
