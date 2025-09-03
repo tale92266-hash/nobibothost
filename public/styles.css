@@ -1228,57 +1228,10 @@ body {
     animation: fadeInUp 0.5s ease-out;
 }
 
-/* NEW: Top tab navigation styles */
+/* Remove top tab navigation styles */
 .tab-navigation {
-    position: sticky;
-    top: 64px;
-    background: var(--white);
-    z-index: 999;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--gray-200);
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
+    display: none;
 }
-
-.tab-navigation .nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: var(--transition);
-    color: var(--gray-500);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-align: center;
-    min-width: 70px;
-    width: 100%;
-}
-
-.tab-navigation .nav-item.active {
-    color: var(--primary);
-    background: rgba(102, 126, 234, 0.1);
-}
-
-.tab-navigation .nav-item:hover {
-    background: var(--gray-100);
-    color: var(--primary);
-}
-
-.tab-navigation .nav-item i {
-    font-size: 1.25rem;
-    margin-bottom: 0.25rem;
-}
-
-.tab-navigation .nav-item span {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
 
 /* NEW: Bot Status Button styles */
 .bot-status-container {
@@ -1438,20 +1391,6 @@ body {
         font-size: 0.875rem;
     }
     
-    /* Stack in correct order even on mobile */
-    .modal-footer .btn-primary {
-        order: 1;
-    }
-    
-    .modal-footer .btn-outline-danger,
-    .modal-footer .btn-danger {
-        order: 2;
-    }
-    
-    .modal-footer .btn-secondary {
-        order: 3;
-    }
-    
     .main-content {
         padding: 1rem 0 90px 0;
     }
@@ -1478,14 +1417,14 @@ body {
         padding: 0.25rem;
     }
     
-    .tab-navigation .nav-item {
-        padding: 0.5rem;
-        min-width: 60px;
-        flex: 1;
+    .nav-tabs {
+        gap: 0.25rem;
     }
     
-    .tab-navigation .nav-item i {
-        font-size: 1rem;
+    .nav-tabs .nav-link {
+        padding: 0.75rem;
+        min-width: 60px;
+        justify-content: center;
     }
 
     #botStatusBtn {
