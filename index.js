@@ -1,5 +1,7 @@
 // file: index.js
 
+require("dotenv").config();
+
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -25,8 +27,6 @@ const {
     emitStats
 } = require("./dataManager");
 const { processMessage } = require("./messageProcessor");
-
-require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -99,7 +99,6 @@ io.on('connection', (socket) => {
     }, 5 * 60 * 1000);
 })();
 
-// ENDPOINTS
 app.post("/api/settings/ignored-override", async (req, res) => {
     try {
         const { users } = req.body;
@@ -437,17 +436,17 @@ app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-// server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`)); // <-- Ye line hata di gayi hai
+server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
 
-// let pinging = false;
-// setInterval(async () => {
-//     if (pinging) return;
-//     pinging = true;
-//     try {
-//         await axios.get(`${SERVER_URL}/ping`);
-//         console.log("🔁 Self-ping sent!");
-//     } catch (err) {
-//         console.log("❌ Ping failed:", err.message);
-//     }
-//     pinging = false;
-// }, 5 * 60 * 1000);
+let pinging = false;
+setInterval(async () => {
+if (pinging) return;
+pinging = true;
+try {
+await axios.get(`${SERVER_URL}/ping`);
+console.log("🔁 Self-ping sent!");
+} catch (err) {
+console.log("❌ Ping failed:", err.message);
+}
+pinging = false;
+}, 5 * 60 * 1000);
