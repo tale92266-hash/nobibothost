@@ -1263,6 +1263,11 @@ body {
     background: rgba(102, 126, 234, 0.1);
 }
 
+.tab-navigation .nav-item:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+}
+
 .tab-navigation .nav-item i {
     font-size: 1.25rem;
     margin-bottom: 0.25rem;
@@ -1272,35 +1277,6 @@ body {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-}
-
-.nav-tabs {
-    border-bottom: none;
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-start;
-}
-
-.nav-tabs .nav-link {
-    border: none;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
-    padding: 1rem 1.25rem;
-    font-weight: 600;
-    color: var(--gray-500);
-    transition: all 0.3s ease;
-}
-
-.nav-tabs .nav-link:hover {
-    color: var(--primary);
-    background: transparent;
-    border-color: var(--gray-300);
-}
-
-.nav-tabs .nav-link.active {
-    color: var(--primary);
-    background: transparent;
-    border-color: var(--primary);
 }
 
 
@@ -1506,6 +1482,10 @@ body {
         padding: 0.5rem;
         min-width: 60px;
         flex: 1;
+    }
+    
+    .tab-navigation .nav-item i {
+        font-size: 1rem;
     }
 
     #botStatusBtn {
