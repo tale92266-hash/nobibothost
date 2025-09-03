@@ -453,11 +453,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Bottom Navigation Handler
     function initBottomNavigation() {
-        const navItems = document.querySelectorAll('.nav-item');
+        const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
         const tabPanes = document.querySelectorAll('.tab-pane');
-        if (navItems.length > 0) {
-            navItems[0].classList.add('active');
-        }
+
         navItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
                 const tabName = navItem.getAttribute('data-tab');
@@ -479,10 +477,32 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // NEW: Sub-navigation handler for 'Additional' tab
+    function initSubNavigation() {
+        const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
+        const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
+
+        subNavItems.forEach(navItem => {
+            navItem.addEventListener('click', () => {
+                const subTabName = navItem.getAttribute('data-sub-tab');
+                subNavItems.forEach(item => item.classList.remove('active'));
+                navItem.classList.add('active');
+                subTabPanes.forEach(pane => {
+                    pane.classList.remove('show', 'active');
+                });
+                const targetPane = document.getElementById(`${subTabName}-pane`);
+                if (targetPane) {
+                    targetPane.classList.add('show', 'active');
+                }
+            });
+        });
+    }
+
     // Initialize
     async function init() {
         try {
             initBottomNavigation();
+            initSubNavigation();
             showLoading(); // Show spinner before starting fetch requests
             await fetchStats();
             await fetchRules();
