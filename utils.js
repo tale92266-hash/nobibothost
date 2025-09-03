@@ -1,3 +1,5 @@
+// file: utils.js
+
 const today = new Date().toLocaleDateString();
 
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
