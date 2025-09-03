@@ -79,13 +79,10 @@ io.on('connection', (socket) => {
         fs.mkdirSync(dataDir, { recursive: true });
     }
     
-    // Sabse pehle saare data ko sync karo aur isReady flag set karo
     await syncData(io);
     
-    // Fir server ko listen karna shuru karo
     server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
     
-    // Aur fir baaki ke kaam karo
     scheduleDailyReset();
     
     let pinging = false;
@@ -440,17 +437,17 @@ app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
 
-server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`));
+// server.listen(PORT, () => console.log(`🤖 CHAT BOT RUNNING ON PORT ${PORT}`)); // <-- Ye line hata di gayi hai
 
-let pinging = false;
-setInterval(async () => {
-    if (pinging) return;
-    pinging = true;
-    try {
-        await axios.get(`${SERVER_URL}/ping`);
-        console.log("🔁 Self-ping sent!");
-    } catch (err) {
-        console.log("❌ Ping failed:", err.message);
-    }
-    pinging = false;
-}, 5 * 60 * 1000);
+// let pinging = false;
+// setInterval(async () => {
+//     if (pinging) return;
+//     pinging = true;
+//     try {
+//         await axios.get(`${SERVER_URL}/ping`);
+//         console.log("🔁 Self-ping sent!");
+//     } catch (err) {
+//         console.log("❌ Ping failed:", err.message);
+//     }
+//     pinging = false;
+// }, 5 * 60 * 1000);
