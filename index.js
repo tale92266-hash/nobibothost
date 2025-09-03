@@ -21,7 +21,8 @@ const {
     SPECIFIC_OVERRIDE_USERS,
     settings,
     loadAllRules,
-    loadAllVariables
+    loadAllVariables,
+    emitStats // <-- Ye line remove kar di jayegi
 } = require("./dataManager");
 const { processMessage } = require("./messageProcessor");
 
@@ -39,15 +40,7 @@ let recentChatMessages = [];
 const MAX_CHAT_HISTORY = 10;
 const today = new Date().toLocaleDateString();
 
-function emitStats() {
-    io.emit("statsUpdate", {
-        totalUsers: stats.totalUsers.length,
-        totalMsgs: stats.totalMsgs,
-        todayUsers: stats.todayUsers.length,
-        todayMsgs: stats.todayMsgs,
-        nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
-    });
-}
+// emitStats function ko yahan se remove kar diya gaya hai
 
 const resetDailyStats = async () => {
     stats.todayUsers = [];
@@ -87,8 +80,8 @@ io.on('connection', (socket) => {
     if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
     }
-    await syncData();
-    emitStats(); // <-- Ye line yaha se remove hogi
+    await syncData(io); // <-- emitStats ko call karne ke liye 'io' object pass kiya ja raha hai
+    // emitStats(); // <-- Ye line yahan se remove ho gayi hai
     scheduleDailyReset();
 })();
 
@@ -374,7 +367,7 @@ app.post("/api/variables/update", async (req, res) => {
         res.json({ success: true, message: "Variable updated successfully!" });
         io.emit('variablesUpdated', { action: type, variableName: variable.name });
     } catch (err) {
-        console.error("❌ Failed to update variable:", err);
+        console.error("❌ Failed to update variable:", error);
         res.status(500).json({ success: false, message: "Server error" });
     }
 });
