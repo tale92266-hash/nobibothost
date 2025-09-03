@@ -39,7 +39,6 @@ let settings = {
 
 let isReady = false;
 
-// emitStats function ko yahan move kiya gaya hai
 function emitStats(io) {
     if (stats) {
         io.emit("statsUpdate", {
@@ -184,7 +183,7 @@ async function syncData(io) {
             fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
         }
 
-        emitStats(io); // <-- emitStats ko yahan call kiya gaya hai, stats object ke load hone ke baad
+        emitStats(io);
         
         isReady = true;
         console.log('✅ Server is ready to handle requests.');
