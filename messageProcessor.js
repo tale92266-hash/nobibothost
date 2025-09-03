@@ -20,7 +20,6 @@ const {
     settings,
     saveStats,
     saveIgnoredOverrideUsers,
-    isReady
 } = require("./dataManager");
 
 const messageHistory = [];
@@ -139,7 +138,6 @@ async function processMessage(msg, sessionId = "default", sender) {
     const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
     Object.assign(stats, updatedStats.toObject());
     saveStats();
-    emitStats();
 
     let reply = null;
     let regexMatch = null;
@@ -186,7 +184,7 @@ async function processMessage(msg, sessionId = "default", sender) {
                 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
                 else if (rule.RULE_TYPE === "PATTERN") {
                     let regexStr = pattern.replace(/\*/g, ".*");
-                    if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+                    if (new RegExp(`^${regexStr}$`, "i").test(message)) match = true;
                 } else if (rule.RULE_TYPE === "EXPERT") {
                     try {
                         const regex = new RegExp(pattern, "i");
