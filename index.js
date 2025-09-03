@@ -132,9 +132,9 @@ let settings = {
         unhideEnabled: true,
         unhideTriggerText: 'nobi papa start',
         unhideMatchType: 'EXACT',
-        // NEW: Add reply messages for hide and unhide triggers
-        hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
-        unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
+        // UPDATED: Add multiple replies for hide and unhide triggers
+        hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.',
+        unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
     }
 };
 let lastReplyTimes = {};
@@ -173,8 +173,8 @@ async function loadSettingsFromFiles() {
                     unhideEnabled: true,
                     unhideTriggerText: 'nobi papa start',
                     unhideMatchType: 'EXACT',
-                    hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
-                    unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
+                    hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.',
+                    unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
                 };
             }
             if (settings.temporaryHide.unhideEnabled === undefined) {
@@ -188,10 +188,10 @@ async function loadSettingsFromFiles() {
             }
             // NEW: Ensure reply fields exist with default values
             if (settings.temporaryHide.hideReply === undefined) {
-                settings.temporaryHide.hideReply = 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.';
+                settings.temporaryHide.hideReply = 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.';
             }
             if (settings.temporaryHide.unhideReply === undefined) {
-                settings.temporaryHide.unhideReply = 'Mai wapas aa gaya, abhi aapko reply karunga.';
+                settings.temporaryHide.unhideReply = 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.';
             }
             console.log('⚙️ Settings loaded from local file.');
             loaded = true;
@@ -225,8 +225,8 @@ async function restoreSettingsFromDb() {
                 unhideEnabled: true,
                 unhideTriggerText: 'nobi papa start',
                 unhideMatchType: 'EXACT',
-                hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
-                unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
+                hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.',
+                unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
             };
         }
         if (settings.temporaryHide.unhideEnabled === undefined) {
@@ -240,10 +240,10 @@ async function restoreSettingsFromDb() {
         }
         // NEW: Ensure reply fields exist with default values
         if (settings.temporaryHide.hideReply === undefined) {
-            settings.temporaryHide.hideReply = 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.';
+            settings.temporaryHide.hideReply = 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.';
         }
         if (settings.temporaryHide.unhideReply === undefined) {
-            settings.temporaryHide.unhideReply = 'Mai wapas aa gaya, abhi aapko reply karunga.';
+            settings.temporaryHide.unhideReply = 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.';
         }
         fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
         console.log('✅ Global settings restored from MongoDB.');
@@ -770,6 +770,16 @@ function matchesTrigger(message, triggerText, matchType) {
     return false;
 }
 
+// NEW: Function to pick a random reply from a list of replies separated by <#>
+function pickRandomReply(replyText, senderName, msg, processingTime, groupName, isGroup) {
+    const replies = replyText.split('<#>').map(r => r.trim()).filter(Boolean);
+    if (replies.length === 0) {
+        return null;
+    }
+    const selectedReply = pick(replies);
+    return resolveVariablesRecursively(selectedReply, senderName, msg, processingTime, groupName, isGroup);
+}
+
 async function processMessage(msg, sessionId = "default", sender) {
     const startTime = process.hrtime();
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
@@ -832,9 +842,9 @@ async function processMessage(msg, sessionId = "default", sender) {
     // NEW: User is ignored if they are in the context-specific list.
     const isSenderIgnored = isUserIgnored(senderName, context, IGNORED_OVERRIDE_USERS);
 
-    // If a hide or unhide trigger was activated, we reply with the specific reply
-    if (temporaryHideTriggered && settings.temporaryHide.hideReply) {
-        const reply = resolveVariablesRecursively(settings.temporaryHide.hideReply, senderName, msg, 0, groupName, isGroup, null, null, stats.totalMsgs);
+    // UPDATED: Process hide/unhide replies and then return
+    if (temporaryHideTriggered) {
+        const reply = pickRandomReply(settings.temporaryHide.hideReply, senderName, msg, 0, groupName, isGroup);
         
         // Add to ignored list AFTER we get the reply text
         const hideEntry = { name: senderName, context: context };
@@ -847,8 +857,8 @@ async function processMessage(msg, sessionId = "default", sender) {
         return reply;
     }
     
-    if (unhideTriggered && settings.temporaryHide.unhideReply) {
-        const reply = resolveVariablesRecursively(settings.temporaryHide.unhideReply, senderName, msg, 0, groupName, isGroup, null, null, stats.totalMsgs);
+    if (unhideTriggered) {
+        const reply = pickRandomReply(settings.temporaryHide.unhideReply, senderName, msg, 0, groupName, isGroup);
         return reply;
     }
 
