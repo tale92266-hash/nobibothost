@@ -453,51 +453,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Bottom Navigation Handler
     function initBottomNavigation() {
-        const navItems = document.querySelectorAll('.nav-item');
-        const tabPanes = document.querySelectorAll('.tab-pane');
-        if (navItems.length > 0) {
-            navItems[0].classList.add('active');
-        }
+        const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
+        const tabPanes = document.querySelectorAll('#mainTabContent .tab-pane');
+        const additionalTabs = document.querySelectorAll('#additional-pane .tab-navigation .nav-item');
+        const additionalTabContents = document.querySelectorAll('#additional-pane .tab-content .tab-pane');
+
+        // Main navigation logic
         navItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
                 const tabName = navItem.getAttribute('data-tab');
+
                 navItems.forEach(item => item.classList.remove('active'));
                 navItem.classList.add('active');
+
                 tabPanes.forEach(pane => {
                     pane.classList.remove('show', 'active');
                 });
+
                 const targetPane = document.getElementById(`${tabName}-pane`);
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
                 }
+
                 if (tabName === 'rules' && allRules.length === 0) {
                     fetchRules();
                 } else if (tabName === 'variables' && allVariables.length === 0) {
                     fetchVariables();
                 }
-
-                // NEW: Logic for handling nested tabs in "Additional" pane
-                if (tabName === 'additional') {
-                    const additionalTabs = document.querySelectorAll('#additional-pane .tab-navigation .nav-item');
-                    const additionalTabContents = document.querySelectorAll('#additional-pane .tab-content .tab-pane');
-                    
-                    additionalTabs.forEach(tab => {
-                        tab.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            const nestedTabName = tab.getAttribute('data-tab');
-                            
-                            // Remove active class from all nested tabs and content
-                            additionalTabs.forEach(t => t.classList.remove('active'));
-                            additionalTabContents.forEach(c => c.classList.remove('show', 'active'));
-                            
-                            // Add active class to clicked tab and corresponding content
-                            tab.classList.add('active');
-                            document.getElementById(`${nestedTabName}-content`).classList.add('show', 'active');
-                        });
-                    });
-                }
             });
         });
+
+        // Nested tabs logic for Additional pane
+        additionalTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const nestedTabName = tab.getAttribute('data-tab');
+
+                // Remove active class from all nested tabs and content
+                additionalTabs.forEach(t => t.classList.remove('active'));
+                additionalTabContents.forEach(c => c.classList.remove('show', 'active'));
+
+                // Add active class to clicked tab and corresponding content
+                tab.classList.add('active');
+                document.getElementById(`${nestedTabName}-content`).classList.add('show', 'active');
+            });
+        });
+        
+        // Initial state for nested tabs in 'Additional' pane
+        const additionalPane = document.getElementById('additional-pane');
+        if(additionalPane && additionalPane.classList.contains('show')) {
+             if (additionalTabs.length > 0 && additionalTabContents.length > 0) {
+                 additionalTabs[0].classList.add('active');
+                 additionalTabContents[0].classList.add('show', 'active');
+             }
+        }
     }
 
     // Initialize
@@ -819,7 +827,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('targetUsersToggle').value = 'ALL';
         targetUsersField.style.display = 'none';
         toggleFormFields('EXACT');
-        setupRuleNumberValidation(false);
         configureModalButtons('rule', 'add');
         ruleModal.show();
     }
