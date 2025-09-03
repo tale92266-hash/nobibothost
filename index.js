@@ -362,7 +362,7 @@ function convertNewlinesBeforeSave(text) {
 }
 
 // UPDATED: resolveVariablesRecursively function with new random variables and capturing groups
-function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, groupName, isGroup, regexMatch = null, maxIterations = 10) {
+function resolveVariablesRecursively(text, senderName, receivedMessage, processingTime, groupName, isGroup, regexMatch = null, matchedRuleId = null, totalMsgs = 0, maxIterations = 10) {
     let result = text;
     let iterationCount = 0;
 
@@ -504,6 +504,10 @@ function resolveVariablesRecursively(text, senderName, receivedMessage, processi
         result = result.replace(/%gc%/g, () => {
             return isGroup ? `${groupName} GC` : 'CHAT';
         });
+
+        // NEW: Add new variables based on the request
+        result = result.replace(/%rule_id%/g, () => matchedRuleId ? matchedRuleId.toString() : 'N/A');
+        result = result.replace(/%reply_count_overall%/g, () => totalMsgs.toString());
 
         // Pass 2: Resolve the new random variables
         result = result.replace(/%rndm_num_(\d+)_(\d+)%/g, (match, min, max) => {
@@ -891,7 +895,8 @@ async function processMessage(msg, sessionId = "default", sender) {
     // Process reply with variables (with proper order)
     if (reply) {
         console.log(`🔧 Processing reply with correct variable resolution order`);
-        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch);
+        // UPDATED: Pass matchedRuleId and stats.totalMsgs to resolveVariablesRecursively
+        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs);
         
         // NEW: Update last reply time if a reply is sent
         lastReplyTimes[senderName] = Date.now();
@@ -1374,4 +1379,3 @@ console.log("❌ Ping failed:", err.message);
 }
 pinging = false;
 }, 5 * 60 * 1000);
-
