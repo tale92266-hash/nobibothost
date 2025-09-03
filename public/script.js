@@ -446,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
-            btn.style.verticalAlign = 'middle';
+            btn.style.vertical-align = 'middle';
             btn.style.marginLeft = '0';
         });
     }
@@ -474,6 +474,27 @@ document.addEventListener("DOMContentLoaded", () => {
                     fetchRules();
                 } else if (tabName === 'variables' && allVariables.length === 0) {
                     fetchVariables();
+                }
+
+                // NEW: Logic for handling nested tabs in "Additional" pane
+                if (tabName === 'additional') {
+                    const additionalTabs = document.querySelectorAll('#additional-pane .tab-navigation .nav-item');
+                    const additionalTabContents = document.querySelectorAll('#additional-pane .tab-content .tab-pane');
+                    
+                    additionalTabs.forEach(tab => {
+                        tab.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            const nestedTabName = tab.getAttribute('data-tab');
+                            
+                            // Remove active class from all nested tabs and content
+                            additionalTabs.forEach(t => t.classList.remove('active'));
+                            additionalTabContents.forEach(c => c.classList.remove('show', 'active'));
+                            
+                            // Add active class to clicked tab and corresponding content
+                            tab.classList.add('active');
+                            document.getElementById(`${nestedTabName}-content`).classList.add('show', 'active');
+                        });
+                    });
                 }
             });
         });
