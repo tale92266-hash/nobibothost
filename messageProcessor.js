@@ -1,3 +1,5 @@
+// file: messageProcessor.js
+
 const {
     pick,
     resolveVariablesRecursively,
@@ -137,6 +139,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     const updatedStats = await Stats.findByIdAndUpdate(stats._id, stats, { new: true });
     Object.assign(stats, updatedStats.toObject());
     saveStats();
+    emitStats();
 
     let reply = null;
     let regexMatch = null;
