@@ -87,8 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
             unhideEnabled: true,
             unhideTriggerText: 'nobi papa start',
             unhideMatchType: 'EXACT',
-            hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.',
-            unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.'
+            hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.',
+            unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
         }
     };
 
@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (chatMessages.length > maxMessages) {
             chatMessages = chatMessages.slice(-maxMessages); // Keep last 10
         }
-        // Update chat display
+        // Update display
         updateChatDisplay();
         // Auto scroll to latest message (bottom)
         scrollToLatest();
@@ -1161,12 +1161,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (tempUnhideTriggerTextarea) {
             tempUnhideTriggerTextarea.value = currentSettings.temporaryHide.unhideTriggerText;
         }
-        // NEW: Set values for reply textareas
+        // UPDATED: Set values for reply textareas using the correct separator
         if (tempHideReplyTextarea) {
-            tempHideReplyTextarea.value = currentSettings.temporaryHide.hideReply;
+            tempHideReplyTextarea.value = currentSettings.temporaryHide.hideReply.replace(/<#>/g, '\n<#>\n');
         }
         if (tempUnhideReplyTextarea) {
-            tempUnhideReplyTextarea.value = currentSettings.temporaryHide.unhideReply;
+            tempUnhideReplyTextarea.value = currentSettings.temporaryHide.unhideReply.replace(/<#>/g, '\n<#>\n');
         }
     }
 
@@ -1182,9 +1182,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const unhideEnabled = tempUnhideToggle.checked;
         const unhideMatchType = tempUnhideMatchTypeSelect.value;
         const unhideTriggerText = tempUnhideTriggerTextarea.value.trim();
-        // NEW: Get reply text values
-        const hideReply = tempHideReplyTextarea.value.trim();
-        const unhideReply = tempUnhideReplyTextarea.value.trim();
+        // UPDATED: Get reply text values and convert back to original format for backend
+        const hideReply = tempHideReplyTextarea.value.trim().replace(/\n<#>\n/g, '<#>');
+        const unhideReply = tempUnhideReplyTextarea.value.trim().replace(/\n<#>\n/g, '<#>');
         
         try {
             const response = await fetch('/api/settings/temporary-hide', {
