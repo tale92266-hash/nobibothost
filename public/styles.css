@@ -1228,7 +1228,7 @@ body {
     animation: fadeInUp 0.5s ease-out;
 }
 
-/* Remove top tab navigation styles */
+/* NEW: Top tab navigation styles */
 .tab-navigation {
     position: sticky;
     top: 64px;
@@ -1236,7 +1236,6 @@ body {
     z-index: 999;
     padding: 0.5rem 0;
     border-bottom: 1px solid var(--gray-200);
-    display: none;
 }
 
 .nav-tabs {
@@ -1267,6 +1266,7 @@ body {
     background: transparent;
     border-color: var(--primary);
 }
+
 
 /* NEW: Bot Status Button styles */
 .bot-status-container {
