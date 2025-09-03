@@ -1,3 +1,5 @@
+// file: dataManager.js
+
 const fs = require("fs");
 const path = require("path");
 const { Rule, Variable, Settings, Stats, User } = require("./db");
@@ -36,6 +38,19 @@ let settings = {
 };
 
 let isReady = false;
+
+// emitStats function ko yahan move kiya gaya hai
+function emitStats(io) {
+    if (stats) {
+        io.emit("statsUpdate", {
+            totalUsers: stats.totalUsers.length,
+            totalMsgs: stats.totalMsgs,
+            todayUsers: stats.todayUsers.length,
+            todayMsgs: stats.todayMsgs,
+            nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
+        });
+    }
+}
 
 async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
@@ -139,7 +154,7 @@ async function saveSettings() {
     );
 }
 
-async function syncData() {
+async function syncData(io) {
     try {
         stats = await Stats.findOne();
         if (!stats) {
@@ -168,6 +183,8 @@ async function syncData() {
             await Stats.findByIdAndUpdate(stats._id, stats);
             fs.writeFileSync(statsFilePath, JSON.stringify(stats, null, 2));
         }
+
+        emitStats(io); // <-- emitStats ko yahan call kiya gaya hai, stats object ke load hone ke baad
         
         isReady = true;
         console.log('✅ Server is ready to handle requests.');
@@ -192,5 +209,6 @@ module.exports = {
     settings,
     isReady,
     loadAllRules,
-    loadAllVariables
+    loadAllVariables,
+    emitStats
 };
