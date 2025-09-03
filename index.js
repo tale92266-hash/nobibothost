@@ -46,7 +46,19 @@ const ruleSchema = new mongoose.Schema({
     TARGET_USERS: { type: mongoose.Schema.Types.Mixed, default: "ALL" }
 });
 
+// NEW: Owner Rule Schema
+const ownerRuleSchema = new mongoose.Schema({
+    RULE_NUMBER: { type: Number, required: true, unique: true },
+    RULE_NAME: { type: String, required: false },
+    RULE_TYPE: { type: String, required: true },
+    KEYWORDS: { type: String, required: true },
+    REPLIES_TYPE: { type: String, required: true },
+    REPLY_TEXT: { type: String, required: true }
+});
+
+
 const Rule = mongoose.model("Rule", ruleSchema);
+const OwnerRule = mongoose.model("OwnerRule", ownerRuleSchema);
 
 const statsSchema = new mongoose.Schema({
     totalUsers: [{ type: String }],
@@ -104,6 +116,7 @@ const today = new Date().toLocaleDateString();
 let stats;
 let welcomedUsers;
 let RULES = [];
+let OWNER_RULES = [];
 let VARIABLES = [];
 // NEW: In-memory history for previous message/reply variables
 let messageHistory = [];
@@ -112,11 +125,18 @@ const MAX_HISTORY = 50;
 // NEW: Override lists
 const ignoredOverrideUsersFile = path.join(__dirname, "data", "ignored_override_users.json");
 const specificOverrideUsersFile = path.join(__dirname, "data", "specific_override_users.json");
+// NEW: Owner list file path
+const ownersListFile = path.join(__dirname, "data", "owner_list.json");
+
 let IGNORED_OVERRIDE_USERS = [];
 let SPECIFIC_OVERRIDE_USERS = [];
+// NEW: Owner list array
+let OWNER_LIST = [];
 
 // NEW: Repeating rule settings and last reply times
 const settingsFilePath = path.join(__dirname, "data", "settings.json");
+const ownerRulesFilePath = path.join(__dirname, "data", "owner_rules.json");
+
 let settings = {
     preventRepeatingRule: {
         enabled: false,
@@ -144,6 +164,11 @@ async function loadAllRules() {
     RULES = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     console.log(`⚡ Loaded ${RULES.length} rules from MongoDB.`);
 }
+// NEW: Function to load owner rules from MongoDB
+async function loadAllOwnerRules() {
+    OWNER_RULES = await OwnerRule.find({}).sort({ RULE_NUMBER: 1 });
+    console.log(`⚡ Loaded ${OWNER_RULES.length} owner rules from MongoDB.`);
+}
 
 async function loadAllVariables() {
     VARIABLES = await Variable.find({});
@@ -157,6 +182,12 @@ async function loadSettingsFromFiles() {
         IGNORED_OVERRIDE_USERS = JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8'));
         SPECIFIC_OVERRIDE_USERS = JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8'));
         console.log(`🔍 Override users loaded from local files.`);
+        loaded = true;
+    }
+    // NEW: Load owner list from file
+    if (fs.existsSync(ownersListFile)) {
+        OWNER_LIST = JSON.parse(fs.readFileSync(ownersListFile, 'utf8'));
+        console.log(`👑 Owner list loaded from local file.`);
         loaded = true;
     }
     if (fs.existsSync(settingsFilePath)) {
@@ -208,8 +239,11 @@ async function restoreSettingsFromDb() {
     if (overrideSettings) {
         IGNORED_OVERRIDE_USERS = overrideSettings.settings_data.ignored || [];
         SPECIFIC_OVERRIDE_USERS = overrideSettings.settings_data.specific || [];
+        // NEW: Restore owner list
+        OWNER_LIST = overrideSettings.settings_data.owners || [];
         fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
         fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
+        fs.writeFileSync(ownersListFile, JSON.stringify(OWNER_LIST, null, 2));
         console.log('✅ Override lists restored from MongoDB.');
     }
 
@@ -256,16 +290,19 @@ const migrateOldSettings = async () => {
     if (fs.existsSync(ignoredOverrideUsersFile) || fs.existsSync(specificOverrideUsersFile)) {
         const ignored = fs.existsSync(ignoredOverrideUsersFile) ? JSON.parse(fs.readFileSync(ignoredOverrideUsersFile, 'utf8')) : [];
         const specific = fs.existsSync(specificOverrideUsersFile) ? JSON.parse(fs.readFileSync(specificOverrideUsersFile, 'utf8')) : [];
+        // NEW: Migrate owners list
+        const owners = fs.existsSync(ownersListFile) ? JSON.parse(fs.readFileSync(ownersListFile, 'utf8')) : [];
 
         await Settings.findOneAndUpdate(
             { settings_type: 'override_lists' },
-            { settings_data: { ignored, specific } },
+            { settings_data: { ignored, specific, owners } },
             { upsert: true, new: true }
         );
         console.log('✅ Old override lists migrated to MongoDB.');
         // Clean up old files
         fs.unlinkSync(ignoredOverrideUsersFile);
         fs.unlinkSync(specificOverrideUsersFile);
+        fs.unlinkSync(ownersListFile);
     }
 
     // Migrate global settings
@@ -296,6 +333,8 @@ const syncData = async () => {
         fs.writeFileSync(welcomedUsersFilePath, JSON.stringify(welcomedUsers, null, 2));
 
         await loadAllRules();
+        // NEW: Load owner rules
+        await loadAllOwnerRules();
         await loadAllVariables();
 
         // NEW: Load settings from files first, if not present, restore from DB
@@ -335,13 +374,17 @@ function saveWelcomedUsers() {
 function saveVariables() {
     fs.writeFileSync(variablesFilePath, JSON.stringify(VARIABLES, null, 2));
 }
-
+// NEW: Function to save owner rules to file
+async function saveOwnerRules() {
+    const ownerRulesFromDB = await OwnerRule.find({});
+    fs.writeFileSync(ownerRulesFilePath, JSON.stringify({ rules: ownerRulesFromDB.map(r => r.toObject()) }, null, 2));
+}
 // UPDATED: Functions to save override lists to files and then sync to MongoDB
 async function saveIgnoredOverrideUsers() {
     fs.writeFileSync(ignoredOverrideUsersFile, JSON.stringify(IGNORED_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS, 'settings_data.owners': OWNER_LIST },
         { upsert: true, new: true }
     );
 }
@@ -349,7 +392,16 @@ async function saveSpecificOverrideUsers() {
     fs.writeFileSync(specificOverrideUsersFile, JSON.stringify(SPECIFIC_OVERRIDE_USERS, null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS, 'settings_data.owners': OWNER_LIST },
+        { upsert: true, new: true }
+    );
+}
+// NEW: Function to save owners list to files and then sync to MongoDB
+async function saveOwnersList() {
+    fs.writeFileSync(ownersListFile, JSON.stringify(OWNER_LIST, null, 2));
+    await Settings.findOneAndUpdate(
+        { settings_type: 'override_lists' },
+        { 'settings_data.ignored': IGNORED_OVERRIDE_USERS, 'settings_data.specific': SPECIFIC_OVERRIDE_USERS, 'settings_data.owners': OWNER_LIST },
         { upsert: true, new: true }
     );
 }
@@ -779,11 +831,78 @@ function pickRandomReply(replyText, senderName, msg, processingTime, groupName, 
     const selectedReply = pick(replies);
     return resolveVariablesRecursively(selectedReply, senderName, msg, processingTime, groupName, isGroup);
 }
+// NEW: Owner-specific message processing function
+async function processOwnerMessage(msg, sessionId, sender, senderName) {
+    const startTime = process.hrtime();
+    let reply = null;
+    let regexMatch = null;
+    let matchedRuleId = null;
+
+    for (let rule of OWNER_RULES) {
+        let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+        let match = false;
+
+        if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) {
+            match = true;
+        } else if (rule.RULE_TYPE === "PATTERN" && patterns.some(p => new RegExp(`^${p.replace(/\*/g, ".*")}$`, "i").test(msg))) {
+            match = true;
+        } else if (rule.RULE_TYPE === "EXPERT") {
+            for (let pattern of patterns) {
+                try {
+                    const regex = new RegExp(pattern, "i");
+                    const execResult = regex.exec(msg);
+                    if (execResult) {
+                        match = true;
+                        regexMatch = execResult;
+                        break;
+                    }
+                } catch {}
+            }
+        } else if (rule.RULE_TYPE === "WELCOME") {
+            if (senderName && !welcomedUsers.includes(senderName)) {
+                match = true;
+            }
+        } else if (rule.RULE_TYPE === "DEFAULT") {
+            match = true;
+        }
+
+        if (match) {
+            let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+            if (rule.REPLIES_TYPE === "ALL") {
+                replies = replies.slice(0, 20);
+                reply = replies.join(" ");
+            } else if (rule.REPLIES_TYPE === "ONE") {
+                reply = replies[0];
+            } else {
+                reply = pick(replies);
+            }
+            matchedRuleId = rule.RULE_NUMBER;
+            break;
+        }
+    }
+    const endTime = process.hrtime(startTime);
+    const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
+    
+    // Process reply with variables
+    if (reply) {
+        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, null, false, regexMatch, matchedRuleId, stats.totalMsgs);
+    }
+    
+    return reply || null;
+}
 
 async function processMessage(msg, sessionId = "default", sender) {
     const startTime = process.hrtime();
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
     
+    // NEW: Check if sender is an owner
+    const isOwner = OWNER_LIST.includes(senderName);
+    
+    if (isOwner) {
+        console.log(`👑 Owner message detected from: ${senderName}. Processing with owner rules.`);
+        return await processOwnerMessage(msg, sessionId, sender, senderName);
+    }
+
     // NEW LOGIC: Highest priority check for specific override
     if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(senderName, SPECIFIC_OVERRIDE_USERS)) {
         console.log(`⚠️ User "${senderName}" is not on the specific override list. Ignoring message.`);
@@ -1095,6 +1214,11 @@ console.log('❌ Client disconnected');
                 fs.writeFileSync(file.path, JSON.stringify(file.content, null, 2));
             }
         });
+        
+        // NEW: Check for owner rules file existence
+        if (!fs.existsSync(ownerRulesFilePath)) {
+             fs.writeFileSync(ownerRulesFilePath, JSON.stringify({ rules: [] }, null, 2));
+        }
 
         // NEW: Load or restore settings
         const settingsLoaded = await loadSettingsFromFiles();
@@ -1442,6 +1566,104 @@ res.status(500).json({ success: false, message: "Server error" });
 }
 });
 
+// NEW ENDPOINT: Get owners list
+app.get("/api/owners", (req, res) => {
+    res.json({ owners: OWNER_LIST });
+});
+
+// NEW ENDPOINT: Update owners list
+app.post("/api/owners/update", async (req, res) => {
+    try {
+        const { owners } = req.body;
+        OWNER_LIST = owners;
+        await saveOwnersList();
+        res.json({ success: true, message: "Owners list updated successfully." });
+    } catch (error) {
+        console.error("❌ Failed to update owners list:", error);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+// NEW ENDPOINT: Get owner rules
+app.get("/api/owner-rules", async (req, res) => {
+    try {
+        const rules = await OwnerRule.find({}).sort({ RULE_NUMBER: 1 });
+        res.json(rules);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to fetch owner rules" });
+    }
+});
+
+// NEW ENDPOINT: Update owner rules
+app.post("/api/owner-rules/update", async (req, res) => {
+    const { type, rule, oldRuleNumber } = req.body;
+    try {
+        const session = await mongoose.startSession();
+        await session.startTransaction();
+
+        try {
+            if (type === "add") {
+                await OwnerRule.updateMany(
+                    { RULE_NUMBER: { $gte: rule.ruleNumber } },
+                    { $inc: { RULE_NUMBER: 1 } },
+                    { session }
+                );
+                await OwnerRule.create([{
+                    RULE_NUMBER: rule.ruleNumber,
+                    RULE_NAME: rule.ruleName,
+                    RULE_TYPE: rule.ruleType,
+                    KEYWORDS: rule.keywords,
+                    REPLIES_TYPE: rule.repliesType,
+                    REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText)
+                }], { session });
+
+            } else if (type === "edit") {
+                if (rule.ruleNumber !== oldRuleNumber) {
+                    await OwnerRule.updateMany(
+                        { RULE_NUMBER: { $gte: Math.min(rule.ruleNumber, oldRuleNumber), $lt: Math.max(rule.ruleNumber, oldRuleNumber) } },
+                        { $inc: { RULE_NUMBER: rule.ruleNumber < oldRuleNumber ? 1 : -1 } },
+                        { session }
+                    );
+                    await OwnerRule.findOneAndUpdate({ RULE_NUMBER: oldRuleNumber }, { $set: { RULE_NUMBER: rule.ruleNumber } }, { session });
+                }
+                await OwnerRule.findOneAndUpdate(
+                    { RULE_NUMBER: rule.ruleNumber },
+                    { $set: {
+                        RULE_NAME: rule.ruleName,
+                        RULE_TYPE: rule.ruleType,
+                        KEYWORDS: rule.keywords,
+                        REPLIES_TYPE: rule.repliesType,
+                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText)
+                    }},
+                    { new: true, session }
+                );
+
+            } else if (type === "delete") {
+                await OwnerRule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
+                await OwnerRule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+            }
+
+            await session.commitTransaction();
+            session.endSession();
+
+            await loadAllOwnerRules();
+            await saveOwnerRules(); // Sync to local file
+            res.json({ success: true, message: "Owner rule updated successfully!" });
+            io.emit('ownerRulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+
+        } catch (err) {
+            await session.abortTransaction();
+            session.endSession();
+            console.error("❌ Failed to update owner rule:", err);
+            res.status(500).json({ success: false, message: "Server error: " + err.message });
+        }
+    } catch (err) {
+        console.error("❌ Failed to start session or transaction:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+});
+
+
 app.post("/webhook", async (req, res) => {
     // NEW: Check if the server is ready before processing the request
     if (!isReady) {
@@ -1466,6 +1688,15 @@ app.post("/webhook", async (req, res) => {
     if (SPECIFIC_OVERRIDE_USERS.length > 0 && !matchesOverridePattern(parsedSenderName, SPECIFIC_OVERRIDE_USERS)) {
         console.log(`⚠️ User "${parsedSenderName}" is not on the specific override list. Ignoring message.`);
         return res.json({ replies: [] });
+    }
+    
+    // NEW: Owner check
+    const isOwner = OWNER_LIST.includes(parsedSenderName);
+    
+    if (isOwner) {
+        const replyText = await processOwnerMessage(msg, sessionId, sender, parsedSenderName);
+        if (!replyText) return res.json({ replies: [] });
+        return res.json({ replies: [{ message: replyText }] });
     }
 
     // UPDATED: Pass groupName and isGroup to processMessage
