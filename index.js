@@ -22,7 +22,7 @@ const {
     settings,
     loadAllRules,
     loadAllVariables,
-    emitStats // <-- Ye line remove kar di jayegi
+    emitStats
 } = require("./dataManager");
 const { processMessage } = require("./messageProcessor");
 
@@ -39,8 +39,6 @@ app.use(express.json({ limit: "1mb" }));
 let recentChatMessages = [];
 const MAX_CHAT_HISTORY = 10;
 const today = new Date().toLocaleDateString();
-
-// emitStats function ko yahan se remove kar diya gaya hai
 
 const resetDailyStats = async () => {
     stats.todayUsers = [];
@@ -80,8 +78,7 @@ io.on('connection', (socket) => {
     if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
     }
-    await syncData(io); // <-- emitStats ko call karne ke liye 'io' object pass kiya ja raha hai
-    // emitStats(); // <-- Ye line yahan se remove ho gayi hai
+    await syncData(io);
     scheduleDailyReset();
 })();
 
@@ -373,6 +370,7 @@ app.post("/api/variables/update", async (req, res) => {
 });
 
 app.post("/webhook", async (req, res) => {
+    // Yahan hum isReady check karenge
     if (!isReady) {
         console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
         return res.status(503).send('Server is initializing. Please try again in a moment.');
