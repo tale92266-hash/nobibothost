@@ -1298,19 +1298,28 @@ app.post("/api/rules/update", async (req, res) => {
                             { session }
                         );
                     }
-                }
+                    
+                    // Now, update the specific rule with its new number
+                    await Rule.findOneAndUpdate(
+                        { RULE_NUMBER: oldRuleNumber },
+                        { $set: { RULE_NUMBER: rule.ruleNumber } },
+                        { session }
+                    );
 
-                // Update the rule with its new number and data
+                }
+                
+                // Update the rule's other properties
                 await Rule.findOneAndUpdate(
-                    { RULE_NUMBER: oldRuleNumber },
+                    { RULE_NUMBER: rule.ruleNumber },
                     {
-                        RULE_NUMBER: rule.ruleNumber,
-                        RULE_NAME: rule.ruleName,
-                        RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords,
-                        REPLIES_TYPE: rule.repliesType,
-                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                        TARGET_USERS: rule.TARGET_USERS
+                        $set: {
+                            RULE_NAME: rule.ruleName,
+                            RULE_TYPE: rule.ruleType,
+                            KEYWORDS: rule.keywords,
+                            REPLIES_TYPE: rule.repliesType,
+                            REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+                            TARGET_USERS: rule.TARGET_USERS
+                        }
                     },
                     { new: true, session }
                 );
