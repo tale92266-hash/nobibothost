@@ -1230,7 +1230,42 @@ body {
 
 /* Remove top tab navigation styles */
 .tab-navigation {
+    position: sticky;
+    top: 64px;
+    background: var(--white);
+    z-index: 999;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--gray-200);
     display: none;
+}
+
+.nav-tabs {
+    border-bottom: none;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-start;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--primary);
+    background: transparent;
+    border-color: var(--gray-300);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary);
+    background: transparent;
+    border-color: var(--primary);
 }
 
 /* NEW: Bot Status Button styles */
@@ -1531,5 +1566,4 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--gray-500);
-}
 }
