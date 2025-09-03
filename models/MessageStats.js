@@ -1,3 +1,5 @@
+// file: models/MessageStats.js
+
 const mongoose = require("mongoose");
 
 const messageStatsSchema = new mongoose.Schema({
