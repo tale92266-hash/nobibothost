@@ -983,17 +983,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    // FIXED: Bot Status Toggle Logic
     async function toggleBotStatus() {
+        const oldStatus = currentSettings.isBotOnline;
+
         if (botStatusBtn) {
-            botStatusBtn.className = 'bot-loading';
-            const statusText = document.getElementById('botStatusText');
-            if (statusText) {
-                statusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Updating...';
+            botStatusBtn.classList.remove('bot-on', 'bot-off');
+            botStatusBtn.classList.add('bot-loading');
+            if (botStatusText) {
+                botStatusText.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Updating...';
             }
         }
         
         try {
-            const newStatus = !currentSettings.isBotOnline;
+            const newStatus = !oldStatus;
             const response = await fetch('/api/bot/status', {
                 method: 'POST',
                 headers: {
@@ -1009,12 +1012,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 showToast(result.message, 'success');
             } else {
                 showToast(result.message || 'Failed to update bot status', 'fail');
-                updateBotStatusUI(); // Revert UI
+                // Revert UI to old state on failure
+                currentSettings.isBotOnline = oldStatus;
+                updateBotStatusUI();
             }
         } catch (error) {
             console.error('Failed to toggle bot status:', error);
             showToast('Network error: Failed to update bot status', 'fail');
-            updateBotStatusUI(); // Revert UI
+            // Revert UI to old state on network error
+            currentSettings.isBotOnline = oldStatus;
+            updateBotStatusUI();
         }
     }
 
