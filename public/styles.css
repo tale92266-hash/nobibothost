@@ -1391,6 +1391,20 @@ body {
         font-size: 0.875rem;
     }
     
+    /* Stack in correct order even on mobile */
+    .modal-footer .btn-primary {
+        order: 1;
+    }
+    
+    .modal-footer .btn-outline-danger,
+    .modal-footer .btn-danger {
+        order: 2;
+    }
+    
+    .modal-footer .btn-secondary {
+        order: 3;
+    }
+    
     .main-content {
         padding: 1rem 0 90px 0;
     }
@@ -1517,4 +1531,5 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: var(--gray-500);
+}
 }
