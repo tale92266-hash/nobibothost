@@ -137,15 +137,11 @@ document.addEventListener("DOMContentLoaded", () => {
             addChatMessage(data);
         }
     });
-
-    // Socket listener for chat history
+    
     socket.on('chatHistory', (historyMessages) => {
         console.log('📜 Received chat history:', historyMessages.length, 'messages');
-        // Clear current messages and load history
         chatMessages = [];
-        // Reverse history (oldest first in array for chronological order)
         const reversedHistory = [...historyMessages].reverse();
-        // Add history messages to current array
         reversedHistory.forEach(message => {
             chatMessages.push({
                 id: Date.now() + Math.random(),
@@ -157,21 +153,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 timestamp: message.timestamp || new Date().toISOString()
             });
         });
-        // Update display
         updateChatDisplay();
-        // Scroll to bottom to show latest
         scrollToLatest();
         console.log('✅ Chat history loaded and displayed');
     });
 
-    // Clear chat button
     if (clearChatBtn) {
         clearChatBtn.addEventListener('click', () => {
             clearChat();
         });
     }
 
-    // Pause/Resume chat button
     if (pauseChatBtn) {
         pauseChatBtn.addEventListener('click', () => {
             toggleChatPause();
@@ -180,7 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function addChatMessage(messageData) {
         const { sessionId, userMessage, botReply, timestamp, senderName, groupName } = messageData;
-        // Create message object
         const message = {
             id: Date.now() + Math.random(),
             sessionId: sessionId || 'unknown',
@@ -190,15 +181,11 @@ document.addEventListener("DOMContentLoaded", () => {
             botReply: botReply || '',
             timestamp: timestamp || new Date().toISOString()
         };
-        // Add to end of array (newest at end)
         chatMessages.push(message);
-        // Keep only last 10 messages
         if (chatMessages.length > maxMessages) {
-            chatMessages = chatMessages.slice(-maxMessages); // Keep last 10
+            chatMessages = chatMessages.slice(-maxMessages);
         }
-        // Update display
         updateChatDisplay();
-        // Auto scroll to latest message (bottom)
         scrollToLatest();
     }
 
@@ -206,7 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const chatContainer = document.getElementById('chatMessages');
         if (!chatContainer) return;
         chatContainer.innerHTML = '';
-        // Show messages in chronological order (oldest first, newest at bottom)
         chatMessages.forEach((message, index) => {
             const messageElement = createMessageElement(message, index);
             chatContainer.appendChild(messageElement);
@@ -217,11 +203,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'chat-message';
         messageDiv.style.animationDelay = `${index * 0.1}s`;
-        // Use actual sender name if available
         const userName = message.senderName || getUserDisplayName(message.sessionId, message.senderName);
         const userAvatar = getUserAvatar(userName);
         const timeDisplay = formatTime(message.timestamp);
-        // Naya logic: Reply text ko update karen
         let botReplyText = `Reply sent to ${escapeHtml(userName)}`;
         if (message.groupName) {
             botReplyText += ` in ${escapeHtml(message.groupName)} GC`;
@@ -247,11 +231,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function getUserDisplayName(sessionId, senderName) {
-        // Prioritize actual sender name
         if (senderName && senderName.trim() !== '') {
             return senderName.trim();
         }
-        // Fallback for anonymous users
         const prefix = 'User';
         const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
         return `${prefix}-${shortId}`;
@@ -259,7 +241,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getUserAvatar(userName) {
         if (!userName || userName === 'unknown') return '?';
-        // Create avatar from actual name
         return userName.substring(0, 2).toUpperCase();
     }
 
@@ -284,7 +265,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const chatContainer = document.getElementById('chatMessages');
         if (!chatContainer) return;
         chatContainer.classList.add('scrolling');
-        // Scroll to bottom for newest messages
         chatContainer.scrollTop = chatContainer.scrollHeight;
         setTimeout(() => {
             chatContainer.classList.remove('scrolling');
@@ -499,10 +479,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (tabName === 'variables') {
                     fetchVariables();
                 } else if (tabName === 'additional') {
-                    // Activate first sub-tab by default
                     const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
                     const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
                     if (subNavItems.length > 0) {
+                        subNavItems.forEach(item => item.classList.remove('active'));
+                        subTabPanes.forEach(pane => pane.classList.remove('show', 'active'));
                         subNavItems[0].classList.add('active');
                         subTabPanes[0].classList.add('show', 'active');
                     }
@@ -541,27 +522,37 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             initBottomNavigation();
             initSubNavigation();
-            showLoading(); // Show spinner before starting fetch requests
+            showLoading();
             await fetchStats();
             await fetchRules();
             await fetchVariables();
             await fetchSettings();
             updateBotStatusUI();
-            hideLoading(); // Hide spinner after all requests are complete
+            hideLoading();
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
-            hideLoading(); // Hide spinner on error
+            hideLoading();
         }
     }
 
     // Loading State Management (FIX)
     function showLoading() {
+        const panes = document.querySelectorAll('.tab-pane');
+        panes.forEach(pane => {
+            if (pane.id !== 'stats-pane') {
+                pane.style.display = 'none';
+            }
+        });
         if (loadingMessage) {
             loadingMessage.style.display = 'flex';
         }
     }
 
     function hideLoading() {
+        const panes = document.querySelectorAll('.tab-pane');
+        panes.forEach(pane => {
+            pane.style.display = 'block';
+        });
         if (loadingMessage) {
             loadingMessage.style.display = 'none';
         }
@@ -740,7 +731,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return ruleDiv;
     }
 
-    // FIXED: Form validation with proper server communication
     function validateRuleForm(isOwner = false) {
         const ruleNumberInput = isOwner ? document.getElementById('ownerRuleNumber') : document.getElementById('ruleNumber');
         const keywordsInput = isOwner ? document.getElementById('ownerKeywords') : document.getElementById('keywords');
@@ -764,24 +754,20 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
-    // FIXED: Save rule function with proper error handling
     async function saveRule() {
         console.log('💾 Save button clicked - starting save process');
         
-        // Validate form data first
         if (!validateRuleForm()) {
             console.log('❌ Form validation failed');
             return;
         }
 
-        // Show loading state
         const saveBtn = document.getElementById('saveRuleBtn');
         const originalText = saveBtn.innerHTML;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
         saveBtn.disabled = true;
 
         try {
-            // Get form data
             const ruleData = {
                 ruleNumber: parseInt(document.getElementById('ruleNumber').value),
                 ruleName: document.getElementById('ruleName').value.trim(),
@@ -794,7 +780,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.log('📤 Sending rule data:', ruleData);
 
-            // Determine if adding or editing
             const isEditing = currentRuleNumber !== null;
             const requestData = {
                 type: isEditing ? 'edit' : 'add',
@@ -802,7 +787,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 oldRuleNumber: currentRuleNumber
             };
 
-            // Send API request
             const response = await fetch('/api/rules/update', {
                 method: 'POST',
                 headers: {
@@ -823,8 +807,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (result.success) {
                 showToast(result.message || 'Rule saved successfully!', 'success');
                 ruleModal.hide();
-                await fetchRules(); // Reload rules list
-                currentRuleNumber = null; // Reset editing state
+                await fetchRules();
+                currentRuleNumber = null;
             } else {
                 throw new Error(result.message || 'Failed to save rule');
             }
@@ -833,7 +817,6 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error('❌ Save rule error:', error);
             showToast('Failed to save rule: ' + error.message, 'fail');
         } finally {
-            // Restore button state
             saveBtn.innerHTML = originalText;
             saveBtn.disabled = false;
         }
