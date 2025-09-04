@@ -1,33 +1,15 @@
 // file: core/bot.js
 
 const {
-    getRules,
-    getOwnerRules,
-    getWelcomedUsers,
-    getSettings,
-    getIgnoredOverrideUsers,
-    getOwnerList,
-    setIgnoredOverrideUsers,
-    setWelcomedUsers,
-    getStats,
-    getMessageHistory,
-    setLastReplyTimes,
-    setStats,
-    getLastReplyTimes
+    getRules, getOwnerRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
+    getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
+    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats
 } = require('./state');
+const { db } = require('../db');
 const {
-    db
-} = require('../db');
-const {
-    resolveVariablesRecursively,
-    extractSenderNameAndContext,
-    matchesOverridePattern,
-    isUserIgnored,
-    matchesTrigger,
-    pick
+    resolveVariablesRecursively, extractSenderNameAndContext, matchesOverridePattern,
+    isUserIgnored, matchesTrigger, pick
 } = require('./utils');
-
-const messageHistory = getMessageHistory();
 
 async function processOwnerMessage(msg, sessionId, sender, senderName) {
     const startTime = process.hrtime();
@@ -89,11 +71,7 @@ async function processOwnerMessage(msg, sessionId, sender, senderName) {
 
 async function processMessage(msg, sessionId = "default", sender) {
     const startTime = process.hrtime();
-    const {
-        senderName,
-        isGroup,
-        groupName
-    } = extractSenderNameAndContext(sender);
+    const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
 
     const isOwner = getOwnerList().includes(senderName);
 
@@ -118,10 +96,8 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     const context = isGroup ? groupName : 'DM';
-
     console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
 
-    const isUserHidden = getIgnoredOverrideUsers().some(user => user.name === senderName && user.context === context);
     const settings = getSettings();
     const today = new Date().toLocaleDateString();
 
@@ -158,13 +134,12 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     if (temporaryHideTriggered) {
         const reply = pick(settings.temporaryHide.hideReply.split('<#>'));
-        const hideEntry = {
-            name: senderName,
-            context: context
-        };
+        const hideEntry = { name: senderName, context: context };
         const isAlreadyIgnoredInContext = getIgnoredOverrideUsers().some(item => item.name === hideEntry.name && item.context === hideEntry.context);
         if (!isAlreadyIgnoredInContext) {
-            getIgnoredOverrideUsers().push(hideEntry);
+            const currentIgnoredUsers = getIgnoredOverrideUsers();
+            currentIgnoredUsers.push(hideEntry);
+            setIgnoredOverrideUsers(currentIgnoredUsers);
             await db.saveIgnoredOverrideUsers();
             console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
         }
@@ -183,10 +158,7 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     const welcomedUsers = getWelcomedUsers();
     let stats = getStats();
-
-    let messageStats = await db.MessageStats.findOne({
-        sessionId: sessionId
-    });
+    let messageStats = await db.MessageStats.findOne({ sessionId });
 
     if (!messageStats) {
         messageStats = new db.MessageStats({
@@ -207,25 +179,17 @@ async function processMessage(msg, sessionId = "default", sender) {
     await messageStats.save();
 
     if (!welcomedUsers.includes(senderName)) {
-        welcomedUsers.push(senderName);
-        await db.User.create({
-            senderName,
-            sessionId
-        });
+        const newWelcomedUsers = [...welcomedUsers, senderName];
+        setWelcomedUsers(newWelcomedUsers);
+        await db.User.create({ senderName, sessionId });
     }
 
-    if (!stats.todayUsers.includes(senderName)) {
-        stats.todayUsers.push(senderName);
-    }
+    if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
 
     stats.totalMsgs++;
     stats.todayMsgs++;
-
     if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
-
-    const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, {
-        new: true
-    });
+    const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: true });
     setStats(updatedStats);
     await db.saveStats();
 
@@ -238,20 +202,13 @@ async function processMessage(msg, sessionId = "default", sender) {
         const targetUsers = rule.TARGET_USERS || "ALL";
 
         if (rule.RULE_TYPE === "IGNORED") {
-            if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) {
-                userMatch = true;
-            }
+            if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-            if (isSenderIgnored) {
-                userMatch = false;
-            } else {
-                userMatch = true;
-            }
+            if (isSenderIgnored) { userMatch = false; } 
+            else { userMatch = true; }
         }
 
-        if (!userMatch) {
-            continue;
-        }
+        if (!userMatch) { continue; }
 
         let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
         let match = false;
@@ -259,21 +216,16 @@ async function processMessage(msg, sessionId = "default", sender) {
         if (rule.RULE_TYPE === "WELCOME") {
             if (senderName && !welcomedUsers.includes(senderName)) {
                 match = true;
-                welcomedUsers.push(senderName);
-                await db.User.create({
-                    senderName,
-                    sessionId
-                });
+                const newWelcomedUsers = [...welcomedUsers, senderName];
+                setWelcomedUsers(newWelcomedUsers);
+                await db.User.create({ senderName, sessionId });
             }
         } else if (rule.RULE_TYPE === "DEFAULT") {
             match = true;
         } else {
             for (let pattern of patterns) {
-                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) {
-                    continue;
-                } else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) {
-                    continue;
-                }
+                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; } 
+                else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
 
                 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
                 else if (rule.RULE_TYPE === "PATTERN") {
@@ -289,7 +241,6 @@ async function processMessage(msg, sessionId = "default", sender) {
                         }
                     } catch {}
                 }
-
                 if (match) {
                     matchedRuleId = rule.RULE_NUMBER;
                     break;
@@ -307,7 +258,6 @@ async function processMessage(msg, sessionId = "default", sender) {
             } else {
                 reply = pick(replies);
             }
-
             break;
         }
     }
@@ -317,10 +267,10 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     if (reply) {
         reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
-
-        setLastReplyTimes({ ...getLastReplyTimes(),
-            [senderName]: Date.now()
-        });
+        
+        const lastReplyTimes = getLastReplyTimes();
+        lastReplyTimes[senderName] = Date.now();
+        setLastReplyTimes(lastReplyTimes);
 
         messageStats.replyCount++;
         if (matchedRuleId) {
@@ -329,6 +279,17 @@ async function processMessage(msg, sessionId = "default", sender) {
         }
         await messageStats.save();
     }
+    
+    let messageHistory = getMessageHistory();
+    messageHistory.unshift({
+        userMessage: msg,
+        botReply: reply,
+        ruleId: matchedRuleId,
+        timestamp: new Date().toISOString()
+    });
+    const MAX_HISTORY = 50;
+    if (messageHistory.length > MAX_HISTORY) { messageHistory.pop(); }
+    setMessageHistory(messageHistory);
 
     return reply || null;
 }
