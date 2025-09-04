@@ -6,6 +6,8 @@ import { initChat } from './chat.js';
 import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
+import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
+import { initOwners, fetchOwners } from './owners.js';
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -30,9 +32,13 @@ document.addEventListener("DOMContentLoaded", () => {
             // Chat is initialized once, no need to re-fetch
         },
         'additional': () => {
-            // Placeholder: This will handle sub-tab changes when the modules are available.
+            // This will handle sub-tab changes when the modules are available.
             initSubNavigation((subTabName) => {
-                console.log(`Switched to sub-tab: ${subTabName}. Data loading for this tab is not yet implemented.`);
+                if (subTabName === 'owner-rules') {
+                    fetchOwnerRules();
+                } else if (subTabName === 'owners-list') {
+                    fetchOwners();
+                }
             });
         }
     };
@@ -51,6 +57,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initRules();
     initVariables();
     initSettings();
+    initOwnerRules();
+    initOwners();
 
     // Initial load
     async function initialLoad() {
@@ -60,7 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchStatsApi().then(updateStatsDisplay),
                 fetchRules(),
                 fetchVariables(),
-                fetchSettings()
+                fetchSettings(),
+                fetchOwnerRules(),
+                fetchOwners()
             ]);
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
