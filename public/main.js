@@ -1,90 +1,239 @@
 // file: public/main.js
 
-import { toggleLoading, showToast, initBottomNavigation, initSubNavigation, updateStatsDisplay } from './ui.js';
-import { fetchStatsApi } from './api.js';
+import { initRules } from './rules.js';
+import { initOwnerRules, initOwnerManagement } from './owner.js';
+import { initSettings } from './settings.js';
+import { initVariables } from './variables.js';
 import { initChat } from './chat.js';
-import { initRules, fetchRules } from './rules.js';
-import { initVariables, fetchVariables } from './variables.js';
-import { initSettings, fetchSettings } from './settings.js';
-import { initOwnerRules, fetchOwnerRules, initOwnerManagement, fetchOwners } from './owner.js';
+import { fetchStatsApi } from './api.js';
+import { showToast } from './ui.js';
 
-document.addEventListener("DOMContentLoaded", () => {
+let currentTab = 'rules';
+let statsData = null;
 
-    const socket = io();
-    socket.on('statsUpdate', (data) => {
-        updateStatsDisplay(data);
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+});
 
-    const tabHandlers = {
-        'stats': async () => {
-            try {
-                const statsData = await fetchStatsApi();
-                updateStatsDisplay(statsData);
-            } catch (error) {
-                console.error("Failed to fetch stats:", error);
-            }
-        },
-        'rules': () => fetchRules(),
-        'variables': () => fetchVariables(),
-        'settings': () => fetchSettings(),
-        'additional': () => {
-            // This tab is now handled by subTabHandlers below
-        },
-        'chat': () => {
-            // Chat is initialized once, no need to re-fetch
-        }
-    };
+/**
+ * Initialize the application
+ */
+async function initializeApp() {
+    try {
+        await loadStats();
+        initializeNavigation();
+        initializeTabContent();
+        setupTabSwitching();
+        showTab('rules');
+    } catch (error) {
+        console.error('Failed to initialize app:', error);
+        showToast('Failed to initialize application', 'error');
+    }
+}
+
+/**
+ * Load and display stats
+ */
+async function loadStats() {
+    try {
+        statsData = await fetchStatsApi();
+        updateStatsDisplay();
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+}
+
+/**
+ * Update stats display in header and dashboard
+ */
+function updateStatsDisplay() {
+    if (!statsData) return;
+
+    const headerTotalUsers = document.getElementById('headerTotalUsers');
+    const headerTotalMsgs = document.getElementById('headerTotalMsgs');
     
-    const subTabHandlers = {
-        'owner-name': () => {
-            fetchOwnerRules();
-            fetchOwners();
-        },
-        'automation-name': () => {
-            // Placeholder for future logic
-            console.log("Automation Name tab selected.");
-        }
-    };
+    if (headerTotalUsers) headerTotalUsers.textContent = statsData.totalUsers || 0;
+    if (headerTotalMsgs) headerTotalMsgs.textContent = statsData.totalMessages || 0;
+}
 
-    initBottomNavigation((tabName) => {
-        if (tabHandlers[tabName]) {
-            tabHandlers[tabName]();
-        }
+/**
+ * Initialize navigation
+ */
+function initializeNavigation() {
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabName = this.dataset.tab;
+            if (tabName) {
+                showTab(tabName);
+            }
+        });
     });
+}
 
-    initSubNavigation((subTabName) => {
-        if (subTabHandlers[subTabName]) {
-            subTabHandlers[subTabName]();
-        }
+/**
+ * Setup tab switching functionality
+ */
+function setupTabSwitching() {
+    const tabButtons = document.querySelectorAll('[data-tab]');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabName = this.dataset.tab;
+            if (tabName) {
+                showTab(tabName);
+            }
+        });
     });
+}
 
-    // Initialize all modules
-    initChat();
+/**
+ * Show specific tab and initialize its content
+ */
+function showTab(tabName) {
+    if (currentTab === tabName) return;
+    
+    hideAllTabs();
+    currentTab = tabName;
+    
+    const tabContent = document.getElementById(tabName);
+    const navItem = document.querySelector(`[data-tab="${tabName}"]`);
+    
+    if (tabContent) {
+        tabContent.style.display = 'block';
+        tabContent.classList.add('active');
+    }
+    
+    if (navItem) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        navItem.classList.add('active');
+    }
+    
+    // Initialize tab-specific content
+    initializeTabContentForTab(tabName);
+}
+
+/**
+ * Hide all tabs
+ */
+function hideAllTabs() {
+    const tabs = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.style.display = 'none';
+        tab.classList.remove('active');
+    });
+    
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => item.classList.remove('active'));
+}
+
+/**
+ * Initialize content for specific tabs
+ */
+function initializeTabContentForTab(tabName) {
+    switch(tabName) {
+        case 'rules':
+            initRules();
+            break;
+        case 'owner':
+            // Fix: Initialize owner content immediately
+            setTimeout(() => {
+                initOwnerRules();
+                initOwnerManagement();
+            }, 100);
+            break;
+        case 'settings':
+            initSettings();
+            break;
+        case 'variables':
+            initVariables();
+            break;
+        case 'chat':
+            initChat();
+            break;
+        case 'stats':
+            displayStatsTab();
+            break;
+    }
+}
+
+/**
+ * Initialize all tab content
+ */
+function initializeTabContent() {
     initRules();
-    initVariables();
-    initSettings();
     initOwnerRules();
     initOwnerManagement();
+    initSettings();
+    initVariables();
+    initChat();
+}
 
-    // Initial load
-    async function initialLoad() {
-        toggleLoading(true);
-        try {
-            await Promise.all([
-                fetchStatsApi().then(updateStatsDisplay),
-                fetchRules(),
-                fetchVariables(),
-                fetchSettings(),
-                fetchOwnerRules(), // This will ensure owner rules are fetched on initial load
-                fetchOwners()
-            ]);
-        } catch (error) {
-            showToast('Failed to initialize application', 'fail');
-            console.error('Initialization error:', error);
-        } finally {
-            toggleLoading(false);
-        }
+/**
+ * Display stats tab content
+ */
+function displayStatsTab() {
+    if (!statsData) {
+        loadStats();
+        return;
     }
+    
+    const statsContainer = document.getElementById('statsContent');
+    if (statsContainer && statsData) {
+        statsContainer.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value">${statsData.totalUsers || 0}</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-comments"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value">${statsData.totalMessages || 0}</div>
+                        <div class="stat-label">Total Messages</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value">${statsData.botResponses || 0}</div>
+                        <div class="stat-label">Bot Responses</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value">${new Date().toLocaleDateString()}</div>
+                        <div class="stat-label">Last Updated</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
 
-    initialLoad();
-});
+/**
+ * Refresh current tab content
+ */
+function refreshCurrentTab() {
+    if (currentTab) {
+        initializeTabContentForTab(currentTab);
+    }
+}
+
+// Export functions for external use
+window.showTab = showTab;
+window.refreshCurrentTab = refreshCurrentTab;
