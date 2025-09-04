@@ -77,7 +77,17 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     if (isOwner) {
         console.log(`👑 Owner message detected from: ${senderName}. Processing with owner rules.`);
-        return await processOwnerMessage(msg, sessionId, sender, senderName);
+        const reply = await processOwnerMessage(msg, sessionId, sender, senderName);
+        if (reply) {
+            // Stats update for owner messages
+            let stats = getStats();
+            stats.totalMsgs++;
+            stats.todayMsgs++;
+            const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: true });
+            setStats(updatedStats);
+            await db.saveStats();
+        }
+        return reply;
     }
 
     if (getSpecificOverrideUsers().length > 0 && !matchesOverridePattern(senderName, getSpecificOverrideUsers())) {
