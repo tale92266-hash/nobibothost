@@ -498,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
         const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
 
+
         subNavItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
                 const subTabName = navItem.getAttribute('data-sub-tab');
