@@ -4,9 +4,12 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 
-const { FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules, setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList, setSettings } = require('./core/state');
+const { 
+    FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
+    setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
+    setSettings, getStats, getSettings
+} = require('./core/state');
 
-// MongoDB Connection & Models
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
 .catch(err => console.error("❌ MongoDB connection error:", err));
@@ -15,7 +18,6 @@ const userSchema = new mongoose.Schema({
     sessionId: { type: String, required: true, unique: false },
     senderName: { type: String, required: true, unique: true }
 });
-
 const User = mongoose.model("User", userSchema);
 
 const ruleSchema = new mongoose.Schema({
@@ -77,7 +79,6 @@ const messageStatsSchema = new mongoose.Schema({
 });
 const MessageStats = mongoose.model("MessageStats", messageStatsSchema);
 
-// Data synchronization functions
 const loadAllRules = async () => {
     const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     setRules(rules);
@@ -113,7 +114,7 @@ const loadSettingsFromFiles = async () => {
         const fileContent = fs.readFileSync(FILE_PATHS.settingsFilePath, 'utf8');
         try {
             const loadedSettings = JSON.parse(fileContent);
-            setSettings({ ...exports.getSettings(), ...loadedSettings });
+            setSettings({ ...getSettings(), ...loadedSettings });
             console.log('⚙️ Settings loaded from local file.');
             loaded = true;
         } catch (e) {
@@ -129,16 +130,16 @@ const restoreSettingsFromDb = async () => {
         setIgnoredOverrideUsers(overrideSettings.settings_data.ignored || []);
         setSpecificOverrideUsers(overrideSettings.settings_data.specific || []);
         setOwnerList(overrideSettings.settings_data.owners || []);
-        fs.writeFileSync(FILE_PATHS.ignoredOverrideUsersFile, JSON.stringify(exports.getIgnoredOverrideUsers(), null, 2));
-        fs.writeFileSync(FILE_PATHS.specificOverrideUsersFile, JSON.stringify(exports.getSpecificOverrideUsers(), null, 2));
-        fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify(exports.getOwnerList(), null, 2));
+        fs.writeFileSync(FILE_PATHS.ignoredOverrideUsersFile, JSON.stringify(getIgnoredOverrideUsers(), null, 2));
+        fs.writeFileSync(FILE_PATHS.specificOverrideUsersFile, JSON.stringify(getSpecificOverrideUsers(), null, 2));
+        fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify(getOwnerList(), null, 2));
         console.log('✅ Override lists restored from MongoDB.');
     }
 
     const globalSettings = await Settings.findOne({ settings_type: 'global_settings' });
     if (globalSettings) {
-        setSettings({ ...exports.getSettings(), ...globalSettings.settings_data });
-        fs.writeFileSync(FILE_PATHS.settingsFilePath, JSON.stringify(exports.getSettings(), null, 2));
+        setSettings({ ...getSettings(), ...globalSettings.settings_data });
+        fs.writeFileSync(FILE_PATHS.settingsFilePath, JSON.stringify(getSettings(), null, 2));
         console.log('✅ Global settings restored from MongoDB.');
     }
 };
@@ -155,7 +156,7 @@ const syncData = async () => {
 
         const dbWelcomedUsers = await User.find({}, 'senderName');
         setWelcomedUsers(dbWelcomedUsers.map(u => u.senderName));
-        fs.writeFileSync(FILE_PATHS.welcomedUsersFilePath, JSON.stringify(exports.getWelcomedUsers(), null, 2));
+        fs.writeFileSync(FILE_PATHS.welcomedUsersFilePath, JSON.stringify(getWelcomedUsers(), null, 2));
 
         await loadAllRules();
         await loadAllOwnerRules();
@@ -167,8 +168,8 @@ const syncData = async () => {
             await restoreSettingsFromDb();
         }
 
-        if (exports.getStats().lastResetDate !== today) {
-            await exports.resetDailyStats();
+        if (getStats().lastResetDate !== today) {
+            await resetDailyStats();
         }
 
         return true;
@@ -178,15 +179,14 @@ const syncData = async () => {
     }
 };
 
-// Data persistence functions
 const saveStats = async () => {
-    const stats = exports.getStats();
+    const stats = getStats();
     await Stats.findByIdAndUpdate(stats._id, stats);
     fs.writeFileSync(FILE_PATHS.statsFilePath, JSON.stringify(stats, null, 2));
 };
 
 const saveWelcomedUsers = async () => {
-    fs.writeFileSync(FILE_PATHS.welcomedUsersFilePath, JSON.stringify(exports.getWelcomedUsers(), null, 2));
+    fs.writeFileSync(FILE_PATHS.welcomedUsersFilePath, JSON.stringify(getWelcomedUsers(), null, 2));
 };
 
 const saveVariables = async () => {
@@ -200,43 +200,43 @@ const saveOwnerRules = async () => {
 };
 
 const saveIgnoredOverrideUsers = async () => {
-    fs.writeFileSync(FILE_PATHS.ignoredOverrideUsersFile, JSON.stringify(exports.getIgnoredOverrideUsers(), null, 2));
+    fs.writeFileSync(FILE_PATHS.ignoredOverrideUsersFile, JSON.stringify(getIgnoredOverrideUsers(), null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.ignored': exports.getIgnoredOverrideUsers(), 'settings_data.specific': exports.getSpecificOverrideUsers(), 'settings_data.owners': exports.getOwnerList() },
+        { 'settings_data.ignored': getIgnoredOverrideUsers(), 'settings_data.specific': getSpecificOverrideUsers(), 'settings_data.owners': getOwnerList() },
         { upsert: true, new: true }
     );
 };
 
 const saveSpecificOverrideUsers = async () => {
-    fs.writeFileSync(FILE_PATHS.specificOverrideUsersFile, JSON.stringify(exports.getSpecificOverrideUsers(), null, 2));
+    fs.writeFileSync(FILE_PATHS.specificOverrideUsersFile, JSON.stringify(getSpecificOverrideUsers(), null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.ignored': exports.getIgnoredOverrideUsers(), 'settings_data.specific': exports.getSpecificOverrideUsers(), 'settings_data.owners': exports.getOwnerList() },
+        { 'settings_data.ignored': getIgnoredOverrideUsers(), 'settings_data.specific': getSpecificOverrideUsers(), 'settings_data.owners': getOwnerList() },
         { upsert: true, new: true }
     );
 };
 
 const saveOwnersList = async () => {
-    fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify(exports.getOwnerList(), null, 2));
+    fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify(getOwnerList(), null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'override_lists' },
-        { 'settings_data.ignored': exports.getIgnoredOverrideUsers(), 'settings_data.specific': exports.getSpecificOverrideUsers(), 'settings_data.owners': exports.getOwnerList() },
+        { 'settings_data.ignored': getIgnoredOverrideUsers(), 'settings_data.specific': getSpecificOverrideUsers(), 'settings_data.owners': getOwnerList() },
         { upsert: true, new: true }
     );
 };
 
 const saveSettings = async () => {
-    fs.writeFileSync(FILE_PATHS.settingsFilePath, JSON.stringify(exports.getSettings(), null, 2));
+    fs.writeFileSync(FILE_PATHS.settingsFilePath, JSON.stringify(getSettings(), null, 2));
     await Settings.findOneAndUpdate(
         { settings_type: 'global_settings' },
-        { 'settings_data': exports.getSettings() },
+        { 'settings_data': getSettings() },
         { upsert: true, new: true }
     );
 };
 
 const resetDailyStats = async () => {
-    const stats = exports.getStats();
+    const stats = getStats();
     stats.todayUsers = [];
     stats.todayMsgs = 0;
     stats.lastResetDate = new Date().toLocaleDateString();
@@ -258,26 +258,9 @@ const scheduleDailyReset = () => {
 };
 
 exports.db = {
-    Rule,
-    OwnerRule,
-    Stats,
-    Variable,
-    Settings,
-    User,
-    MessageStats,
-    mongoose,
-    syncData,
-    loadAllRules,
-    loadAllOwnerRules,
-    loadAllVariables,
-    saveStats,
-    saveWelcomedUsers,
-    saveVariables,
-    saveOwnerRules,
-    saveIgnoredOverrideUsers,
-    saveSpecificOverrideUsers,
-    saveOwnersList,
-    saveSettings,
-    resetDailyStats,
-    scheduleDailyReset
+    Rule, OwnerRule, Stats, Variable, Settings, User, MessageStats, mongoose,
+    syncData, loadAllRules, loadAllOwnerRules, loadAllVariables, loadSettingsFromFiles, restoreSettingsFromDb,
+    saveStats, saveWelcomedUsers, saveVariables, saveOwnerRules,
+    saveIgnoredOverrideUsers, saveSpecificOverrideUsers, saveOwnersList,
+    saveSettings, resetDailyStats, scheduleDailyReset
 };
