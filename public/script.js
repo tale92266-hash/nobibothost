@@ -1,3 +1,8 @@
+// file: public/script.js
+
+import { fetchVariables, addNewVariable, saveVariable, deleteVariable } from './variables.js';
+import { fetchOwnerRules, addNewOwnerRule, saveOwnerRule, deleteOwnerRule } from './owner-rules.js';
+
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
     const rulesList = document.getElementById("rulesList");
@@ -19,17 +24,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const targetUsersField = document.getElementById('targetUsersField');
     const ruleNumberInput = document.getElementById('ruleNumber');
     const ruleNumberError = document.getElementById('ruleNumberError');
-    const variablesList = document.getElementById('variablesList');
     const addVariableBtn = document.getElementById('addVariableBtn');
-    const deleteVariableBtn = document.getElementById('deleteVariableBtn');
-    const variableFormContainer = document.getElementById('variableFormContainer');
-    const variablesMenuBtn = document.getElementById('variablesMenuBtn');
     const toastLiveExample = document.getElementById('liveToast');
     const toastBody = document.querySelector('#liveToast .toast-body');
     const toast = new bootstrap.Toast(toastLiveExample);
     const saveRuleBtn = document.getElementById('saveRuleBtn');
     const saveVariableBtn = document.getElementById('saveVariableBtn');
-    const cancelVariableBtn = document.getElementById('cancelVariableBtn');
+    const deleteVariableBtn = document.getElementById('deleteVariableBtn');
 
     // NEW DOM Elements
     const ignoredOverrideBtn = document.getElementById('ignoredOverrideBtn');
@@ -65,10 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Variables
     let currentRuleNumber = null;
-    let currentVariableName = null;
     let totalRules = 0;
     let allRules = [];
-    let allVariables = [];
     
     // NEW: Override list variables
     let ignoredOverrideUsers = [];
@@ -423,6 +422,9 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (modalType === 'variable') {
             deleteBtn = document.getElementById('deleteVariableBtn');
             buttonContainer = document.querySelector('.form-actions');
+        } else if (modalType === 'ownerRule') {
+            deleteBtn = document.getElementById('deleteOwnerRuleBtn');
+            buttonContainer = document.querySelector('#ownerRuleModal .modal-footer');
         }
         if (!deleteBtn || !buttonContainer) {
             return;
@@ -470,8 +472,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 if (tabName === 'rules' && allRules.length === 0) {
                     fetchRules();
-                } else if (tabName === 'variables' && allVariables.length === 0) {
+                } else if (tabName === 'variables') {
                     fetchVariables();
+                } else if (tabName === 'additional') {
+                    fetchOwnerRules();
                 }
             });
         });
@@ -507,6 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await fetchStats();
             await fetchRules();
             await fetchVariables();
+            await fetchOwnerRules();
             await fetchSettings();
             updateBotStatusUI();
             hideLoading(); // Hide spinner after all requests are complete
@@ -561,7 +566,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Toast Functions
-    function showToast(message, type = 'success') {
+    export function showToast(message, type = 'success') {
         const toastElement = document.getElementById('liveToast');
         const toastBody = toastElement.querySelector('.toast-body');
         toastBody.textContent = message;
@@ -849,135 +854,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (error) {
             console.error('Failed to delete rule:', error);
             showToast('Network error: Failed to delete rule', 'fail');
-        }
-    }
-
-    async function fetchVariables() {
-        try {
-            const response = await fetch('/api/variables');
-            const data = await response.json();
-            allVariables = data;
-            displayVariables(data);
-        } catch (error) {
-            console.error('Failed to fetch variables:', error);
-            variablesList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-exclamation-triangle fa-3x"></i>
-                    <h6>Error Loading Variables</h6>
-                    <p>Please try refreshing the page</p>
-                </div>
-            `;
-        }
-    }
-
-    function displayVariables(variables) {
-        if (variables.length === 0) {
-            variablesList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-plus-circle fa-3x"></i>
-                    <h6>No Variables Found</h6>
-                    <p>Create variables to use dynamic content in your rules.</p>
-                </div>
-            `;
-            return;
-        }
-        variablesList.innerHTML = '';
-        variables.forEach(variable => {
-            const variableElement = createVariableElement(variable);
-            variablesList.appendChild(variableElement);
-        });
-    }
-
-    function createVariableElement(variable) {
-        const variableDiv = document.createElement('div');
-        variableDiv.className = 'variable-item';
-        variableDiv.innerHTML = `
-            <div class="variable-header">
-                <span class="variable-name">%${variable.name}%</span>
-            </div>
-            <div class="variable-value">${variable.value.substring(0, 100)}${variable.value.length > 100 ? '...' : ''}</div>
-        `;
-        variableDiv.addEventListener('click', () => editVariable(variable));
-        return variableDiv;
-    }
-
-    function editVariable(variable) {
-        currentVariableName = variable.name;
-        document.getElementById('variableName').value = variable.name;
-        document.getElementById('variableValue').value = variable.value;
-        configureModalButtons('variable', 'edit');
-        variableModal.show();
-    }
-
-    function addNewVariable() {
-        currentVariableName = null;
-        document.getElementById('variableName').value = '';
-        document.getElementById('variableValue').value = '';
-        configureModalButtons('variable', 'add');
-        variableModal.show();
-    }
-
-    async function saveVariable() {
-        const name = document.getElementById('variableName').value.trim();
-        const value = document.getElementById('variableValue').value.trim();
-        if (!name || !value) {
-            showToast('Please fill all required fields', 'warning');
-            return;
-        }
-        try {
-            const isEditing = currentVariableName !== null;
-            const response = await fetch('/api/variables/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    type: isEditing ? 'edit' : 'add',
-                    variable: { name, value },
-                    oldName: currentVariableName
-                })
-            });
-            const result = await response.json();
-            if (result.success) {
-                showToast(result.message || 'Variable saved successfully!', 'success');
-                variableModal.hide();
-                await fetchVariables();
-                currentVariableName = null;
-            } else {
-                showToast(result.message || 'Failed to save variable', 'fail');
-            }
-        } catch (error) {
-            console.error('Failed to save variable:', error);
-            showToast('Network error: Failed to save variable', 'fail');
-        }
-    }
-
-    async function deleteVariable() {
-        if (currentVariableName === null) return;
-        if (!confirm('Are you sure you want to delete this variable?')) return;
-        try {
-            const response = await fetch('/api/variables/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    type: 'delete',
-                    variable: { name: currentVariableName }
-                })
-            });
-            const result = await response.json();
-            if (result.success) {
-                showToast('Variable deleted successfully!', 'success');
-                variableModal.hide();
-                await fetchVariables();
-                currentVariableName = null;
-            } else {
-                showToast(result.message || 'Failed to delete variable', 'fail');
-            }
-        } catch (error) {
-            console.error('Failed to delete variable:', error);
-            showToast('Network error: Failed to delete variable', 'fail');
         }
     }
 
@@ -1322,7 +1198,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveTempHideBtn) {
         saveTempHideBtn.addEventListener('click', saveTempHideSettings);
     }
-
+    
     // Search functionality
     const rulesSearchInput = document.getElementById('searchRules');
     if (rulesSearchInput) {
@@ -1332,20 +1208,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
-    // Variables search functionality
-    const variablesSearchInput = document.getElementById('searchVariables');
-    if (variablesSearchInput) {
-        variablesSearchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredVariables = allVariables.filter(variable =>
-                (variable.name || '').toLowerCase().includes(searchTerm) ||
-                (variable.value || '').toLowerCase().includes(searchTerm)
-            );
-            displayVariables(filteredVariables);
-        });
-    }
-
-
     // Initialize the app
     init();
 });
