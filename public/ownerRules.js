@@ -2,7 +2,6 @@
 
 import { fetchOwnerRulesApi, updateOwnerRuleApi } from './api.js';
 import { showToast, configureModalButtons } from './ui.js';
-import { showManageOwnersModal } from './owners.js';
 
 let currentOwnerRuleNumber = null;
 let allOwnerRules = [];
@@ -25,7 +24,6 @@ export function initOwnerRules() {
     document.getElementById("addOwnerRuleBtn")?.addEventListener('click', addNewOwnerRule);
     document.getElementById("saveOwnerRuleBtn")?.addEventListener('click', saveOwnerRule);
     document.getElementById("deleteOwnerRuleBtn")?.addEventListener('click', deleteOwnerRule);
-    document.getElementById("manageOwnersBtn")?.addEventListener('click', showManageOwnersModal);
     ownerRulesList?.addEventListener('click', handleOwnerRuleClick);
     ownerRuleTypeSelect?.addEventListener('change', (e) => toggleOwnerFormFields(e.target.value));
     
