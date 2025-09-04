@@ -19,7 +19,8 @@ export function initOwnerRules() {
     document.getElementById("addOwnerRuleBtn")?.addEventListener('click', addNewOwnerRule);
     document.getElementById("saveOwnerRuleBtn")?.addEventListener('click', saveOwnerRule);
     document.getElementById("deleteOwnerRuleBtn")?.addEventListener('click', deleteOwnerRule);
-    ownerRulesList?.addEventListener('click', handleOwnerRuleClick);
+    // Correcting event listener to handle clicks on the list itself.
+    ownerRulesList?.addEventListener('click', handleRuleListClick);
 
     const ownerRuleTypeSelect = document.getElementById('ownerRuleType');
     ownerRuleTypeSelect?.addEventListener('change', (e) => {
@@ -44,7 +45,7 @@ export function initOwnerManagement() {
  * Handles clicks on the owner rules list to open the edit modal.
  * @param {Event} e - The click event.
  */
-function handleOwnerRuleClick(e) {
+function handleRuleListClick(e) {
     const ruleItem = e.target.closest('.rule-item');
     if (ruleItem) {
         const ruleNumber = parseInt(ruleItem.dataset.ruleNumber);
