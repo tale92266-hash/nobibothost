@@ -1,74 +1,154 @@
-// file: public/main.js
+// file: public/ui.js
 
-import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay, initSubNavigation } from './ui.js';
-import { fetchStatsApi } from './api.js';
-import { initChat } from './chat.js';
-import { initRules, fetchRules } from './rules.js';
-import { initVariables, fetchVariables } from './variables.js';
-import { initSettings, fetchSettings } from './settings.js';
+/**
+ * Manages the loading state of the UI.
+ * @param {boolean} show - True to show loading, false to hide.
+ */
+export function toggleLoading(show) {
+    const loadingMessage = document.getElementById('loadingMessage');
+    if (loadingMessage) {
+        loadingMessage.style.display = show ? 'flex' : 'none';
+    }
+}
 
-document.addEventListener("DOMContentLoaded", () => {
-
-    const socket = io();
-    socket.on('statsUpdate', (data) => {
-        updateStatsDisplay(data);
+/**
+ * Displays a toast notification.
+ * @param {string} message - The message to display.
+ * @param {'success' | 'fail' | 'warning'} [type='success'] - The type of toast.
+ */
+export function showToast(message, type = 'success') {
+    const toastElement = document.getElementById('liveToast');
+    if (!toastElement) return;
+    const toastBody = toastElement.querySelector('.toast-body');
+    toastBody.textContent = message;
+    toastElement.classList.remove('success', 'fail', 'warning');
+    toastElement.classList.add(type);
+    const toastInstance = new bootstrap.Toast(toastElement, {
+        autohide: true,
+        delay: 4000
     });
+    toastInstance.show();
+}
 
-    const tabHandlers = {
-        'stats': async () => {
-            try {
-                const statsData = await fetchStatsApi();
-                updateStatsDisplay(statsData);
-            } catch (error) {
-                console.error("Failed to fetch stats:", error);
-            }
-        },
-        'rules': () => fetchRules(),
-        'variables': () => fetchVariables(),
-        'settings': () => fetchSettings(),
-        'chat': () => {
-            // Chat is initialized once, no need to re-fetch
-        },
-        'additional': () => {
-            // Placeholder: This will handle sub-tab changes when the modules are available.
-            initSubNavigation((subTabName) => {
-                console.log(`Switched to sub-tab: ${subTabName}. Data loading for this tab is not yet implemented.`);
+/**
+ * Initializes the bottom navigation.
+ * @param {Function} onTabChange - Callback function for tab change.
+ */
+export function initBottomNavigation(onTabChange) {
+    const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    navItems.forEach(navItem => {
+        navItem.addEventListener('click', () => {
+            const tabName = navItem.getAttribute('data-tab');
+            navItems.forEach(item => item.classList.remove('active'));
+            navItem.classList.add('active');
+            tabPanes.forEach(pane => {
+                pane.classList.remove('show', 'active');
             });
-        }
-    };
-    
-    // NOTE: subTabHandlers and initSubNavigation are removed
-    // as there are no longer any sub-tabs.
-
-    initBottomNavigation((tabName) => {
-        if (tabHandlers[tabName]) {
-            tabHandlers[tabName]();
-        }
+            const targetPane = document.getElementById(`${tabName}-pane`);
+            if (targetPane) {
+                targetPane.classList.add('show', 'active');
+            }
+            onTabChange(tabName);
+        });
     });
+}
 
-    // Initialize all modules
-    initChat();
-    initRules();
-    initVariables();
-    initSettings();
+/**
+ * Initializes the sub-navigation.
+ * @param {Function} onSubTabChange - Callback function for sub-tab change.
+ */
+export function initSubNavigation(onSubTabChange) {
+    const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
+    const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
 
-    // Initial load
-    async function initialLoad() {
-        toggleLoading(true);
-        try {
-            await Promise.all([
-                fetchStatsApi().then(updateStatsDisplay),
-                fetchRules(),
-                fetchVariables(),
-                fetchSettings()
-            ]);
-        } catch (error) {
-            showToast('Failed to initialize application', 'fail');
-            console.error('Initialization error:', error);
-        } finally {
-            toggleLoading(false);
-        }
+    // Default select the 'owner' sub-tab on initial load
+    const ownerSubTab = document.querySelector('.sub-navigation .nav-item[data-sub-tab="owner-name"]');
+    const ownerSubTabPane = document.getElementById('owner-name-pane');
+    if (ownerSubTab && ownerSubTabPane) {
+        ownerSubTab.classList.add('active');
+        ownerSubTabPane.classList.add('show', 'active');
+        onSubTabChange('owner-name');
     }
 
-    initialLoad();
-});
+    subNavItems.forEach(navItem => {
+        navItem.addEventListener('click', () => {
+            const subTabName = navItem.getAttribute('data-sub-tab');
+            subNavItems.forEach(item => item.classList.remove('active'));
+            navItem.classList.add('active');
+            subTabPanes.forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            const targetPane = document.getElementById(`${subTabName}-pane`);
+            if (targetPane) {
+                targetPane.classList.add('show', 'active');
+            }
+            onSubTabChange(subTabName);
+        });
+    });
+}
+
+/**
+ * Configures the state of modal buttons.
+ * @param {'rule' | 'variable' | 'ownerRule'} modalType - The type of modal.
+ * @param {'add' | 'edit'} mode - The mode of the modal.
+ */
+export function configureModalButtons(modalType, mode) {
+    let deleteBtn, buttonContainer;
+    if (modalType === 'rule') {
+        deleteBtn = document.getElementById('deleteRuleBtn');
+        buttonContainer = document.querySelector('#ruleModal .modal-footer');
+    } else if (modalType === 'variable') {
+        deleteBtn = document.getElementById('deleteVariableBtn');
+        buttonContainer = document.querySelector('#variableModal .modal-footer');
+    } else if (modalType === 'ownerRule') {
+        deleteBtn = document.getElementById('deleteOwnerRuleBtn');
+        buttonContainer = document.querySelector('#ownerRuleModal .modal-footer');
+    }
+
+    if (!deleteBtn || !buttonContainer) {
+        return;
+    }
+
+    deleteBtn.style.display = (mode === 'edit') ? 'inline-flex' : 'none';
+}
+
+/**
+ * Updates the stats display on the dashboard.
+ * @param {object} data - The stats data.
+ */
+export function updateStatsDisplay(data) {
+    const totalUsers = document.getElementById('totalUsers');
+    const todayUsers = document.getElementById('todayUsers');
+    const totalMsgs = document.getElementById('totalMsgs');
+    const todayMsgs = document.getElementById('todayMsgs');
+    const headerTotalUsers = document.getElementById('headerTotalUsers');
+    const headerTotalMsgs = document.getElementById('headerTotalMsgs');
+    const lastUpdate = document.getElementById('lastUpdate');
+    
+    if (totalUsers) totalUsers.textContent = data.totalUsers || 0;
+    if (todayUsers) todayUsers.textContent = data.todayUsers || 0;
+    if (totalMsgs) totalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
+    if (todayMsgs) todayMsgs.textContent = (data.todayMsgs || 0).toLocaleString();
+    if (headerTotalUsers) headerTotalUsers.textContent = data.totalUsers || 0;
+    if (headerTotalMsgs) headerTotalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
+    if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString();
+}
+
+/**
+ * Updates the bot status button and text.
+ * @param {boolean} isOnline - The bot's online status.
+ */
+export function updateBotStatusUI(isOnline) {
+    const botStatusBtn = document.getElementById('botStatusBtn');
+    const botStatusText = document.getElementById('botStatusText');
+
+    if (botStatusBtn) {
+        botStatusBtn.classList.remove('bot-on', 'bot-off', 'bot-loading');
+        botStatusBtn.classList.add(isOnline ? 'bot-on' : 'bot-off');
+    }
+    if (botStatusText) {
+        botStatusText.innerHTML = isOnline ? 'Bot is Online' : 'Bot is Offline';
+    }
+}
