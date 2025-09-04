@@ -199,3 +199,22 @@
         padding-bottom: calc(100px + env(safe-area-inset-bottom));
     }
 }
+/* Owner tab content visibility fix */
+#owner .tab-content {
+    min-height: 200px;
+    opacity: 1;
+    visibility: visible;
+}
+
+#ownerRulesList {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.3s ease;
+}
+
+.no-rules {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+    font-style: italic;
+}
