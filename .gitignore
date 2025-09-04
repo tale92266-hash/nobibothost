@@ -6,6 +6,6 @@ node_modules/
 
 # Persistent stats
 /data/stats.json
-
+/data/funreal.json
 # Optional: logs
 *.log
