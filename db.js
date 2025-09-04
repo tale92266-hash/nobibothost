@@ -176,15 +176,13 @@ const syncData = async () => {
         await loadAllRules();
         await loadAllOwnerRules();
         await loadAllVariables();
+        await loadOwnersList(); // NEW: Load owners list as part of data sync
 
         const settingsLoaded = await loadSettingsFromFiles();
         if (!settingsLoaded) {
             console.log('⚠️ Settings files not found. Restoring from MongoDB...');
             await restoreSettingsFromDb();
         }
-
-        // NEW: Load owners list from DB after restoring settings
-        await loadOwnersList();
 
         if (getStats().lastResetDate !== today) {
             await resetDailyStats();
