@@ -37,33 +37,41 @@ exports.resolveVariablesRecursively = (text, senderName, receivedMessage, proces
         const now = new Date();
         const istOptions = { timeZone: 'Asia/Kolkata' };
 
-        result = result.replace(/%day_of_month_short%/g, now.getDate().toString());
+        result = result.replace(/%day_of_month_short%/g, now.getDate());
         result = result.replace(/%day_of_month%/g, now.toLocaleString('en-IN', { day: '2-digit', ...istOptions }));
-        result = result.replace(/%month_short%/g, (now.getMonth() + 1).toString());
+        result = result.replace(/%month_short%/g, now.getMonth() + 1);
         result = result.replace(/%month%/g, now.toLocaleString('en-IN', { month: '2-digit', ...istOptions }));
         result = result.replace(/%month_name_short%/g, now.toLocaleString('en-IN', { month: 'short', ...istOptions }));
         result = result.replace(/%month_name%/g, now.toLocaleString('en-IN', { month: 'long', ...istOptions }));
         result = result.replace(/%year_short%/g, now.getFullYear().toString().slice(-2));
-        result = result.replace(/%year%/g, now.getFullYear().toString());
+        result = result.replace(/%year%/g, now.getFullYear());
         result = result.replace(/%day_of_week_short%/g, now.toLocaleString('en-IN', { weekday: 'short', ...istOptions }));
         result = result.replace(/%day_of_week%/g, now.toLocaleString('en-IN', { weekday: 'long', ...istOptions }));
-
-        // New formatted time variables
-        const hour12 = now.getHours() % 12 || 12;
-        const hour24 = now.getHours().toString().padStart(2, '0');
-        const minute = now.getMinutes().toString().padStart(2, '0');
-        const second = now.getSeconds().toString().padStart(2, '0');
-        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
-
-        result = result.replace(/%hour%/g, hour12.toString().padStart(2, '0'));
-        result = result.replace(/%hour_short%/g, hour12.toString());
-        result = result.replace(/%hour_of_day%/g, hour24);
-        result = result.replace(/%hour_of_day_short%/g, now.getHours().toString());
-        result = result.replace(/%minute%/g, minute);
-        result = result.replace(/%second%/g, second);
-        result = result.replace(/%millisecond%/g, now.getMilliseconds().toString().padStart(3, '0'));
-        result = result.replace(/%am\/pm%/g, ampm.toUpperCase());
-        result = result.replace(/%name%/g, senderName);
+        result = result.replace(/%(hour|hour_short|hour_of_day|hour_of_day_short|minute|second|millisecond|am\/pm|name)%/g, (match, varName) => {
+            const now = new Date();
+            const istOptions = { timeZone: 'Asia/Kolkata' };
+            switch (varName) {
+                case 'hour':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[0];
+                case 'hour_short':
+                    return now.toLocaleString('en-IN', { hour: 'numeric', hour12: true, ...istOptions }).split(' ')[0];
+                case 'hour_of_day':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: false, ...istOptions });
+                case 'hour_of_day_short':
+                    return now.toLocaleString('en-IN', { hour: 'numeric', hour12: false, ...istOptions });
+                case 'minute':
+                    return now.toLocaleString('en-IN', { minute: '2-digit', ...istOptions });
+                case 'second':
+                    return now.toLocaleString('en-IN', { second: '2-digit', ...istOptions });
+                case 'millisecond':
+                    return now.getMilliseconds().toString().padStart(3, '0');
+                case 'am/pm':
+                    return now.toLocaleString('en-IN', { hour: '2-digit', hour12: true, ...istOptions }).split(' ')[1].toUpperCase();
+                case 'name':
+                    return senderName;
+            }
+            return match;
+        });
 
         // Countdown variables
         result = result.replace(/%countdown(?:_days)?_(\d+)%/g, (match, unixTimestamp, isDays) => {
