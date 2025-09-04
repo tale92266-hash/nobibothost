@@ -408,7 +408,21 @@
     transition: var(--transition);
 }
 
-/* Search and Form */
+/* Common Styles for all Sections (Rules, Vars, Chat) */
+.content-section {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
 .section-header {
     padding: 1.5rem;
     border-bottom: 1px solid var(--gray-200);
@@ -479,5 +493,13 @@
     
     .form-grid {
         grid-template-columns: 1fr;
+    }
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .btn-lg {
+        width: 100%;
+        justify-content: center;
     }
 }
