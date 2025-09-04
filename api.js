@@ -13,7 +13,7 @@ const { processMessage } = require('./core/bot');
 const { Server } = require("socket.io");
 const { Server: HTTPServer } = require("http");
 
-module.exports = (app, server) => {
+module.exports = (app, server, getIsReady) => {
     const io = new Server(server, { cors: { origin: "*" } });
 
     const MAX_CHAT_HISTORY = 10;
@@ -354,7 +354,7 @@ module.exports = (app, server) => {
     app.post("/webhook", async (req, res) => {
         const { extractSenderNameAndContext } = require('./core/utils');
 
-        if (!isReady) {
+        if (!getIsReady()) {
             console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
             return res.status(503).send('Server is initializing. Please try again in a moment.');
         }
