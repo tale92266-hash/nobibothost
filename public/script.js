@@ -63,27 +63,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
     const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 
-    // NEW DOM for Owner and Owner Rules
-    const manageOwnersBtn = document.getElementById('manageOwnersBtn');
-    const ownersModal = new bootstrap.Modal(document.getElementById("ownerModal"));
-    const ownersListTextarea = document.getElementById('ownersList');
-    const saveOwnersBtn = document.getElementById('saveOwnersBtn');
-    const ownerRulesList = document.getElementById('ownerRulesList');
-    const addOwnerRuleBtn = document.getElementById('addOwnerRuleBtn');
-    const ownerRuleModal = new bootstrap.Modal(document.getElementById("ownerRuleModal"));
-    const ownerRuleFormTitle = document.getElementById('ownerRuleFormTitle');
-    const ownerRuleNumberInput = document.getElementById('ownerRuleNumber');
-    const ownerRuleNumberError = document.getElementById('ownerRuleNumberError');
-    const ownerRuleForm = document.getElementById('ownerRuleForm');
-    const deleteOwnerRuleBtn = document.getElementById('deleteOwnerRuleBtn');
-    const saveOwnerRuleBtn = document.getElementById('saveOwnerRuleBtn');
-    const ownerRuleTypeSelect = document.getElementById('ownerRuleType');
-    const ownerKeywordsField = document.getElementById('ownerKeywordsField');
-    const ownerRepliesTypeField = document.getElementById('ownerRepliesTypeField');
-    const ownerReplyTextField = document.getElementById('ownerReplyTextField');
-    let allOwnerRules = [];
-    let currentOwnerRuleNumber = null;
-    
     // Variables
     let currentRuleNumber = null;
     let currentVariableName = null;
@@ -94,7 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEW: Override list variables
     let ignoredOverrideUsers = [];
     let specificOverrideUsers = [];
-    let ownersList = [];
     let currentOverrideType = null;
     let currentSettings = {
         preventRepeatingRule: {
@@ -137,11 +115,15 @@ document.addEventListener("DOMContentLoaded", () => {
             addChatMessage(data);
         }
     });
-    
+
+    // Socket listener for chat history
     socket.on('chatHistory', (historyMessages) => {
         console.log('📜 Received chat history:', historyMessages.length, 'messages');
+        // Clear current messages and load history
         chatMessages = [];
+        // Reverse history (oldest first in array for chronological order)
         const reversedHistory = [...historyMessages].reverse();
+        // Add history messages to current array
         reversedHistory.forEach(message => {
             chatMessages.push({
                 id: Date.now() + Math.random(),
@@ -153,25 +135,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 timestamp: message.timestamp || new Date().toISOString()
             });
         });
+        // Update display
         updateChatDisplay();
+        // Scroll to bottom to show latest
         scrollToLatest();
         console.log('✅ Chat history loaded and displayed');
     });
 
+    // Clear chat button
     if (clearChatBtn) {
         clearChatBtn.addEventListener('click', () => {
             clearChat();
         });
     }
 
+    // Pause/Resume chat button
     if (pauseChatBtn) {
         pauseChatBtn.addEventListener('click', () => {
             toggleChatPause();
         });
     }
 
+    // Add chat tab to navigation
+    addChatNavigation();
+
     function addChatMessage(messageData) {
         const { sessionId, userMessage, botReply, timestamp, senderName, groupName } = messageData;
+        // Create message object
         const message = {
             id: Date.now() + Math.random(),
             sessionId: sessionId || 'unknown',
@@ -181,11 +171,15 @@ document.addEventListener("DOMContentLoaded", () => {
             botReply: botReply || '',
             timestamp: timestamp || new Date().toISOString()
         };
+        // Add to end of array (newest at end)
         chatMessages.push(message);
+        // Keep only last 10 messages
         if (chatMessages.length > maxMessages) {
-            chatMessages = chatMessages.slice(-maxMessages);
+            chatMessages = chatMessages.slice(-maxMessages); // Keep last 10
         }
+        // Update display
         updateChatDisplay();
+        // Auto scroll to latest message (bottom)
         scrollToLatest();
     }
 
@@ -193,6 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const chatContainer = document.getElementById('chatMessages');
         if (!chatContainer) return;
         chatContainer.innerHTML = '';
+        // Show messages in chronological order (oldest first, newest at bottom)
         chatMessages.forEach((message, index) => {
             const messageElement = createMessageElement(message, index);
             chatContainer.appendChild(messageElement);
@@ -203,9 +198,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'chat-message';
         messageDiv.style.animationDelay = `${index * 0.1}s`;
+        // Use actual sender name if available
         const userName = message.senderName || getUserDisplayName(message.sessionId, message.senderName);
         const userAvatar = getUserAvatar(userName);
         const timeDisplay = formatTime(message.timestamp);
+        // Naya logic: Reply text ko update karen
         let botReplyText = `Reply sent to ${escapeHtml(userName)}`;
         if (message.groupName) {
             botReplyText += ` in ${escapeHtml(message.groupName)} GC`;
@@ -231,9 +228,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function getUserDisplayName(sessionId, senderName) {
+        // Prioritize actual sender name
         if (senderName && senderName.trim() !== '') {
             return senderName.trim();
         }
+        // Fallback for anonymous users
         const prefix = 'User';
         const shortId = sessionId.substring(sessionId.length - 4).toUpperCase();
         return `${prefix}-${shortId}`;
@@ -241,6 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getUserAvatar(userName) {
         if (!userName || userName === 'unknown') return '?';
+        // Create avatar from actual name
         return userName.substring(0, 2).toUpperCase();
     }
 
@@ -265,6 +265,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const chatContainer = document.getElementById('chatMessages');
         if (!chatContainer) return;
         chatContainer.classList.add('scrolling');
+        // Scroll to bottom for newest messages
         chatContainer.scrollTop = chatContainer.scrollHeight;
         setTimeout(() => {
             chatContainer.classList.remove('scrolling');
@@ -291,6 +292,28 @@ document.addEventListener("DOMContentLoaded", () => {
             pauseBtn.classList.remove('btn-outline-warning');
             pauseBtn.classList.add('btn-outline-secondary');
             showToast('Chat resumed', 'success');
+        }
+    }
+
+    function addChatNavigation() {
+        // Add chat tab to bottom navigation if it's there
+        const navContainer = document.querySelector('.bottom-navigation');
+        if (!navContainer) return;
+        const chatNavExists = document.querySelector('[data-tab="chat"]');
+        if (chatNavExists) return;
+        const chatNavItem = document.createElement('div');
+        chatNavItem.className = 'nav-item';
+        chatNavItem.setAttribute('data-tab', 'chat');
+        chatNavItem.innerHTML = `
+            <i class="fas fa-comments"></i>
+            <span>Chat</span>
+        `;
+        // Insert before settings tab
+        const settingsTab = document.querySelector('[data-tab="settings"]');
+        if (settingsTab) {
+            navContainer.insertBefore(chatNavItem, settingsTab);
+        } else {
+            navContainer.appendChild(chatNavItem);
         }
     }
 
@@ -348,29 +371,6 @@ document.addEventListener("DOMContentLoaded", () => {
         ruleNumberInput.addEventListener('keydown', keydownHandler);
         ruleNumberInput._currentKeydownHandler = keydownHandler;
     }
-    
-    function setupOwnerRuleNumberValidation(isEditing = false) {
-        const maxAllowed = isEditing ? allOwnerRules.length : allOwnerRules.length + 1;
-        ownerRuleNumberInput.setAttribute('max', maxAllowed);
-        ownerRuleNumberInput.setAttribute('min', 1);
-        const newHandler = function(e) {
-            let value = parseInt(e.target.value);
-            if (isNaN(value)) {
-                return;
-            }
-            if (value < 1) {
-                e.target.value = 1;
-            } else if (value > maxAllowed) {
-                e.target.value = maxAllowed;
-                showToast(`Maximum rule number in ${isEditing ? 'edit' : 'add'} mode is ${maxAllowed}`, 'warning');
-            }
-        };
-        if (ownerRuleNumberInput._currentHandler) {
-            ownerRuleNumberInput.removeEventListener('input', ownerRuleNumberInput._currentHandler);
-        }
-        ownerRuleNumberInput.addEventListener('input', newHandler);
-        ownerRuleNumberInput._currentHandler = newHandler;
-    }
 
     // Rule Reordering Function
     function reorderRulesArray(rules, oldRuleNumber, newRuleNumber) {
@@ -423,9 +423,6 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (modalType === 'variable') {
             deleteBtn = document.getElementById('deleteVariableBtn');
             buttonContainer = document.querySelector('.form-actions');
-        } else if (modalType === 'ownerRule') {
-            deleteBtn = document.getElementById('deleteOwnerRuleBtn');
-            buttonContainer = document.querySelector('#ownerRuleModal .modal-footer');
         }
         if (!deleteBtn || !buttonContainer) {
             return;
@@ -449,7 +446,7 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.style.padding = '0.625rem 1.25rem';
             btn.style.lineHeight = '1.5';
             btn.style.whiteSpace = 'nowrap';
-            btn.style.vertical-align = 'middle';
+            btn.style.verticalAlign = 'middle';
             btn.style.marginLeft = '0';
         });
     }
@@ -457,37 +454,24 @@ document.addEventListener("DOMContentLoaded", () => {
     // Bottom Navigation Handler
     function initBottomNavigation() {
         const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
-        const mainTabPanes = document.querySelectorAll('#mainTabContent .tab-pane');
-        
+        const tabPanes = document.querySelectorAll('.tab-pane');
+
         navItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
                 const tabName = navItem.getAttribute('data-tab');
-                
                 navItems.forEach(item => item.classList.remove('active'));
                 navItem.classList.add('active');
-
-                mainTabPanes.forEach(pane => {
+                tabPanes.forEach(pane => {
                     pane.classList.remove('show', 'active');
                 });
                 const targetPane = document.getElementById(`${tabName}-pane`);
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
                 }
-                
-                if (tabName === 'rules') {
+                if (tabName === 'rules' && allRules.length === 0) {
                     fetchRules();
-                } else if (tabName === 'variables') {
+                } else if (tabName === 'variables' && allVariables.length === 0) {
                     fetchVariables();
-                } else if (tabName === 'additional') {
-                    const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
-                    const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
-                    if (subNavItems.length > 0) {
-                        subNavItems.forEach(item => item.classList.remove('active'));
-                        subTabPanes.forEach(pane => pane.classList.remove('show', 'active'));
-                        subNavItems[0].classList.add('active');
-                        subTabPanes[0].classList.add('show', 'active');
-                    }
-                    fetchOwnerRules();
                 }
             });
         });
@@ -497,7 +481,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function initSubNavigation() {
         const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
         const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
-
 
         subNavItems.forEach(navItem => {
             navItem.addEventListener('click', () => {
@@ -511,9 +494,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (targetPane) {
                     targetPane.classList.add('show', 'active');
                 }
-                if (subTabName === 'owner-name') {
-                    fetchOwnerRules();
-                }
             });
         });
     }
@@ -523,37 +503,27 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             initBottomNavigation();
             initSubNavigation();
-            showLoading();
+            showLoading(); // Show spinner before starting fetch requests
             await fetchStats();
             await fetchRules();
             await fetchVariables();
             await fetchSettings();
             updateBotStatusUI();
-            hideLoading();
+            hideLoading(); // Hide spinner after all requests are complete
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
-            hideLoading();
+            hideLoading(); // Hide spinner on error
         }
     }
 
     // Loading State Management (FIX)
     function showLoading() {
-        const panes = document.querySelectorAll('.tab-pane');
-        panes.forEach(pane => {
-            if (pane.id !== 'stats-pane') {
-                pane.style.display = 'none';
-            }
-        });
         if (loadingMessage) {
             loadingMessage.style.display = 'flex';
         }
     }
 
     function hideLoading() {
-        const panes = document.querySelectorAll('.tab-pane');
-        panes.forEach(pane => {
-            pane.style.display = 'block';
-        });
         if (loadingMessage) {
             loadingMessage.style.display = 'none';
         }
@@ -617,19 +587,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if (!document.getElementById('repliesType').value) {
             document.getElementById('repliesType').value = 'RANDOM';
-        }
-    }
-    
-    function toggleOwnerFormFields(ruleType) {
-        if (ruleType === 'WELCOME' || ruleType === 'DEFAULT') {
-            ownerKeywordsField.style.display = 'none';
-            ownerRepliesTypeField.style.display = 'none';
-            ownerReplyTextField.style.display = 'block';
-            document.getElementById('ownerKeywords').value = "ALL";
-        } else {
-            ownerKeywordsField.style.display = 'block';
-            ownerRepliesTypeField.style.display = 'block';
-            ownerReplyTextField.style.display = 'block';
         }
     }
 
@@ -732,14 +689,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return ruleDiv;
     }
 
-    function validateRuleForm(isOwner = false) {
-        const ruleNumberInput = isOwner ? document.getElementById('ownerRuleNumber') : document.getElementById('ruleNumber');
-        const keywordsInput = isOwner ? document.getElementById('ownerKeywords') : document.getElementById('keywords');
-        const replyTextInput = isOwner ? document.getElementById('ownerReplyText') : document.getElementById('replyText');
-        
-        const ruleNumber = ruleNumberInput.value.trim();
-        const keywords = keywordsInput.value.trim();
-        const replyText = replyTextInput.value.trim();
+    // FIXED: Form validation with proper server communication
+    function validateRuleForm() {
+        const ruleNumber = document.getElementById('ruleNumber').value.trim();
+        const keywords = document.getElementById('keywords').value.trim();
+        const replyText = document.getElementById('replyText').value.trim();
         
         if (!ruleNumber || !keywords || !replyText) {
             showToast('Please fill all required fields', 'warning');
@@ -755,20 +709,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
+    // FIXED: Save rule function with proper error handling
     async function saveRule() {
         console.log('💾 Save button clicked - starting save process');
         
+        // Validate form data first
         if (!validateRuleForm()) {
             console.log('❌ Form validation failed');
             return;
         }
 
+        // Show loading state
         const saveBtn = document.getElementById('saveRuleBtn');
         const originalText = saveBtn.innerHTML;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
         saveBtn.disabled = true;
 
         try {
+            // Get form data
             const ruleData = {
                 ruleNumber: parseInt(document.getElementById('ruleNumber').value),
                 ruleName: document.getElementById('ruleName').value.trim(),
@@ -781,6 +739,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             console.log('📤 Sending rule data:', ruleData);
 
+            // Determine if adding or editing
             const isEditing = currentRuleNumber !== null;
             const requestData = {
                 type: isEditing ? 'edit' : 'add',
@@ -788,6 +747,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 oldRuleNumber: currentRuleNumber
             };
 
+            // Send API request
             const response = await fetch('/api/rules/update', {
                 method: 'POST',
                 headers: {
@@ -808,8 +768,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (result.success) {
                 showToast(result.message || 'Rule saved successfully!', 'success');
                 ruleModal.hide();
-                await fetchRules();
-                currentRuleNumber = null;
+                await fetchRules(); // Reload rules list
+                currentRuleNumber = null; // Reset editing state
             } else {
                 throw new Error(result.message || 'Failed to save rule');
             }
@@ -818,6 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error('❌ Save rule error:', error);
             showToast('Failed to save rule: ' + error.message, 'fail');
         } finally {
+            // Restore button state
             saveBtn.innerHTML = originalText;
             saveBtn.disabled = false;
         }
@@ -1091,18 +1052,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // NEW: Override Users Functions
-    async function fetchOwners() {
-        try {
-            const response = await fetch('/api/owners');
-            const data = await response.json();
-            ownersList = data.owners || [];
-            ownersListTextarea.value = ownersList.join(', ');
-        } catch (error) {
-            console.error('Failed to fetch owners:', error);
-            showToast('Failed to fetch owners list.', 'fail');
-        }
-    }
-
     function updateOverrideUsersList() {
         ignoredOverrideUsers = currentSettings.ignoredOverrideUsers || [];
         specificOverrideUsers = currentSettings.specificOverrideUsers || [];
@@ -1298,197 +1247,7 @@ document.addEventListener("DOMContentLoaded", () => {
             showToast('Network error: Failed to save settings', 'fail');
         }
     }
-    
-    // NEW: Owner Functions
-    async function fetchOwners() {
-        try {
-            const response = await fetch('/api/owners');
-            const data = await response.json();
-            ownersList = data.owners || [];
-            ownersListTextarea.value = ownersList.join(', ');
-        } catch (error) {
-            console.error('Failed to fetch owners:', error);
-            showToast('Failed to fetch owners list.', 'fail');
-        }
-    }
-    
-    async function saveOwners() {
-        const owners = ownersListTextarea.value.split(',').map(name => name.trim()).filter(Boolean);
-        try {
-            const response = await fetch('/api/owners/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ owners })
-            });
-            const result = await response.json();
-            if (result.success) {
-                ownersList = owners;
-                showToast(result.message, 'success');
-                ownersModal.hide();
-            } else {
-                showToast(result.message || 'Failed to save owners.', 'fail');
-            }
-        } catch (error) {
-            console.error('Failed to save owners:', error);
-            showToast('Network error: Failed to save owners.', 'fail');
-        }
-    }
-    
-    async function fetchOwnerRules() {
-        ownerRulesList.innerHTML = '';
-        try {
-            const response = await fetch('/api/owner-rules');
-            const data = await response.json();
-            allOwnerRules = data;
-            if (data.length === 0) {
-                ownerRulesList.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-plus-circle fa-3x"></i>
-                        <h5>No Owner Rules Found</h5>
-                        <p>Add your first owner rule here!</p>
-                    </div>
-                `;
-            } else {
-                displayOwnerRules(data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch owner rules:', error);
-            ownerRulesList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-exclamation-triangle fa-3x"></i>
-                    <h5>Error Loading Owner Rules</h5>
-                    <p>Please try refreshing the page</p>
-                </div>
-            `;
-        }
-    }
 
-    function displayOwnerRules(rules) {
-        ownerRulesList.innerHTML = '';
-        rules.forEach(rule => {
-            const ruleElement = createOwnerRuleElement(rule);
-            ownerRulesList.appendChild(ruleElement);
-        });
-    }
-
-    function createOwnerRuleElement(rule) {
-        const ruleDiv = document.createElement('div');
-        ruleDiv.className = 'rule-item';
-        ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
-        const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
-        
-        ruleDiv.innerHTML = `
-            <div class="rule-header-new">
-                <div class="rule-title">
-                    <span class="rule-number-new">${rule.RULE_NUMBER}</span>
-                    <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Rule'}</span>
-                </div>
-                <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
-            </div>
-            <div class="rule-content-new">
-                <div class="rule-line">
-                    <strong>Keywords:</strong> ${rule.KEYWORDS || 'N/A'}
-                </div>
-                <div class="rule-reply">
-                    <strong>Reply:</strong>
-                    <div class="reply-text">${(rule.REPLY_TEXT || 'No reply text').substring(0, 200)}${rule.REPLY_TEXT && rule.REPLY_TEXT.length > 200 ? '...' : ''}</div>
-                </div>
-            </div>
-        `;
-        ruleDiv.addEventListener('click', () => editOwnerRule(rule));
-        return ruleDiv;
-    }
-
-    function editOwnerRule(rule) {
-        currentOwnerRuleNumber = rule.RULE_NUMBER;
-        ownerRuleFormTitle.textContent = 'Edit Owner Rule';
-        ownerRuleNumberInput.value = rule.RULE_NUMBER;
-        document.getElementById('ownerRuleName').value = rule.RULE_NAME || '';
-        document.getElementById('ownerRuleType').value = rule.RULE_TYPE;
-        document.getElementById('ownerKeywords').value = rule.KEYWORDS || '';
-        document.getElementById('ownerRepliesType').value = rule.REPLIES_TYPE;
-        document.getElementById('ownerReplyText').value = rule.REPLY_TEXT || '';
-        configureModalButtons('ownerRule', 'edit');
-        setupOwnerRuleNumberValidation(true);
-        toggleOwnerFormFields(rule.RULE_TYPE);
-        ownerRuleModal.show();
-    }
-    
-    function addNewOwnerRule() {
-        currentOwnerRuleNumber = null;
-        ownerRuleFormTitle.textContent = 'Add New Owner Rule';
-        ownerRuleForm.reset();
-        ownerRuleNumberInput.value = allOwnerRules.length + 1;
-        document.getElementById('ownerRuleType').value = 'EXACT';
-        document.getElementById('ownerRepliesType').value = 'RANDOM';
-        configureModalButtons('ownerRule', 'add');
-        setupOwnerRuleNumberValidation(false);
-        toggleOwnerFormFields('EXACT');
-        ownerRuleModal.show();
-    }
-    
-    async function saveOwnerRule() {
-        const isEditing = currentOwnerRuleNumber !== null;
-        const ruleData = {
-            ruleNumber: parseInt(ownerRuleNumberInput.value),
-            ruleName: document.getElementById('ownerRuleName').value.trim(),
-            ruleType: document.getElementById('ownerRuleType').value,
-            keywords: document.getElementById('ownerKeywords').value.trim(),
-            repliesType: document.getElementById('ownerRepliesType').value,
-            replyText: document.getElementById('ownerReplyText').value.trim()
-        };
-
-        try {
-            const response = await fetch('/api/owner-rules/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: isEditing ? 'edit' : 'add',
-                    rule: ruleData,
-                    oldRuleNumber: currentOwnerRuleNumber
-                })
-            });
-            const result = await response.json();
-            if (result.success) {
-                showToast(result.message, 'success');
-                ownerRuleModal.hide();
-                await fetchOwnerRules();
-            } else {
-                showToast(result.message || 'Failed to save owner rule', 'fail');
-            }
-        } catch (error) {
-            console.error('Failed to save owner rule:', error);
-            showToast('Network error: Failed to save owner rule', 'fail');
-        }
-    }
-
-    async function deleteOwnerRule() {
-        if (currentOwnerRuleNumber === null) return;
-        if (!confirm('Are you sure you want to delete this owner rule?')) return;
-        try {
-            const response = await fetch('/api/owner-rules/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    type: 'delete',
-                    rule: { ruleNumber: currentOwnerRuleNumber }
-                })
-            });
-            const result = await response.json();
-            if (result.success) {
-                showToast('Owner rule deleted successfully!', 'success');
-                ownerRuleModal.hide();
-                await fetchOwnerRules();
-                currentOwnerRuleNumber = null;
-            } else {
-                showToast(result.message || 'Failed to delete owner rule', 'fail');
-            }
-        } catch (error) {
-            console.error('Failed to delete owner rule:', error);
-            showToast('Network error: Failed to delete owner rule', 'fail');
-        }
-    }
-    
     // Event Listeners
     if (addRuleBtn) {
         addRuleBtn.addEventListener('click', addNewRule);
@@ -1563,39 +1322,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (saveTempHideBtn) {
         saveTempHideBtn.addEventListener('click', saveTempHideSettings);
     }
-    
-    // NEW: Owner Event Listeners
-    if (manageOwnersBtn) {
-        manageOwnersBtn.addEventListener('click', () => {
-            fetchOwners();
-            ownersModal.show();
-        });
-    }
-
-    if (saveOwnersBtn) {
-        saveOwnersBtn.addEventListener('click', saveOwners);
-    }
-
-    if (addOwnerRuleBtn) {
-        addOwnerRuleBtn.addEventListener('click', addNewOwnerRule);
-    }
-
-    if (saveOwnerRuleBtn) {
-        saveOwnerRuleBtn.addEventListener('click', (e) => {
-             e.preventDefault();
-             saveOwnerRule();
-        });
-    }
-
-    if (deleteOwnerRuleBtn) {
-        deleteOwnerRuleBtn.addEventListener('click', deleteOwnerRule);
-    }
-
-    if (ownerRuleTypeSelect) {
-        ownerRuleTypeSelect.addEventListener('change', (e) => {
-            toggleOwnerFormFields(e.target.value);
-        });
-    }
 
     // Search functionality
     const rulesSearchInput = document.getElementById('searchRules');
@@ -1618,6 +1344,7 @@ document.addEventListener("DOMContentLoaded", () => {
             displayVariables(filteredVariables);
         });
     }
+
 
     // Initialize the app
     init();
