@@ -216,8 +216,8 @@ exports.resolveVariablesRecursively = (text, senderName, receivedMessage, proces
             });
         }
         
-        // Static variables
-        const staticVars = require('./state').getVariables();
+        const { getVariables } = require('./state');
+        const staticVars = getVariables();
         result = result.replace(/%(\w+)%/g, (match, varName) => {
             const staticVar = staticVars.find(v => v.name === varName);
             return staticVar ? staticVar.value : match;
