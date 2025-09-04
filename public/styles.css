@@ -7,3 +7,25 @@
 @import url("styles/pages.css");
 @import url("styles/modals.css");
 @import url("styles/owners.css");
+
+/* OWNERS TAB FIX */
+.sub-tab-content {
+    position: relative;
+    min-height: 500px; /* Optional: Adjust as needed to prevent layout shift */
+}
+
+.sub-tab-content .tab-pane {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* Add opacity transition for a smoother fade */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease;
+}
+
+.sub-tab-content .tab-pane.show.active {
+    opacity: 1;
+    visibility: visible;
+}
