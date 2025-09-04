@@ -176,7 +176,7 @@ const syncData = async () => {
         await loadAllRules();
         await loadAllOwnerRules();
         await loadAllVariables();
-        await loadOwnersList(); // NEW: Load owners list as part of data sync
+        await loadOwnersList();
 
         const settingsLoaded = await loadSettingsFromFiles();
         if (!settingsLoaded) {
