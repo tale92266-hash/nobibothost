@@ -1,6 +1,6 @@
 // file: public/main.js
 
-import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay } from './ui.js';
+import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay, initSubNavigation } from './ui.js';
 import { fetchStatsApi } from './api.js';
 import { initChat } from './chat.js';
 import { initRules, fetchRules } from './rules.js';
@@ -28,6 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
         'settings': () => fetchSettings(),
         'chat': () => {
             // Chat is initialized once, no need to re-fetch
+        },
+        'additional': () => {
+            // Placeholder: This will handle sub-tab changes when the modules are available.
+            initSubNavigation((subTabName) => {
+                console.log(`Switched to sub-tab: ${subTabName}. Data loading for this tab is not yet implemented.`);
+            });
         }
     };
     
