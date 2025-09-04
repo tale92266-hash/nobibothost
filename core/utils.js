@@ -49,16 +49,16 @@ exports.resolveVariablesRecursively = (text, senderName, receivedMessage, proces
         result = result.replace(/%day_of_week%/g, now.toLocaleString('en-IN', { weekday: 'long', ...istOptions }));
 
         // New formatted time variables
-        const hour12 = now.toLocaleString('en-IN', { hour: 'numeric', hour12: true, ...istOptions });
-        const hour24 = now.toLocaleString('en-IN', { hour: 'numeric', hour12: false, ...istOptions });
+        const hour12 = now.getHours() % 12 || 12;
+        const hour24 = now.getHours().toString().padStart(2, '0');
         const minute = now.getMinutes().toString().padStart(2, '0');
         const second = now.getSeconds().toString().padStart(2, '0');
-        const ampm = now.toLocaleString('en-IN', { hour: 'numeric', hour12: true, ...istOptions }).split(' ')[1];
-        
-        result = result.replace(/%hour%/g, hour12.split(' ')[0].padStart(2, '0'));
-        result = result.replace(/%hour_short%/g, hour12.split(' ')[0]);
-        result = result.replace(/%hour_of_day%/g, hour24.padStart(2, '0'));
-        result = result.replace(/%hour_of_day_short%/g, hour24);
+        const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+
+        result = result.replace(/%hour%/g, hour12.toString().padStart(2, '0'));
+        result = result.replace(/%hour_short%/g, hour12.toString());
+        result = result.replace(/%hour_of_day%/g, hour24);
+        result = result.replace(/%hour_of_day_short%/g, now.getHours().toString());
         result = result.replace(/%minute%/g, minute);
         result = result.replace(/%second%/g, second);
         result = result.replace(/%millisecond%/g, now.getMilliseconds().toString().padStart(3, '0'));
