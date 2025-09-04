@@ -1,4 +1,4 @@
-// file: db.js
+// file: core/db.js
 
 const mongoose = require("mongoose");
 const fs = require("fs");
@@ -8,7 +8,7 @@ const {
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
     setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
     setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList
-} = require('./core/state');
+} = require('./state');
 
 mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log("⚡ MongoDB connected successfully!"))
