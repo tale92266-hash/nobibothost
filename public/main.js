@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
         'variables': () => fetchVariables(),
         'settings': () => fetchSettings(),
         'additional': () => {
-            // Nothing to do here, sub-tabs will handle fetches
+            // This tab is now handled by subTabHandlers below
         },
         'chat': () => {
             // Chat is initialized once, no need to re-fetch
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchRules(),
                 fetchVariables(),
                 fetchSettings(),
-                fetchOwnerRules(),
+                fetchOwnerRules(), // This will ensure owner rules are fetched on initial load
                 fetchOwners()
             ]);
         } catch (error) {
