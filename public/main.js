@@ -7,11 +7,6 @@ import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
 
-// NEW IMPORTS
-import { initSubNavigation } from './ui.js';
-import { initOwners, fetchOwners } from './owners.js';
-import { initOwnerRules, fetchOwnerRules } from './owner-rules.js';
-
 document.addEventListener("DOMContentLoaded", () => {
 
     const socket = io();
@@ -29,24 +24,16 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         },
         'rules': () => fetchRules(),
-        'chat': () => {
-            // Chat is initialized once, no need to re-fetch
-        },
         'variables': () => fetchVariables(),
         'settings': () => fetchSettings(),
-        'additional': () => {
-            initSubNavigation((subTabName) => {
-                if (subTabName === 'owner-name') {
-                    fetchOwners();
-                } else if (subTabName === 'owner-rules') {
-                    fetchOwnerRules();
-                } else {
-                    // Automation tab will fetch its data here
-                }
-            });
+        'chat': () => {
+            // Chat is initialized once, no need to re-fetch
         }
     };
     
+    // NOTE: subTabHandlers and initSubNavigation are removed
+    // as there are no longer any sub-tabs.
+
     initBottomNavigation((tabName) => {
         if (tabHandlers[tabName]) {
             tabHandlers[tabName]();
@@ -58,9 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initRules();
     initVariables();
     initSettings();
-    initOwners();
-    initOwnerRules();
-
 
     // Initial load
     async function initialLoad() {
@@ -70,9 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchStatsApi().then(updateStatsDisplay),
                 fetchRules(),
                 fetchVariables(),
-                fetchSettings(),
-                fetchOwners(),
-                fetchOwnerRules()
+                fetchSettings()
             ]);
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
