@@ -1,11 +1,12 @@
 // file: public/main.js
 
-import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay } from './ui.js';
+import { toggleLoading, showToast, initBottomNavigation, initSubNavigation, updateStatsDisplay } from './ui.js';
 import { fetchStatsApi } from './api.js';
 import { initChat } from './chat.js';
 import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
+import { initOwnerRules, fetchOwnerRules, initOwnerManagement, fetchOwners } from './owner.js';
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -26,17 +27,34 @@ document.addEventListener("DOMContentLoaded", () => {
         'rules': () => fetchRules(),
         'variables': () => fetchVariables(),
         'settings': () => fetchSettings(),
+        'additional': () => {
+            // Nothing to do here, sub-tabs will handle fetches
+        },
         'chat': () => {
             // Chat is initialized once, no need to re-fetch
         }
     };
     
-    // NOTE: subTabHandlers and initSubNavigation are removed
-    // as there are no longer any sub-tabs.
+    const subTabHandlers = {
+        'owner-name': () => {
+            fetchOwnerRules();
+            fetchOwners();
+        },
+        'automation-name': () => {
+            // Placeholder for future logic
+            console.log("Automation Name tab selected.");
+        }
+    };
 
     initBottomNavigation((tabName) => {
         if (tabHandlers[tabName]) {
             tabHandlers[tabName]();
+        }
+    });
+
+    initSubNavigation((subTabName) => {
+        if (subTabHandlers[subTabName]) {
+            subTabHandlers[subTabName]();
         }
     });
 
@@ -45,6 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
     initRules();
     initVariables();
     initSettings();
+    initOwnerRules();
+    initOwnerManagement();
 
     // Initial load
     async function initialLoad() {
@@ -54,7 +74,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchStatsApi().then(updateStatsDisplay),
                 fetchRules(),
                 fetchVariables(),
-                fetchSettings()
+                fetchSettings(),
+                fetchOwnerRules(),
+                fetchOwners()
             ]);
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
