@@ -79,7 +79,7 @@ let isReady = false;
     });
 })();
 
-setupApiRoutes(app, server);
+setupApiRoutes(app, server, () => isReady);
 
 app.get("/ping", (req, res) => res.send("🏓 PING OK!"));
 app.get("/", (req, res) => res.send("🤖 FRIENDLY CHAT BOT IS LIVE!"));
