@@ -3,7 +3,7 @@
 const {
     getRules, getOwnerRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
-    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats
+    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers
 } = require('./state');
 const { db } = require('../db');
 const {
