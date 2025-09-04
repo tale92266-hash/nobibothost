@@ -1,7 +1,8 @@
 // file: public/script.js
 
 import { fetchVariables, addNewVariable, saveVariable, deleteVariable } from './variables.js';
-import { fetchOwnerRules, addNewOwnerRule, saveOwnerRule, deleteOwnerRule } from './owner-rules.js';
+import { fetchOwnerRules, addNewOwnerRule, saveOwnerRule, deleteOwnerRule, handleOwnerRuleClick } from './owner-rules.js';
+import { fetchOwners, addNewOwner, saveOwners, deleteOwner, handleOwnerClick } from './owners.js';
 
 document.addEventListener("DOMContentLoaded", () => {
     // DOM Elements
@@ -63,6 +64,25 @@ document.addEventListener("DOMContentLoaded", () => {
     // NEW: DOM for hide/unhide replies
     const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
     const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
+    
+    // NEW DOM for Owner and Owner Rules
+    const addOwnerRuleBtn = document.getElementById("addOwnerRuleBtn");
+    const ownerRuleModal = new bootstrap.Modal(document.getElementById("ownerRuleModal"));
+    const ownerRuleForm = document.getElementById("ownerRuleForm");
+    const ownerRulesList = document.getElementById("ownerRulesList");
+    const ownerRuleNumberInput = document.getElementById('ownerRuleNumber');
+    const ownerRuleNumberError = document.getElementById('ownerRuleNumberError');
+    const ownerRuleTypeSelect = document.getElementById('ownerRuleType');
+    const ownerKeywordsField = document.getElementById('ownerKeywordsField');
+    const ownerRepliesTypeField = document.getElementById('ownerRepliesTypeField');
+    const ownerReplyTextField = document.getElementById('ownerReplyTextField');
+    const saveOwnerRuleBtn = document.getElementById('saveOwnerRuleBtn');
+    const deleteOwnerRuleBtn = document.getElementById('deleteOwnerRuleBtn');
+    const addOwnerBtn = document.getElementById('addOwnerBtn');
+    const ownerModal = new bootstrap.Modal(document.getElementById('ownerModal'));
+    const ownerListTextarea = document.getElementById('ownersList');
+    const saveOwnersBtn = document.getElementById('saveOwnersBtn');
+    const ownersListDiv = document.getElementById('ownersListDiv');
 
     // Variables
     let currentRuleNumber = null;
@@ -1199,6 +1219,18 @@ document.addEventListener("DOMContentLoaded", () => {
         saveTempHideBtn.addEventListener('click', saveTempHideSettings);
     }
     
+    // NEW Owner & Owner Rules Event Listeners
+    if (addOwnerBtn) addOwnerBtn.addEventListener('click', addNewOwner);
+    if (saveOwnersBtn) saveOwnersBtn.addEventListener('click', saveOwners);
+    if (addOwnerRuleBtn) addOwnerRuleBtn.addEventListener('click', addNewOwnerRule);
+    if (saveOwnerRuleBtn) saveOwnerRuleBtn.addEventListener('click', saveOwnerRule);
+    if (deleteOwnerRuleBtn) deleteOwnerRuleBtn.addEventListener('click', deleteOwnerRule);
+    if (ownerRuleTypeSelect) ownerRuleTypeSelect.addEventListener('change', (e) => toggleFormFields(e.target.value, 'owner'));
+
+    if (ownersListDiv) ownersListDiv.addEventListener('click', handleOwnerClick);
+    if (ownerRulesList) ownerRulesList.addEventListener('click', handleOwnerRuleClick);
+
+
     // Search functionality
     const rulesSearchInput = document.getElementById('searchRules');
     if (rulesSearchInput) {
