@@ -1,50 +1,45 @@
 // file: public/variables.js
 
-import { showToast } from './script.js';
+import { fetchVariablesApi, updateVariableApi } from './api.js';
+import { showToast, configureModalButtons } from './ui.js';
 
-// DOM Elements
-const variablesList = document.getElementById('variablesList');
-const addVariableBtn = document.getElementById('addVariableBtn');
-const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
-const deleteVariableBtn = document.getElementById('deleteVariableBtn');
-const variableForm = document.getElementById('variableForm');
-const variableNameInput = document.getElementById('variableName');
-const variableValueInput = document.getElementById('variableValue');
-const saveVariableBtn = document.getElementById('saveVariableBtn');
-const searchVariablesInput = document.getElementById('searchVariables');
-
-
-// Variables
 let currentVariableName = null;
 let allVariables = [];
 
-// Helper function to handle DOM elements, as we can't directly use them here.
-export function initVariableDom(modal, form, delBtn) {
-    // This function can be used to pass elements from script.js if needed.
-    // For now, we will assume the elements are already in the DOM.
-}
+const variableModal = new bootstrap.Modal(document.getElementById("variableModal"));
+const variablesList = document.getElementById('variablesList');
+const variableForm = document.getElementById('variableForm');
 
-// Function to handle showing/hiding delete button
-function configureModalButtons(mode) {
-    const deleteBtn = document.getElementById('deleteVariableBtn');
-    const saveBtn = document.getElementById('saveVariableBtn');
-    if (!deleteBtn || !saveBtn) return;
-    if (mode === 'add') {
-        deleteBtn.style.display = 'none';
-    } else {
-        deleteBtn.style.display = 'inline-flex';
+/**
+ * Initializes variables management and sets up event listeners.
+ */
+export function initVariables() {
+    document.getElementById('addVariableBtn')?.addEventListener('click', addNewVariable);
+    document.getElementById('saveVariableBtn')?.addEventListener('click', saveVariable);
+    document.getElementById('deleteVariableBtn')?.addEventListener('click', deleteVariable);
+    
+    const variablesSearchInput = document.getElementById('searchVariables');
+    if (variablesSearchInput) {
+        variablesSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredVariables = allVariables.filter(variable =>
+                (variable.name || '').toLowerCase().includes(searchTerm) ||
+                (variable.value || '').toLowerCase().includes(searchTerm)
+            );
+            displayVariables(filteredVariables);
+        });
     }
 }
 
-
+/**
+ * Fetches all variables from the server and displays them.
+ */
 export async function fetchVariables() {
     try {
-        const response = await fetch('/api/variables');
-        const data = await response.json();
+        const data = await fetchVariablesApi();
         allVariables = data;
         displayVariables(data);
     } catch (error) {
-        console.error('Failed to fetch variables:', error);
         variablesList.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle fa-3x"></i>
@@ -55,7 +50,12 @@ export async function fetchVariables() {
     }
 }
 
-export function displayVariables(variables) {
+/**
+ * Displays a list of variables.
+ * @param {Array<object>} variables - The array of variables.
+ */
+function displayVariables(variables) {
+    if (!variablesList) return;
     if (variables.length === 0) {
         variablesList.innerHTML = `
             <div class="empty-state">
@@ -73,6 +73,11 @@ export function displayVariables(variables) {
     });
 }
 
+/**
+ * Creates a single variable DOM element.
+ * @param {object} variable - The variable object.
+ * @returns {HTMLElement} The created variable element.
+ */
 function createVariableElement(variable) {
     const variableDiv = document.createElement('div');
     variableDiv.className = 'variable-item';
@@ -86,109 +91,72 @@ function createVariableElement(variable) {
     return variableDiv;
 }
 
-export function editVariable(variable) {
+/**
+ * Opens the modal to edit an existing variable.
+ * @param {object} variable - The variable object to edit.
+ */
+function editVariable(variable) {
     currentVariableName = variable.name;
-    variableNameInput.value = variable.name;
-    variableValueInput.value = variable.value;
-    configureModalButtons('edit');
+    document.getElementById('variableName').value = variable.name;
+    document.getElementById('variableValue').value = variable.value;
+    configureModalButtons('variable', 'edit');
     variableModal.show();
 }
 
-export function addNewVariable() {
+/**
+ * Opens the modal to add a new variable.
+ */
+function addNewVariable() {
     currentVariableName = null;
-    variableNameInput.value = '';
-    variableValueInput.value = '';
-    configureModalButtons('add');
+    variableForm.reset();
+    configureModalButtons('variable', 'add');
     variableModal.show();
 }
 
-export async function saveVariable() {
-    const name = variableNameInput.value.trim();
-    const value = variableValueInput.value.trim();
+/**
+ * Saves or updates a variable.
+ */
+async function saveVariable() {
+    const name = document.getElementById('variableName').value.trim();
+    const value = document.getElementById('variableValue').value.trim();
     if (!name || !value) {
         showToast('Please fill all required fields', 'warning');
         return;
     }
     try {
         const isEditing = currentVariableName !== null;
-        const response = await fetch('/api/variables/update', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                type: isEditing ? 'edit' : 'add',
-                variable: { name, value },
-                oldName: currentVariableName
-            })
-        });
-        const result = await response.json();
-        if (result.success) {
-            showToast(result.message || 'Variable saved successfully!', 'success');
-            variableModal.hide();
-            await fetchVariables();
-            currentVariableName = null;
-        } else {
-            showToast(result.message || 'Failed to save variable', 'fail');
-        }
+        const payload = {
+            type: isEditing ? 'edit' : 'add',
+            variable: { name, value },
+            oldName: currentVariableName
+        };
+        const result = await updateVariableApi(payload);
+        showToast(result.message || 'Variable saved successfully!', 'success');
+        variableModal.hide();
+        await fetchVariables();
+        currentVariableName = null;
     } catch (error) {
-        console.error('Failed to save variable:', error);
-        showToast('Network error: Failed to save variable', 'fail');
+        showToast('Failed to save variable: ' + error.message, 'fail');
     }
 }
 
-export async function deleteVariable() {
+/**
+ * Deletes an existing variable.
+ */
+async function deleteVariable() {
     if (currentVariableName === null) return;
     if (!confirm('Are you sure you want to delete this variable?')) return;
     try {
-        const response = await fetch('/api/variables/update', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                type: 'delete',
-                variable: { name: currentVariableName }
-            })
-        });
-        const result = await response.json();
-        if (result.success) {
-            showToast('Variable deleted successfully!', 'success');
-            variableModal.hide();
-            await fetchVariables();
-            currentVariableName = null;
-        } else {
-            showToast(result.message || 'Failed to delete variable', 'fail');
-        }
+        const payload = {
+            type: 'delete',
+            variable: { name: currentVariableName }
+        };
+        const result = await updateVariableApi(payload);
+        showToast(result.message || 'Variable deleted successfully!', 'success');
+        variableModal.hide();
+        await fetchVariables();
+        currentVariableName = null;
     } catch (error) {
-        console.error('Failed to delete variable:', error);
-        showToast('Network error: Failed to delete variable', 'fail');
+        showToast('Failed to delete variable: ' + error.message, 'fail');
     }
-}
-
-// Event Listeners for variables
-if (addVariableBtn) {
-    addVariableBtn.addEventListener('click', addNewVariable);
-}
-
-if (saveVariableBtn) {
-    saveVariableBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        saveVariable();
-    });
-}
-
-if (deleteVariableBtn) {
-    deleteVariableBtn.addEventListener('click', deleteVariable);
-}
-
-if (searchVariablesInput) {
-    searchVariablesInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        const filteredVariables = allVariables.filter(variable =>
-            (variable.name || '').toLowerCase().includes(searchTerm) ||
-            (variable.value || '').toLowerCase().includes(searchTerm)
-        );
-        displayVariables(filteredVariables);
-    });
 }
