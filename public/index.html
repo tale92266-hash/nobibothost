@@ -222,10 +222,6 @@
                             <i class="fas fa-user-shield"></i>
                             <span>Owner Rules</span>
                         </div>
-                        <div class="nav-item" data-sub-tab="owners-list">
-                            <i class="fas fa-users-cog"></i>
-                            <span>Owners List</span>
-                        </div>
                         <div class="nav-item" data-sub-tab="automation">
                             <i class="fas fa-robot"></i>
                             <span>Automation</span>
@@ -239,6 +235,9 @@
                                         <i class="fas fa-plus-circle"></i>
                                         Add New Owner Rule
                                     </button>
+                                    <button class="btn btn-primary btn-lg" id="manageOwnersBtn">
+                                        <i class="fas fa-user-plus"></i> Manage Owners
+                                    </button>
                                 </div>
                                 <div class="content-section">
                                     <div class="section-header">
@@ -249,31 +248,6 @@
                                         </div>
                                     </div>
                                     <div id="ownerRulesList" class="rules-list"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="tab-pane fade" id="owners-list-pane" role="tabpanel">
-                            <div class="tab-content-wrapper">
-                                <div class="action-buttons">
-                                    <button class="btn btn-primary btn-lg" id="manageOwnersBtn">
-                                        <i class="fas fa-user-plus"></i> Manage Owners
-                                    </button>
-                                </div>
-                                <div class="content-section">
-                                    <div class="section-header">
-                                        <h2><i class="fas fa-users-cog"></i> Bot Owners</h2>
-                                        <div class="search-box">
-                                            <i class="fas fa-search"></i>
-                                            <input type="text" id="searchOwners" placeholder="Search owners...">
-                                        </div>
-                                    </div>
-                                    <div id="ownersListDiv" class="owners-list-container">
-                                        <div id="loadingOwners" class="loading-state" style="display: none;">
-                                            <div class="spinner"></div>
-                                            <p>Loading owners...</p>
-                                        </div>
-                                        <div id="ownersList" class="rules-list"></div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
