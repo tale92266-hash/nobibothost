@@ -37,9 +37,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
                 } else if (subTabName === 'owners-list') {
-                    fetchOwners();
+                    // This sub-tab no longer exists, but the check is kept to prevent errors.
                 }
             });
+            fetchOwners();
         }
     };
     
