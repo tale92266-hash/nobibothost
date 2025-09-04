@@ -63,6 +63,15 @@ export function initSubNavigation(onSubTabChange) {
     const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
     const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
 
+    // Default select the 'owner' sub-tab on initial load
+    const ownerSubTab = document.querySelector('.sub-navigation .nav-item[data-sub-tab="owner-name"]');
+    const ownerSubTabPane = document.getElementById('owner-name-pane');
+    if (ownerSubTab && ownerSubTabPane) {
+        ownerSubTab.classList.add('active');
+        ownerSubTabPane.classList.add('show', 'active');
+        onSubTabChange('owner-name');
+    }
+
     subNavItems.forEach(navItem => {
         navItem.addEventListener('click', () => {
             const subTabName = navItem.getAttribute('data-sub-tab');
