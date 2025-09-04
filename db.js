@@ -144,6 +144,21 @@ const restoreSettingsFromDb = async () => {
     }
 };
 
+const loadOwnersList = async () => {
+    try {
+        let owners = await Settings.findOne({ settings_type: 'override_lists' });
+        if (owners && owners.settings_data && owners.settings_data.owners) {
+            setOwnerList(owners.settings_data.owners);
+            fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify(getOwnerList(), null, 2));
+            console.log(`👑 Loaded ${getOwnerList().length} owners from MongoDB.`);
+        } else {
+            console.log('🔍 No owners list found in MongoDB.');
+        }
+    } catch (err) {
+        console.error("❌ Failed to load owner list from DB:", err);
+    }
+};
+
 const syncData = async () => {
     try {
         const today = new Date().toLocaleDateString();
@@ -167,6 +182,9 @@ const syncData = async () => {
             console.log('⚠️ Settings files not found. Restoring from MongoDB...');
             await restoreSettingsFromDb();
         }
+
+        // NEW: Load owners list from DB after restoring settings
+        await loadOwnersList();
 
         if (getStats().lastResetDate !== today) {
             await resetDailyStats();
