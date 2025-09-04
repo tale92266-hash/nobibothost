@@ -1,0 +1,19 @@
+/* file: public/styles/owners.css */
+
+.owners-list-container {
+    padding: 1.5rem;
+}
+
+.owners-list-container .rule-item {
+    cursor: default;
+}
+
+.owners-list-container .rule-item:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+    border-color: var(--gray-200);
+}
+
+.owners-list-container .rule-item .rule-header-new {
+    margin-bottom: 0;
+}
