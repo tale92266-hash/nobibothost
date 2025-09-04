@@ -7,7 +7,7 @@ const path = require("path");
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
     setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
-    setSettings, getStats, getSettings
+    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList
 } = require('./core/state');
 
 mongoose.connect(process.env.MONGODB_URI)
