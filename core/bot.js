@@ -19,15 +19,15 @@ async function processOwnerMessage(msg, sessionId, sender, senderName) {
     let regexMatch = null;
     let matchedRuleId = null;
 
-    // START: New logic for stopping automation rules
-    const stopAutomationTrigger = 'stop all automation';
-    if (msg.toLowerCase() === stopAutomationTrigger.toLowerCase()) {
+    // START: New logic for Master Stop
+    const masterStopSettings = getSettings().masterStop;
+    if (masterStopSettings.enabled && matchesTrigger(msg, masterStopSettings.triggerText, masterStopSettings.matchType)) {
         console.log(`⚠️ Owner "${senderName}" requested to stop all automation rules.`);
         db.clearAutomationRuleCooldowns();
-        const replyText = `✅ All automation rules have been stopped.`;
-        return replyText;
+        const replyText = pick(masterStopSettings.replyText.split('<#>'));
+        return resolveVariablesRecursively(replyText, senderName, msg, 0);
     }
-    // END: New logic for stopping automation rules
+    // END: New logic for Master Stop
 
     for (let rule of getOwnerRules()) {
         let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
