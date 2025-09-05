@@ -47,6 +47,12 @@ let isReady = false;
                     unhideMatchType: 'EXACT',
                     hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.',
                     unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
+                },
+                masterStop: {
+                    enabled: false,
+                    matchType: 'EXACT',
+                    triggerText: 'stop all automation',
+                    replyText: 'Sare automation rules band kar diye gaye hain.'
                 }
             }},
             { path: path.join(dataDir, "automation_rules.json"), content: { rules: [] } }
