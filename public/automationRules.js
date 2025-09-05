@@ -289,9 +289,10 @@ async function deleteAutomationRule() {
 function validateAutomationRuleForm() {
     const ruleNumber = automationRuleNumberInput.value.trim();
     const keywords = document.getElementById('automationKeywords').value.trim();
+    const repliesType = document.getElementById('automationRepliesType').value;
     const replyText = document.getElementById('automationReplyText').value.trim();
     
-    if (!ruleNumber || !keywords || !replyText) {
+    if (!ruleNumber || !keywords || !repliesType || !replyText) {
         showToast('Please fill all required fields', 'warning');
         return false;
     }
