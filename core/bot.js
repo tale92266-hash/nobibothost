@@ -3,7 +3,8 @@
 const {
     getRules, getOwnerRules, getAutomationRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
-    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers
+    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers,
+    getIsAutomationEnabled, setIsAutomationEnabled
 } = require('./state');
 const { db } = require('../db');
 const {
@@ -92,14 +93,6 @@ async function processMessage(msg, sessionId = "default", sender) {
         return null;
     }
 
-    if (!getSettings().isBotOnline) {
-        console.log('🤖 Bot is offline. Skipping message processing.');
-        return null;
-    }
-
-    const context = isGroup ? groupName : 'DM';
-    console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
-
     const settings = getSettings();
     const today = new Date().toLocaleDateString();
 
@@ -121,6 +114,21 @@ async function processMessage(msg, sessionId = "default", sender) {
             } else {
                 console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
             }
+        }
+    }
+    
+    let masterStopTriggered = false;
+    if (settings.masterStop.enabled) {
+        if (matchesTrigger(msg, settings.masterStop.triggerText, settings.masterStop.matchType)) {
+            masterStopTriggered = true;
+            console.log(`⛔ Master stop trigger received from user: ${senderName}`);
+            if (getIsAutomationEnabled()) {
+                setIsAutomationEnabled(false);
+                ruleCooldowns.clear();
+                console.log('🛑 All automation rules have been stopped.');
+            }
+            const reply = pick(settings.masterStop.replyText.split('<#>'));
+            return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
         }
     }
 
@@ -158,6 +166,13 @@ async function processMessage(msg, sessionId = "default", sender) {
         return null;
     }
 
+    if (!getSettings().isBotOnline) {
+        console.log('🤖 Bot is offline. Skipping message processing.');
+        return null;
+    }
+
+    console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
+    
     const welcomedUsers = getWelcomedUsers();
     let stats = getStats();
     let messageStats = await db.MessageStats.findOne({ sessionId });
@@ -265,7 +280,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     const automationRules = getAutomationRules();
-    if (!reply && msg.startsWith('/') && automationRules.length > 0) {
+    if (getIsAutomationEnabled() && !reply && msg.startsWith('/') && automationRules.length > 0) {
         for (const rule of automationRules) {
             const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
             if (ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
