@@ -10,7 +10,7 @@ const {
     getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules,
     getIsAutomationEnabled, setIsAutomationEnabled
 } = require('./core/state');
-const { processMessage, processOwnerMessage } = require('./core/bot');
+const { processMessage } = require('./core/bot');
 const { Server } = require("socket.io");
 const { Server: HTTPServer } = "http";
 
@@ -477,20 +477,6 @@ module.exports = (app, server, getIsReady) => {
         const sender = req.body.query?.sender || "";
         
         const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
-
-        if (!getSettings().isBotOnline) {
-            console.log('🤖 Bot is offline. Skipping message processing.');
-            return res.json({ replies: [] });
-        }
-
-        const isOwner = getOwnerList().includes(parsedSenderName);
-
-        if (isOwner) {
-            const context = isGroup ? groupName : 'DM';
-            const replyText = await processOwnerMessage(msg, sessionId, sender, parsedSenderName, context);
-            if (!replyText) return res.json({ replies: [] });
-            return res.json({ replies: [{ message: replyText }] });
-        }
 
         const replyText = await processMessage(msg, sessionId, sender);
 
