@@ -3,7 +3,8 @@
 const {
     getRules, getOwnerRules, getAutomationRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
-    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers
+    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers,
+    ruleCooldowns
 } = require('./state');
 const { db } = require('../db');
 const {
@@ -11,13 +12,22 @@ const {
     isUserIgnored, matchesTrigger, pick
 } = require('./utils');
 
-const ruleCooldowns = new Map();
 
 async function processOwnerMessage(msg, sessionId, sender, senderName) {
     const startTime = process.hrtime();
     let reply = null;
     let regexMatch = null;
     let matchedRuleId = null;
+
+    // START: New logic for stopping automation rules
+    const stopAutomationTrigger = 'stop all automation';
+    if (msg.toLowerCase() === stopAutomationTrigger.toLowerCase()) {
+        console.log(`⚠️ Owner "${senderName}" requested to stop all automation rules.`);
+        db.clearAutomationRuleCooldowns();
+        const replyText = `✅ All automation rules have been stopped.`;
+        return replyText;
+    }
+    // END: New logic for stopping automation rules
 
     for (let rule of getOwnerRules()) {
         let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
@@ -360,3 +370,4 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 exports.processMessage = processMessage;
+
