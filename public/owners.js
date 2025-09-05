@@ -14,22 +14,20 @@ const manageOwnersBtn = document.getElementById('manageOwnersBtn');
  * Initializes owner management and sets up event listeners.
  */
 export function initOwners() {
+    // This function will now only be responsible for fetching and displaying the list
+    // The button listeners will be set up by setupOwnerButtons() when the tab is active
+    fetchOwners();
+}
+
+/**
+ * Sets up event listeners for owner management buttons.
+ */
+export function setupOwnerButtons() {
     if (manageOwnersBtn) {
         manageOwnersBtn.addEventListener('click', showManageOwnersModal);
     }
     if (saveOwnersBtn) {
         saveOwnersBtn.addEventListener('click', saveOwners);
-    }
-    
-    const ownersSearchInput = document.getElementById('searchOwners');
-    if (ownersSearchInput) {
-        ownersSearchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filteredOwners = ownersList.filter(owner =>
-                owner.toLowerCase().includes(searchTerm)
-            );
-            displayOwners(filteredOwners);
-        });
     }
 }
 
