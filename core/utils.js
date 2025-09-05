@@ -250,9 +250,17 @@ exports.extractSenderNameAndContext = (sender) => {
 // Pattern matching for override lists
 exports.matchesOverridePattern = (senderName, patternList) => {
     for (const pattern of patternList) {
-        const regexStr = '^' + pattern.replace(/\*/g, '.*') + '$';
-        if (new RegExp(regexStr, 'i').test(senderName)) {
-            return true;
+        if (!pattern || typeof pattern !== 'string') {
+            continue; // Invalid pattern, skip to next one
+        }
+        let regexStr = '^' + pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*') + '$';
+        try {
+            if (new RegExp(regexStr, 'i').test(senderName)) {
+                return true;
+            }
+        } catch (e) {
+            console.error(`❌ Invalid regex pattern in override list: ${pattern}`, e);
+            continue;
         }
     }
     return false;
