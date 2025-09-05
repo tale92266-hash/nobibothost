@@ -12,12 +12,14 @@ const specificOverrideUsersFile = path.join(dataDir, "specific_override_users.js
 const ownersListFile = path.join(dataDir, "owner_list.json");
 const settingsFilePath = path.join(dataDir, "settings.json");
 const ownerRulesFilePath = path.join(dataDir, "owner_rules.json");
+const automationRulesFilePath = path.join(dataDir, "automation_rules.json");
 
 let state = {
     stats: null,
     welcomedUsers: [],
     rules: [],
     ownerRules: [],
+    automationRules: [], // New state property
     variables: [],
     ignoredOverrideUsers: [],
     specificOverrideUsers: [],
@@ -46,6 +48,7 @@ exports.getStats = () => state.stats;
 exports.getWelcomedUsers = () => state.welcomedUsers;
 exports.getRules = () => state.rules;
 exports.getOwnerRules = () => state.ownerRules;
+exports.getAutomationRules = () => state.automationRules; // New getter
 exports.getVariables = () => state.variables;
 exports.getIgnoredOverrideUsers = () => state.ignoredOverrideUsers;
 exports.getSpecificOverrideUsers = () => state.specificOverrideUsers;
@@ -60,6 +63,7 @@ exports.setStats = (stats) => { state.stats = stats; };
 exports.setWelcomedUsers = (users) => { state.welcomedUsers = users; };
 exports.setRules = (rules) => { state.rules = rules; };
 exports.setOwnerRules = (rules) => { state.ownerRules = rules; };
+exports.setAutomationRules = (rules) => { state.automationRules = rules; }; // New setter
 exports.setVariables = (vars) => { state.variables = vars; };
 exports.setIgnoredOverrideUsers = (users) => { state.ignoredOverrideUsers = users; };
 exports.setSpecificOverrideUsers = (users) => { state.specificOverrideUsers = users; };
@@ -78,5 +82,6 @@ exports.FILE_PATHS = {
     specificOverrideUsersFile,
     ownersListFile,
     settingsFilePath,
-    ownerRulesFilePath
+    ownerRulesFilePath,
+    automationRulesFilePath // New file path
 };
