@@ -42,6 +42,7 @@ const updateBotStatusApi = (isOnline) => apiRequest('/api/bot/status', { method:
 const saveOverrideSettingsApi = (endpoint, users) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify({ users }) });
 const saveRepeatingRuleSettingsApi = (payload) => apiRequest('/api/settings/prevent-repeating-rule', { method: 'POST', body: JSON.stringify(payload) });
 const saveTempHideSettingsApi = (payload) => apiRequest('/api/settings/temporary-hide', { method: 'POST', body: JSON.stringify(payload) });
+const saveMasterStopSettingsApi = (payload) => apiRequest('/api/settings/master-stop', { method: 'POST', body: JSON.stringify(payload) });
 
 // Stats API function
 const fetchStatsApi = () => apiRequest('/stats');
