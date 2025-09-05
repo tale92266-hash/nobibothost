@@ -254,20 +254,10 @@
                         </div>
                         <div class="tab-pane fade" id="automation-pane" role="tabpanel">
                             <div class="tab-content-wrapper">
-                                <div class="action-buttons">
-                                    <button class="btn btn-primary btn-lg" id="addAutomationRuleBtn">
-                                        <i class="fas fa-plus-circle"></i> Add New Automation
-                                    </button>
-                                </div>
-                                <div class="content-section">
-                                    <div class="section-header">
-                                        <h2><i class="fas fa-gears"></i> All Automation Rules</h2>
-                                        <div class="search-box">
-                                            <i class="fas fa-search"></i>
-                                            <input type="text" id="searchAutomationRules" placeholder="Search automation rules...">
-                                        </div>
-                                    </div>
-                                    <div id="automationRulesList" class="rules-list"></div>
+                                <div class="empty-state">
+                                    <i class="fas fa-gears fa-3x"></i>
+                                    <h5>Automation Settings</h5>
+                                    <p>Coming Soon...</p>
                                 </div>
                             </div>
                         </div>
@@ -794,97 +784,6 @@
                     </button>
                     <button type="button" class="btn btn-primary" id="saveOwnersBtn">
                         <i class="fas fa-save"></i> Save Changes
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="modal fade" id="automationRuleModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="automationFormTitle">
-                        <i class="fas fa-plus-circle"></i> Add New Automation Rule
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="automationRuleForm">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="automationRuleNumber">Rule Number</label>
-                                <input type="number" class="form-control" id="automationRuleNumber" min="1" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="automationRuleName">Rule Name</label>
-                                <input type="text" class="form-control" id="automationRuleName" placeholder="Optional">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="automationRuleType">Rule Type</label>
-                            <select class="form-select" id="automationRuleType" required>
-                                <option value="">Select Type</option>
-                                <option value="EXACT">Exact Match</option>
-                                <option value="PATTERN">Pattern Match</option>
-                                <option value="EXPERT">Expert (Regex)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="automationKeywords">Keywords/Command</label>
-                            <textarea class="form-control" id="automationKeywords" rows="3" placeholder="Separate multiple keywords with //"></textarea>
-                            <small class="form-text text-muted">Use // to separate multiple keywords. Commands should start with a `/` (e.g., /spam).</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="automationRepliesType">Reply Type</label>
-                            <select class="form-select" id="automationRepliesType">
-                                <option value="RANDOM">Random Reply</option>
-                                <option value="ONE">First Reply Only</option>
-                                <option value="ALL">All Replies</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="automationReplyText">Reply Text</label>
-                            <textarea class="form-control" id="automationReplyText" rows="4" placeholder="Use <#> to separate multiple replies"></textarea>
-                            <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
-                        </div>
-                        <hr>
-                        <div class="form-group">
-                            <label for="userAccessType">Who can run this command?</label>
-                            <select class="form-select" id="userAccessType">
-                                <option value="ALL">All Users</option>
-                                <option value="OWNER">Owners Only</option>
-                                <option value="IGNORED">Ignored Users Only</option>
-                                <option value="DEFINED">Defined Users Only</option>
-                            </select>
-                        </div>
-                        <div class="form-group" id="definedUsersField" style="display: none;">
-                            <label for="definedUsers">Defined Usernames</label>
-                            <input type="text" class="form-control" id="definedUsers" placeholder="Comma-separated usernames">
-                            <small class="form-text text-muted">Only these users can run the command.</small>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="minDelay">Min Delay (sec)</label>
-                                <input type="number" class="form-control" id="minDelay" min="0" value="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="maxDelay">Max Delay (sec)</label>
-                                <input type="number" class="form-control" id="maxDelay" min="0" placeholder="Optional">
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-danger" id="deleteAutomationRuleBtn" style="display: none;">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" form="automationRuleForm" class="btn btn-primary" id="saveAutomationRuleBtn">
-                        <span class="spinner-border spinner-border-sm" style="display: none;"></span>
-                        <i class="fas fa-save"></i> Save Rule
                     </button>
                 </div>
             </div>
