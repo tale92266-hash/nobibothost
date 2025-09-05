@@ -26,7 +26,7 @@ const tempHideMatchTypeSelect = document.getElementById('tempHideMatchType');
 const tempUnhideMatchTypeSelect = document.getElementById('tempUnhideMatchType');
 const tempHideTriggerTextarea = document.getElementById('tempHideTriggerText');
 const tempUnhideTriggerTextarea = document.getElementById('tempUnhideTriggerText');
-const tempHideReplyTextarea = document = document.getElementById('tempHideReplyText');
+const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
 const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 
@@ -77,12 +77,12 @@ async function toggleBotStatus() {
         const newStatus = !oldStatus;
         const result = await updateBotStatusApi(newStatus);
         currentSettings = result.settings;
-        updateBotStatusUI(currentSettings.isBotOnline);
         showToast(result.message, 'success');
     } catch (error) {
         showToast('Failed to update bot status: ' + error.message, 'fail');
         currentSettings.isBotOnline = oldStatus;
-        updateBotStatusUI(oldStatus);
+    } finally {
+        updateBotStatusUI(currentSettings.isBotOnline);
     }
 }
 
