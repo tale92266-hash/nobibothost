@@ -16,7 +16,7 @@
     font-size: 1.1rem;
 }
 
-#addRuleBtn, #addVariableBtn, #addOwnerRuleBtn {
+#addRuleBtn, #addVariableBtn, #addOwnerRuleBtn, #addAutomationRuleBtn, #masterStopBtn {
     background-color: var(--white) !important;
     background-image: none !important;
     color: var(--primary) !important;
@@ -24,17 +24,17 @@
     box-shadow: var(--shadow) !important;
 }
 
-#addRuleBtn:hover, #addVariableBtn:hover, #addOwnerRuleBtn:hover {
+#addRuleBtn:hover, #addVariableBtn:hover, #addOwnerRuleBtn:hover, #addAutomationRuleBtn:hover, #masterStopBtn:hover {
     background-color: var(--primary) !important;
     color: var(--white) !important;
     border-color: var(--primary) !important;
 }
 
-#addRuleBtn i, #addVariableBtn i, #addOwnerRuleBtn i {
+#addRuleBtn i, #addVariableBtn i, #addOwnerRuleBtn i, #addAutomationRuleBtn i, #masterStopBtn i {
     color: var(--primary) !important;
 }
 
-#addRuleBtn:hover i, #addVariableBtn:hover i, #addOwnerRuleBtn:hover i {
+#addRuleBtn:hover i, #addVariableBtn:hover i, #addOwnerRuleBtn:hover i, #addAutomationRuleBtn:hover i, #masterStopBtn:hover i {
     color: var(--white) !important;
 }
 
@@ -227,16 +227,6 @@
 
 .activity-dot.stat-warning {
     background: var(--warning);
-}
-
-.activity-content p {
-    margin: 0;
-    font-size: 0.875rem;
-    color: var(--gray-800);
-}
-
-.activity-content small {
-    font-size: 0.75rem;
 }
 
 .status-item {
@@ -502,4 +492,76 @@
         width: 100%;
         justify-content: center;
     }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-box {
+        min-width: auto;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .rule-header-new {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .rule-title {
+        width: 100%;
+    }
+    
+    .modal-dialog {
+        margin: 1rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    #botStatusBtn {
+        font-size: 1rem;
+        padding: 0.75rem 1.5rem;
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-footer,
+    .form-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .modal-footer .btn,
+    .form-actions .btn {
+        width: 100%;
+        min-width: auto;
+        order: unset !important;
+        margin-left: 0 !important;
+    }
+    
+    .modal-footer .btn-primary,
+    .form-actions .btn-primary {
+        order: 1;
+    }
+    
+    .modal-footer .btn-outline-danger,
+    .modal-footer .btn-danger,
+    .form-actions .btn-outline-danger,
+    .form-actions .btn-danger {
+        order: 2;
+    }
+    
+    .modal-footer .btn-secondary,
+    .form-actions .btn-secondary {
+        order: 3;
+    }
+}
+
 }
