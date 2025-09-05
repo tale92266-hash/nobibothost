@@ -216,7 +216,7 @@ async function processMessage(msg, sessionId = "default", sender) {
         if (rule.RULE_TYPE === "IGNORED") {
             if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-            if (isSenderIgnored) { userMatch = false; } 
+            if (isSenderIgnored) { userMatch = false; }
             else { userMatch = true; }
         }
 
@@ -236,7 +236,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             match = true;
         } else {
             for (let pattern of patterns) {
-                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; } 
+                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; }
                 else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
 
                 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
