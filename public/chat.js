@@ -1,7 +1,5 @@
 // file: public/chat.js
 
-import { showToast } from './ui.js';
-
 let chatMessages = [];
 let maxMessages = 10;
 let chatPaused = false;
@@ -13,7 +11,7 @@ const pauseChatBtn = document.getElementById('pauseChatBtn');
 /**
  * Initializes the chat functionality and sets up event listeners.
  */
-export function initChat() {
+function initChat() {
     const socket = io();
 
     socket.on('connect', () => {
