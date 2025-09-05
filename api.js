@@ -13,6 +13,7 @@ const {
 const { processMessage } = require('./core/bot');
 const { Server } = require("socket.io");
 const { Server: HTTPServer } = "http";
+const axios = require('axios');
 
 module.exports = (app, server, getIsReady) => {
     const io = new Server(server, { cors: { origin: "*" } });
@@ -466,6 +467,7 @@ module.exports = (app, server, getIsReady) => {
     
     app.post("/webhook", async (req, res) => {
         const { extractSenderNameAndContext } = require('./core/utils');
+        const webhookUrl = process.env.WEBHOOK_URL; // Assuming you have a webhook URL in your .env
 
         if (!getIsReady()) {
             console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
@@ -495,14 +497,41 @@ module.exports = (app, server, getIsReady) => {
         setRecentChatMessages(recentChatMessages);
 
         console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
-
+        
         io.emit('newMessage', messageData);
         emitStats();
 
-        if (!replies || replies.length === 0) return res.json({ replies: [] });
+        // New logic to handle multiple replies
+        if (replies && replies.length > 0) {
+            if (Array.isArray(replies)) {
+                for (const reply of replies) {
+                    // Send each reply as a separate message via the webhook
+                    try {
+                        const webhookPayload = {
+                            chat_id: sessionId,
+                            text: reply
+                        };
+                        await axios.post(webhookUrl, webhookPayload);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Delay between messages
+                    } catch (err) {
+                        console.error("❌ Failed to send reply via webhook:", err.message);
+                    }
+                }
+            } else {
+                // If it's a single reply, send it directly
+                try {
+                    const webhookPayload = {
+                        chat_id: sessionId,
+                        text: replies
+                    };
+                    await axios.post(webhookUrl, webhookPayload);
+                } catch (err) {
+                    console.error("❌ Failed to send reply via webhook:", err.message);
+                }
+            }
+        }
         
-        const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
-        res.json({ replies: formattedReplies });
+        res.json({ success: true, message: "Messages processed and sent to webhook." });
     });
 
     app.get("/stats", async (req, res) => {
