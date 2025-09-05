@@ -99,7 +99,7 @@ function editVariable(variable) {
     currentVariableName = variable.name;
     document.getElementById('variableName').value = variable.name;
     document.getElementById('variableValue').value = variable.value;
-    document.getElementById('variableName').disabled = true; // Variable name ko edit mode mein disable kiya
+    document.getElementById('variableName').disabled = false; // Ab variable ka naam edit kiya ja sakta hai
     configureModalButtons('variable', 'edit');
     variableModal.show();
 }
