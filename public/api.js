@@ -1,63 +1,62 @@
 // file: public/api.js
 
 /**
- * A generic function to handle API requests.
- * @param {string} url - The URL to fetch.
- * @param {string} method - The HTTP method (e.g., 'GET', 'POST').
- * @param {object} [body=null] - The request body for POST requests.
- * @returns {Promise<object>} The JSON response from the server.
+ * Common function to make API requests.
+ * @param {string} endpoint The API endpoint.
+ * @param {object} [options={}] The fetch options.
+ * @returns {Promise<object>} The JSON response.
  */
-async function apiRequest(url, method, body = null) {
-    const options = {
-        method: method,
+async function apiRequest(endpoint, options = {}) {
+    const defaultOptions = {
+        method: 'GET',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
+        ...options
     };
-    if (body) {
-        options.body = JSON.stringify(body);
-    }
     try {
-        const response = await fetch(url, options);
+        const response = await fetch(endpoint, defaultOptions);
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Something went wrong');
+            const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
         return await response.json();
     } catch (error) {
-        console.error(`API Error on ${url}:`, error);
+        console.error(`API request to ${endpoint} failed:`, error);
         throw error;
     }
 }
 
-// Rules
-async function fetchRulesApi() { return apiRequest('/api/rules', 'GET'); }
-async function updateRuleApi(data) { return apiRequest('/api/rules/update', 'POST', data); }
-async function reorderRulesApi(data) { return apiRequest('/api/rules/bulk-update', 'POST', data); }
+// Rules API functions
+const fetchRulesApi = () => apiRequest('/api/rules');
+const updateRuleApi = (payload) => apiRequest('/api/rules/update', { method: 'POST', body: JSON.stringify(payload) });
+const bulkUpdateRulesApi = (payload) => apiRequest('/api/rules/bulk-update', { method: 'POST', body: JSON.stringify(payload) });
 
-// Owner Rules
-async function fetchOwnerRulesApi() { return apiRequest('/api/owner-rules', 'GET'); }
-async function updateOwnerRuleApi(data) { return apiRequest('/api/owner-rules/update', 'POST', data); }
+// Variables API functions
+const fetchVariablesApi = () => apiRequest('/api/variables');
+const updateVariableApi = (payload) => apiRequest('/api/variables/update', { method: 'POST', body: JSON.stringify(payload) });
 
-// Automation Rules
-async function fetchAutomationRulesApi() { return apiRequest('/api/automation-rules', 'GET'); }
-async function updateAutomationRuleApi(data) { return apiRequest('/api/automation-rules/update', 'POST', data); }
+// Settings API functions
+const fetchSettingsApi = () => apiRequest('/api/settings');
+const updateBotStatusApi = (isOnline) => apiRequest('/api/bot/status', { method: 'POST', body: JSON.stringify({ isOnline }) });
+const saveOverrideSettingsApi = (endpoint, users) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify({ users }) });
+const saveRepeatingRuleSettingsApi = (payload) => apiRequest('/api/settings/prevent-repeating-rule', { method: 'POST', body: JSON.stringify(payload) });
+const saveTempHideSettingsApi = (payload) => apiRequest('/api/settings/temporary-hide', { method: 'POST', body: JSON.stringify(payload) });
 
-// Variables
-async function fetchVariablesApi() { return apiRequest('/api/variables', 'GET'); }
-async function updateVariableApi(data) { return apiRequest('/api/variables/update', 'POST', data); }
-
-// Settings
-async function fetchSettingsApi() { return apiRequest('/api/settings', 'GET'); }
-async function updateBotStatusApi(isOnline) { return apiRequest('/api/bot/status', 'POST', { isOnline }); }
-async function saveOverrideSettingsApi(endpoint, users) { return apiRequest(endpoint, 'POST', { users }); }
-async function saveRepeatingRuleSettingsApi(payload) { return apiRequest('/api/settings/prevent-repeating-rule', 'POST', payload); }
-async function saveTempHideSettingsApi(payload) { return apiRequest('/api/settings/temporary-hide', 'POST', payload); }
 // New Master Stop API functions
-async function fetchMasterStopSettingsApi() { return apiRequest('/api/settings/master-stop', 'GET'); }
-async function saveMasterStopSettingsApi(payload) { return apiRequest('/api/settings/master-stop', 'POST', payload); }
+const fetchMasterStopSettingsApi = () => apiRequest('/api/settings/master-stop');
+const saveMasterStopSettingsApi = (payload) => apiRequest('/api/settings/master-stop', { method: 'POST', body: JSON.stringify(payload) });
 
 
-// Owners
-async function fetchOwnersApi() { return apiRequest('/api/owners', 'GET'); }
-async function updateOwnersApi(owners) { return apiRequest('/api/owners/update', 'POST', { owners }); }
+// Stats API function
+const fetchStatsApi = () => apiRequest('/stats');
+
+// Owner API functions
+const fetchOwnerRulesApi = () => apiRequest('/api/owner-rules');
+const updateOwnerRuleApi = (payload) => apiRequest('/api/owner-rules/update', { method: 'POST', body: JSON.stringify(payload) });
+const fetchOwnersApi = () => apiRequest('/api/owners');
+const updateOwnersApi = (owners) => apiRequest('/api/owners/update', { method: 'POST', body: JSON.stringify({ owners }) });
+
+// Automation Rules API functions
+const fetchAutomationRulesApi = () => apiRequest('/api/automation-rules');
+const updateAutomationRuleApi = (payload) => apiRequest('/api/automation-rules/update', { method: 'POST', body: JSON.stringify(payload) });
