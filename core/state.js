@@ -44,6 +44,7 @@ let state = {
             replyText: 'Sare automation rules band kar diye gaye hain.'
         }
     },
+    isAutomationEnabled: true,
     recentChatMessages: [],
     messageHistory: [],
     lastReplyTimes: {}
@@ -63,6 +64,7 @@ exports.getSettings = () => state.settings;
 exports.getRecentChatMessages = () => state.recentChatMessages;
 exports.getMessageHistory = () => state.messageHistory;
 exports.getLastReplyTimes = () => state.lastReplyTimes;
+exports.getIsAutomationEnabled = () => state.isAutomationEnabled;
 
 // Setter functions
 exports.setStats = (stats) => { state.stats = stats; };
@@ -78,6 +80,7 @@ exports.setSettings = (settings) => { state.settings = settings; };
 exports.setRecentChatMessages = (messages) => { state.recentChatMessages = messages; };
 exports.setMessageHistory = (history) => { state.messageHistory = history; };
 exports.setLastReplyTimes = (times) => { state.lastReplyTimes = times; };
+exports.setIsAutomationEnabled = (bool) => { state.isAutomationEnabled = bool; };
 
 // File path constants
 exports.FILE_PATHS = {
