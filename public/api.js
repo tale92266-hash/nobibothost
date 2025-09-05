@@ -28,26 +28,26 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // Rules API functions
-export const fetchRulesApi = () => apiRequest('/api/rules');
-export const updateRuleApi = (payload) => apiRequest('/api/rules/update', { method: 'POST', body: JSON.stringify(payload) });
-export const bulkUpdateRulesApi = (payload) => apiRequest('/api/rules/bulk-update', { method: 'POST', body: JSON.stringify(payload) });
+module.exports.fetchRulesApi = () => apiRequest('/api/rules');
+module.exports.updateRuleApi = (payload) => apiRequest('/api/rules/update', { method: 'POST', body: JSON.stringify(payload) });
+module.exports.bulkUpdateRulesApi = (payload) => apiRequest('/api/rules/bulk-update', { method: 'POST', body: JSON.stringify(payload) });
 
 // Variables API functions
-export const fetchVariablesApi = () => apiRequest('/api/variables');
-export const updateVariableApi = (payload) => apiRequest('/api/variables/update', { method: 'POST', body: JSON.stringify(payload) });
+module.exports.fetchVariablesApi = () => apiRequest('/api/variables');
+module.exports.updateVariableApi = (payload) => apiRequest('/api/variables/update', { method: 'POST', body: JSON.stringify(payload) });
 
 // Settings API functions
-export const fetchSettingsApi = () => apiRequest('/api/settings');
-export const updateBotStatusApi = (isOnline) => apiRequest('/api/bot/status', { method: 'POST', body: JSON.stringify({ isOnline }) });
-export const saveOverrideSettingsApi = (endpoint, users) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify({ users }) });
-export const saveRepeatingRuleSettingsApi = (payload) => apiRequest('/api/settings/prevent-repeating-rule', { method: 'POST', body: JSON.stringify(payload) });
-export const saveTempHideSettingsApi = (payload) => apiRequest('/api/settings/temporary-hide', { method: 'POST', body: JSON.stringify(payload) });
+module.exports.fetchSettingsApi = () => apiRequest('/api/settings');
+module.exports.updateBotStatusApi = (isOnline) => apiRequest('/api/bot/status', { method: 'POST', body: JSON.stringify({ isOnline }) });
+module.exports.saveOverrideSettingsApi = (endpoint, users) => apiRequest(endpoint, { method: 'POST', body: JSON.stringify({ users }) });
+module.exports.saveRepeatingRuleSettingsApi = (payload) => apiRequest('/api/settings/prevent-repeating-rule', { method: 'POST', body: JSON.stringify(payload) });
+module.exports.saveTempHideSettingsApi = (payload) => apiRequest('/api/settings/temporary-hide', { method: 'POST', body: JSON.stringify(payload) });
 
 // Stats API function
-export const fetchStatsApi = () => apiRequest('/stats');
+module.exports.fetchStatsApi = () => apiRequest('/stats');
 
 // Owner API functions
-export const fetchOwnerRulesApi = () => apiRequest('/api/owner-rules');
-export const updateOwnerRuleApi = (payload) => apiRequest('/api/owner-rules/update', { method: 'POST', body: JSON.stringify(payload) });
-export const fetchOwnersApi = () => apiRequest('/api/owners');
-export const updateOwnersApi = (owners) => apiRequest('/api/owners/update', { method: 'POST', body: JSON.stringify({ owners }) });
+module.exports.fetchOwnerRulesApi = () => apiRequest('/api/owner-rules');
+module.exports.updateOwnerRuleApi = (payload) => apiRequest('/api/owner-rules/update', { method: 'POST', body: JSON.stringify(payload) });
+module.exports.fetchOwnersApi = () => apiRequest('/api/owners');
+module.exports.updateOwnersApi = (owners) => apiRequest('/api/owners/update', { method: 'POST', body: JSON.stringify({ owners }) });
