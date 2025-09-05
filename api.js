@@ -274,7 +274,7 @@ module.exports = (app, server, getIsReady) => {
             const { isOnline } = req.body;
             setSettings({ ...getSettings(), isBotOnline: isOnline });
             await db.saveSettings();
-            res.json({ success: true, message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.` });
+            res.json({ success: true, message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.`, settings: getSettings() }); // Added updated settings to response
             console.log(`🤖 Bot status has been set to ${isOnline ? 'online' : 'offline'}.`);
         } catch (error) {
             console.error("❌ Failed to update bot status:", error);
