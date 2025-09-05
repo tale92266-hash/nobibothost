@@ -161,11 +161,8 @@ async function processMessage(msg, sessionId = "default", sender) {
             if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
                 let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
                 if (rule.REPLIES_TYPE === 'ALL') { 
-                    const ruleId = rule.RULE_NUMBER;
-                    const lastReplyIndex = messageStats.ruleReplyCounts.get(`automation-${ruleId}`) || 0;
-                    const nextReplyIndex = lastReplyIndex % replies.length;
-                    reply = replies[nextReplyIndex];
-                    messageStats.ruleReplyCounts.set(`automation-${ruleId}`, nextReplyIndex + 1);
+                    const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+                    reply = resolvedReplies;
                 } 
                 else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
                 else { reply = pick(replies); }
@@ -219,12 +216,9 @@ async function processMessage(msg, sessionId = "default", sender) {
 
             if (match) {
                 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-                 if (rule.REPLIES_TYPE === 'ALL') { 
-                    const ruleId = rule.RULE_NUMBER;
-                    const lastReplyIndex = messageStats.ruleReplyCounts.get(`owner-${ruleId}`) || 0;
-                    const nextReplyIndex = lastReplyIndex % replies.length;
-                    reply = replies[nextReplyIndex];
-                    messageStats.ruleReplyCounts.set(`owner-${ruleId}`, nextReplyIndex + 1);
+                if (rule.REPLIES_TYPE === 'ALL') { 
+                    const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+                    reply = resolvedReplies;
                 } 
                 else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
                 else { reply = pick(replies); }
@@ -298,11 +292,8 @@ async function processMessage(msg, sessionId = "default", sender) {
             if (match) {
                 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
                 if (rule.REPLIES_TYPE === 'ALL') { 
-                    const ruleId = rule.RULE_NUMBER;
-                    const lastReplyIndex = messageStats.ruleReplyCounts.get(`normal-${ruleId}`) || 0;
-                    const nextReplyIndex = lastReplyIndex % replies.length;
-                    reply = replies[nextReplyIndex];
-                    messageStats.ruleReplyCounts.set(`normal-${ruleId}`, nextReplyIndex + 1);
+                    const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+                    reply = resolvedReplies;
                 } else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
                 else { reply = pick(replies); }
                 break;
@@ -312,10 +303,21 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     const endTime = process.hrtime(startTime);
     const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
-
+    
+    // Convert to array of replies for a single trigger
     if (reply) {
-        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
+        if (!Array.isArray(reply)) {
+            const tempReply = reply;
+            reply = [tempReply];
+        }
         
+        reply = reply.map(r => {
+            if (typeof r === 'string') {
+                return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
+            }
+            return r;
+        });
+
         const lastReplyTimes = getLastReplyTimes();
         lastReplyTimes[senderName] = Date.now();
         setLastReplyTimes(lastReplyTimes);
