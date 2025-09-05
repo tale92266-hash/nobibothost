@@ -8,7 +8,7 @@ const { convertNewlinesBeforeSave } = require('./core/utils');
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
     setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
-    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList, setAutomationRules, getAutomationRules, setWelcomeLogs
+    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList, setAutomationRules, getAutomationRules, setWelcomeLogs, getWelcomeLog
 } = require('./core/state');
 
 mongoose.connect(process.env.MONGODB_URI)
