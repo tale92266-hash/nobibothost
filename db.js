@@ -8,7 +8,7 @@ const { convertNewlinesBeforeSave } = require('./core/utils');
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
     setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
-    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList, setAutomationRules, getAutomationRules
+    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList, setAutomationRules, getAutomationRules, setWelcomeLogs
 } = require('./core/state');
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -95,6 +95,15 @@ const messageStatsSchema = new mongoose.Schema({
 });
 const MessageStats = mongoose.model("MessageStats", messageStatsSchema);
 
+const welcomeLogSchema = new mongoose.Schema({
+    ownerName: { type: String, required: true },
+    ruleId: { type: Number, required: true },
+    context: { type: String, required: true }, // 'DM' or group name
+    timestamp: { type: Date, default: Date.now }
+});
+const WelcomeLog = mongoose.model("WelcomeLog", welcomeLogSchema);
+
+
 const loadAllRules = async () => {
     const rules = await Rule.find({}).sort({ RULE_NUMBER: 1 });
     setRules(rules);
@@ -117,6 +126,20 @@ const loadAllVariables = async () => {
     const variables = await Variable.find({});
     setVariables(variables);
     console.log(`⚡ Loaded ${variables.length} variables from MongoDB.`);
+};
+
+const loadWelcomeLog = async () => {
+    try {
+        const logs = await WelcomeLog.find({});
+        const logMap = new Map();
+        logs.forEach(log => {
+            logMap.set(`${log.ownerName}-${log.ruleId}-${log.context}`, true);
+        });
+        setWelcomeLogs(logMap);
+        console.log(`⚡ Loaded ${logs.length} welcome log entries.`);
+    } catch (err) {
+        console.error("❌ Failed to load welcome log:", err);
+    }
 };
 
 const loadSettingsFromFiles = async () => {
@@ -201,6 +224,7 @@ const syncData = async () => {
         await loadAllOwnerRules();
         await loadAllAutomationRules();
         await loadAllVariables();
+        await loadWelcomeLog();
 
         await loadSettingsFromFiles();
         await restoreSettingsFromDb();
@@ -285,6 +309,19 @@ const saveSettings = async () => {
     );
 };
 
+const saveWelcomeLog = async () => {
+    const welcomeLogs = getWelcomeLog();
+    const logsToSave = Array.from(welcomeLogs.keys()).map(key => {
+        const [ownerName, ruleId, context] = key.split('-');
+        return { ownerName, ruleId, context };
+    });
+    // Clear the existing log and save the new one
+    await WelcomeLog.deleteMany({});
+    if (logsToSave.length > 0) {
+        await WelcomeLog.insertMany(logsToSave);
+    }
+};
+
 const resetDailyStats = async () => {
     const stats = getStats();
     stats.todayUsers = [];
@@ -308,9 +345,9 @@ const scheduleDailyReset = () => {
 };
 
 exports.db = {
-    Rule, OwnerRule, Stats, Variable, Settings, User, MessageStats, AutomationRule, mongoose,
+    Rule, OwnerRule, Stats, Variable, Settings, User, MessageStats, AutomationRule, WelcomeLog, mongoose,
     syncData, loadAllRules, loadAllOwnerRules, loadAllVariables, loadAllAutomationRules, loadSettingsFromFiles, restoreSettingsFromDb,
     saveStats, saveWelcomedUsers, saveVariables, saveOwnerRules, saveAutomationRules,
     saveIgnoredOverrideUsers, saveSpecificOverrideUsers, saveOwnersList,
-    saveSettings, resetDailyStats, scheduleDailyReset
+    saveSettings, saveWelcomeLog, resetDailyStats, scheduleDailyReset
 };
