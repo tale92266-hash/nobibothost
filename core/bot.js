@@ -47,7 +47,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             console.log('🛑 All automation rules have been stopped.');
         }
         const reply = pick(settings.masterStop.replyText.split('<#>'));
-        return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+        return [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)];
     }
     
     // Check for unhide trigger
@@ -64,7 +64,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             await db.saveIgnoredOverrideUsers();
             console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
             const reply = pick(settings.temporaryHide.unhideReply.split('<#>'));
-            return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+            return [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)];
         } else {
             console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
             return null;
@@ -84,7 +84,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             await db.saveIgnoredOverrideUsers();
             console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
         }
-        return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+        return [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)];
     }
     
     const isSenderIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
@@ -161,11 +161,10 @@ async function processMessage(msg, sessionId = "default", sender) {
             if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
                 let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
                 if (rule.REPLIES_TYPE === 'ALL') { 
-                    const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
-                    reply = resolvedReplies;
+                    reply = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
                 } 
-                else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
-                else { reply = pick(replies); }
+                else if (rule.REPLIES_TYPE === 'ONE') { reply = [replies[0]]; } 
+                else { reply = [pick(replies)]; }
 
                 if (rule.MIN_DELAY > 0) {
                     let delay = rule.MIN_DELAY;
@@ -217,11 +216,10 @@ async function processMessage(msg, sessionId = "default", sender) {
             if (match) {
                 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
                 if (rule.REPLIES_TYPE === 'ALL') { 
-                    const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
-                    reply = resolvedReplies;
+                    reply = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
                 } 
-                else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
-                else { reply = pick(replies); }
+                else if (rule.REPLIES_TYPE === 'ONE') { reply = [replies[0]]; } 
+                else { reply = [pick(replies)]; }
                 matchedRuleId = rule.RULE_NUMBER;
                 
                 if (rule.RULE_TYPE === "WELCOME") {
@@ -292,10 +290,9 @@ async function processMessage(msg, sessionId = "default", sender) {
             if (match) {
                 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
                 if (rule.REPLIES_TYPE === 'ALL') { 
-                    const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
-                    reply = resolvedReplies;
-                } else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
-                else { reply = pick(replies); }
+                    reply = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+                } else if (rule.REPLIES_TYPE === 'ONE') { reply = [replies[0]]; } 
+                else { reply = [pick(replies)]; }
                 break;
             }
         }
@@ -304,20 +301,10 @@ async function processMessage(msg, sessionId = "default", sender) {
     const endTime = process.hrtime(startTime);
     const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
     
-    // Convert to array of replies for a single trigger
+    // Resolve variables and log history
     if (reply) {
-        if (!Array.isArray(reply)) {
-            const tempReply = reply;
-            reply = [tempReply];
-        }
+        reply = reply.map(r => resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats));
         
-        reply = reply.map(r => {
-            if (typeof r === 'string') {
-                return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
-            }
-            return r;
-        });
-
         const lastReplyTimes = getLastReplyTimes();
         lastReplyTimes[senderName] = Date.now();
         setLastReplyTimes(lastReplyTimes);
