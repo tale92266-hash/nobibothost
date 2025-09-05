@@ -1,4 +1,4 @@
-/// file: public/main.js
+// file: public/main.js
 
 import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay, initSubNavigation } from './ui.js';
 import { fetchStatsApi } from './api.js';
@@ -8,6 +8,7 @@ import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
 import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
 import { initOwners, fetchOwners } from './owners.js';
+import { initAutomation, fetchAutomationRules } from './automation.js';
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -36,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
                 } else if (subTabName === 'automation') {
-                    // Automation pane logic here
+                    fetchAutomationRules();
                 }
             });
         }
@@ -55,6 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettings();
     initOwnerRules();
     initOwners();
+    initAutomation(); // New module initialization
 
     // Initial load
     async function initialLoad() {
@@ -65,7 +67,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchRules(),
                 fetchVariables(),
                 fetchSettings(),
-                fetchOwnerRules()
+                fetchOwnerRules(),
+                fetchAutomationRules() // New fetch call
             ]);
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
