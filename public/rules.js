@@ -1,8 +1,5 @@
 // file: public/rules.js
 
-import { fetchRulesApi, updateRuleApi, bulkUpdateRulesApi } from './api.js';
-import { showToast, configureModalButtons } from './ui.js';
-
 let currentRuleNumber = null;
 let allRules = [];
 let totalRules = 0;
@@ -22,7 +19,7 @@ const rulesList = document.getElementById("rulesList");
 /**
  * Initializes rules management and sets up event listeners.
  */
-export function initRules() {
+function initRules() {
     document.getElementById("addRuleBtn")?.addEventListener('click', addNewRule);
     document.getElementById("saveRuleBtn")?.addEventListener('click', saveRule);
     document.getElementById("deleteRuleBtn")?.addEventListener('click', deleteRule);
@@ -56,7 +53,7 @@ function handleRuleClick(e) {
 /**
  * Fetches all rules from the server and displays them.
  */
-export async function fetchRules() {
+async function fetchRules() {
     if (!rulesList) return;
     rulesList.innerHTML = '';
     try {
