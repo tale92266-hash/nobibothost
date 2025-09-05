@@ -4,15 +4,14 @@ const {
     getRules, getOwnerRules, getAutomationRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
     setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers,
-    getIsAutomationEnabled, setIsAutomationEnabled, getWelcomeLog, addWelcomeLogEntry
+    getIsAutomationEnabled, setIsAutomationEnabled, getWelcomeLog, addWelcomeLogEntry,
+    ruleCooldowns
 } = require('./state');
 const { db } = require('../db');
 const {
     resolveVariablesRecursively, extractSenderNameAndContext, matchesOverridePattern,
     isUserIgnored, matchesTrigger, pick
 } = require('./utils');
-
-const ruleCooldowns = new Map();
 
 async function processOwnerMessage(msg, sessionId, sender, senderName, context) {
     const startTime = process.hrtime();
