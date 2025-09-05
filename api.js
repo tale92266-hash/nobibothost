@@ -10,10 +10,9 @@ const {
     getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules,
     getIsAutomationEnabled, setIsAutomationEnabled
 } = require('./core/state');
-const { processMessage } = require('./core/bot');
+const { processMessage, processOwnerMessage } = require('./core/bot');
 const { Server } = require("socket.io");
 const { Server: HTTPServer } = "http";
-const axios = require('axios');
 
 module.exports = (app, server, getIsReady) => {
     const io = new Server(server, { cors: { origin: "*" } });
@@ -467,7 +466,6 @@ module.exports = (app, server, getIsReady) => {
     
     app.post("/webhook", async (req, res) => {
         const { extractSenderNameAndContext } = require('./core/utils');
-        const webhookUrl = process.env.WEBHOOK_URL;
 
         if (!getIsReady()) {
             console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
@@ -480,88 +478,43 @@ module.exports = (app, server, getIsReady) => {
         
         const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
 
-        const replies = await processMessage(msg, sessionId, sender);
-
-        const messageData = {
-            sessionId: sessionId,
-            senderName: parsedSenderName,
-            groupName: isGroup ? groupName : null,
-            userMessage: msg,
-            botReply: Array.isArray(replies) ? replies.join('\n') : replies,
-            timestamp: new Date().toISOString()
-        };
-
-        let recentChatMessages = getRecentChatMessages();
-        recentChatMessages.unshift(messageData);
-        if (recentChatMessages.length > MAX_CHAT_HISTORY) { recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY); }
-        setRecentChatMessages(recentChatMessages);
-
-        console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
-        
-        io.emit('newMessage', messageData);
-        emitStats();
-
-        // New logic to handle multiple replies
-        if (replies && replies.length > 0) {
-            for (const reply of replies) {
-                // Send each reply as a separate message via the webhook
-                try {
-                    const webhookPayload = {
-                        chat_id: sessionId,
-                        text: reply
-                    };
-                    await axios.post(webhookUrl, webhookPayload);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay between messages
-                } catch (err) {
-                    console.error("❌ Failed to send reply via webhook:", err.message);
-                }
-            }
-        }
-        
-        res.json({ success: true, message: "Messages processed and sent to webhook." });
-    });
-
-    app.post("/test-webhook", async (req, res) => {
-        const { extractSenderNameAndContext } = require('./core/utils');
-
-        if (!getIsReady()) {
-            console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
-            return res.status(503).send('Server is initializing. Please try again in a moment.');
-        }
-
-        const sessionId = req.body.session_id || "default_session";
-        const msg = req.body.query?.message || "";
-        const sender = req.body.query?.sender || "";
-        
-        const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
-
-        const replies = await processMessage(msg, sessionId, sender);
-
-        const messageData = {
-            sessionId: sessionId,
-            senderName: parsedSenderName,
-            groupName: isGroup ? groupName : null,
-            userMessage: msg,
-            botReply: Array.isArray(replies) ? replies.join('\n') : replies,
-            timestamp: new Date().toISOString()
-        };
-
-        let recentChatMessages = getRecentChatMessages();
-        recentChatMessages.unshift(messageData);
-        if (recentChatMessages.length > MAX_CHAT_HISTORY) { recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY); }
-        setRecentChatMessages(recentChatMessages);
-
-        console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
-        
-        io.emit('newMessage', messageData);
-        emitStats();
-
-        if (!replies || replies.length === 0) {
+        if (!getSettings().isBotOnline) {
+            console.log('🤖 Bot is offline. Skipping message processing.');
             return res.json({ replies: [] });
         }
-        
-        const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
-        res.json({ replies: formattedReplies });
+
+        const isOwner = getOwnerList().includes(parsedSenderName);
+
+        if (isOwner) {
+            const context = isGroup ? groupName : 'DM';
+            const replyText = await processOwnerMessage(msg, sessionId, sender, parsedSenderName, context);
+            if (!replyText) return res.json({ replies: [] });
+            return res.json({ replies: [{ message: replyText }] });
+        }
+
+        const replyText = await processMessage(msg, sessionId, sender);
+
+        const messageData = {
+            sessionId: sessionId,
+            senderName: parsedSenderName,
+            groupName: isGroup ? groupName : null,
+            userMessage: msg,
+            botReply: replyText,
+            timestamp: new Date().toISOString()
+        };
+
+        let recentChatMessages = getRecentChatMessages();
+        recentChatMessages.unshift(messageData);
+        if (recentChatMessages.length > MAX_CHAT_HISTORY) { recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY); }
+        setRecentChatMessages(recentChatMessages);
+
+        console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
+
+        io.emit('newMessage', messageData);
+        emitStats();
+
+        if (!replyText) return res.json({ replies: [] });
+        res.json({ replies: [{ message: replyText }] });
     });
 
     app.get("/stats", async (req, res) => {
