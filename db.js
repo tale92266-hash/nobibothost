@@ -152,7 +152,9 @@ const loadOwnersList = async () => {
             fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify(getOwnerList(), null, 2));
             console.log(`👑 Loaded ${getOwnerList().length} owners from MongoDB.`);
         } else {
-            console.log('🔍 No owners list found in MongoDB.');
+            setOwnerList([]);
+            fs.writeFileSync(FILE_PATHS.ownersListFile, JSON.stringify([], null, 2));
+            console.log('🔍 No owners list found in MongoDB, resetting.');
         }
     } catch (err) {
         console.error("❌ Failed to load owner list from DB:", err);
@@ -176,13 +178,9 @@ const syncData = async () => {
         await loadAllRules();
         await loadAllOwnerRules();
         await loadAllVariables();
-        await loadOwnersList();
 
-        const settingsLoaded = await loadSettingsFromFiles();
-        if (!settingsLoaded) {
-            console.log('⚠️ Settings files not found. Restoring from MongoDB...');
-            await restoreSettingsFromDb();
-        }
+        await loadSettingsFromFiles();
+        await restoreSettingsFromDb();
 
         if (getStats().lastResetDate !== today) {
             await resetDailyStats();
