@@ -352,6 +352,61 @@ module.exports = (app, server, getIsReady) => {
         }
     });
 
+    app.get("/api/automation-rules", async (req, res) => {
+        try {
+            const rules = await db.AutomationRule.find({}).sort({ RULE_NUMBER: 1 });
+            res.json(rules);
+        } catch (err) {
+            res.status(500).json({ error: "Failed to fetch automation rules" });
+        }
+    });
+
+    app.post("/api/automation-rules/update", async (req, res) => {
+        const { type, rule, oldRuleNumber } = req.body;
+        const session = await db.mongoose.startSession();
+        try {
+            await session.withTransaction(async () => {
+                if (type === "add") {
+                    await db.AutomationRule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
+                    await db.AutomationRule.create([{
+                        RULE_NUMBER: rule.ruleNumber, RULE_NAME: rule.ruleName, RULE_TYPE: rule.ruleType,
+                        KEYWORDS: rule.keywords, REPLIES_TYPE: rule.repliesType, REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+                        USER_ACCESS_TYPE: rule.userAccessType, DEFINED_USERS: rule.definedUsers,
+                        MIN_DELAY: rule.minDelay, MAX_DELAY: rule.maxDelay
+                    }], { session });
+                } else if (type === "edit") {
+                    if (rule.ruleNumber !== oldRuleNumber) {
+                        const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
+                        const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
+                        if (rule.ruleNumber < oldRuleNumber) { await db.AutomationRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session }); }
+                        else { await db.AutomationRule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session }); }
+                    }
+                    await db.AutomationRule.findOneAndUpdate(
+                        { RULE_NUMBER: oldRuleNumber },
+                        { $set: {
+                            RULE_NUMBER: rule.ruleNumber, RULE_NAME: rule.ruleName, RULE_TYPE: rule.ruleType,
+                            KEYWORDS: rule.keywords, REPLIES_TYPE: rule.repliesType, REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+                            USER_ACCESS_TYPE: rule.userAccessType, DEFINED_USERS: rule.definedUsers,
+                            MIN_DELAY: rule.minDelay, MAX_DELAY: rule.maxDelay
+                        }},
+                        { new: true, session }
+                    );
+                } else if (type === "delete") {
+                    await db.AutomationRule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
+                    await db.AutomationRule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+                }
+            });
+            await session.endSession();
+            await db.loadAllAutomationRules();
+            res.json({ success: true, message: "Automation rule updated successfully!" });
+        } catch (err) {
+            if (session.inTransaction()) await session.abortTransaction();
+            session.endSession();
+            console.error("❌ Failed to update automation rule:", err);
+            res.status(500).json({ success: false, message: "Server error: " + err.message });
+        }
+    });
+
     app.post("/webhook", async (req, res) => {
         const { extractSenderNameAndContext } = require('./core/utils');
 
