@@ -7,7 +7,8 @@ const {
     getRules, getOwnerRules, getVariables, getSettings, getIgnoredOverrideUsers,
     getSpecificOverrideUsers, getOwnerList, setIgnoredOverrideUsers, setSpecificOverrideUsers,
     setOwnerList, setSettings, getStats, getRecentChatMessages, setRecentChatMessages,
-    getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules
+    getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules,
+    getIsAutomationEnabled, setIsAutomationEnabled
 } = require('./core/state');
 const { processMessage } = require('./core/bot');
 const { Server } = require("socket.io");
@@ -241,7 +242,8 @@ module.exports = (app, server, getIsReady) => {
                 isBotOnline: getSettings().isBotOnline,
                 temporaryHide: getSettings().temporaryHide,
                 ignoredOverrideUsers: getIgnoredOverrideUsers(),
-                specificOverrideUsers: getSpecificOverrideUsers()
+                specificOverrideUsers: getSpecificOverrideUsers(),
+                masterStop: getSettings().masterStop
             };
             res.json(settingsData);
         } catch (error) {
@@ -269,6 +271,20 @@ module.exports = (app, server, getIsReady) => {
             res.json({ success: true, message: "Temporary hide setting updated successfully." });
         } catch (error) {
             console.error("❌ Failed to update temporary hide setting:", error);
+            res.status(500).json({ success: false, message: "Server error" });
+        }
+    });
+    
+    app.post("/api/settings/master-stop", async (req, res) => {
+        try {
+            const payload = req.body;
+            const settings = getSettings();
+            settings.masterStop = payload;
+            setSettings(settings);
+            await db.saveSettings();
+            res.json({ success: true, message: "Master stop setting updated successfully." });
+        } catch (error) {
+            console.error("❌ Failed to update master stop setting:", error);
             res.status(500).json({ success: false, message: "Server error" });
         }
     });
@@ -516,3 +532,4 @@ module.exports = (app, server, getIsReady) => {
         }
     });
 };
+
