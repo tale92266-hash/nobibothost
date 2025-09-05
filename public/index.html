@@ -1,3 +1,5 @@
+// file: public/index.html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -480,7 +482,7 @@
 
                         <div class="form-group" id="repliesTypeField">
                             <label for="repliesType">Reply Type</label>
-                            <select class="form-select" id="repliesType">
+                            <select class="form-select" id="repliesType" required>
                                 <option value="RANDOM">Random Reply</option>
                                 <option value="ONE">First Reply Only</option>
                                 <option value="ALL">All Replies</option>
@@ -489,7 +491,7 @@
 
                         <div class="form-group" id="replyTextField">
                             <label for="replyText">Reply Text</label>
-                            <textarea class="form-control" id="replyText" rows="4" 
+                            <textarea class="form-control" id="replyText" rows="4" required
                                 placeholder="Use <#> to separate multiple replies"></textarea>
                             <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
                         </div>
@@ -746,7 +748,7 @@
 
                         <div class="form-group" id="ownerRepliesTypeField">
                             <label for="ownerRepliesType">Reply Type</label>
-                            <select class="form-select" id="ownerRepliesType">
+                            <select class="form-select" id="ownerRepliesType" required>
                                 <option value="RANDOM">Random Reply</option>
                                 <option value="ONE">First Reply Only</option>
                                 <option value="ALL">All Replies</option>
@@ -755,7 +757,7 @@
 
                         <div class="form-group" id="ownerReplyTextField">
                             <label for="ownerReplyText">Reply Text</label>
-                            <textarea class="form-control" id="ownerReplyText" rows="4" 
+                            <textarea class="form-control" id="ownerReplyText" rows="4" required
                                 placeholder="Use <#> to separate multiple replies"></textarea>
                             <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
                         </div>
@@ -812,14 +814,14 @@
 
                         <div class="form-group" id="automationKeywordsField">
                             <label for="automationKeywords">Keywords</label>
-                            <textarea class="form-control" id="automationKeywords" rows="3" 
+                            <textarea class="form-control" id="automationKeywords" rows="3" required
                                 placeholder="Separate multiple keywords with // (e.g., hello//hi//hey)"></textarea>
                             <small class="form-text text-muted">Use // to separate multiple keywords. Prefix with / to mark as a command (e.g., /status)</small>
                         </div>
                         
                         <div class="form-group">
                             <label for="automationRepliesType">Reply Type</label>
-                            <select class="form-select" id="automationRepliesType">
+                            <select class="form-select" id="automationRepliesType" required>
                                 <option value="RANDOM">Random Reply</option>
                                 <option value="ONE">First Reply Only</option>
                                 <option value="ALL">All Replies</option>
@@ -828,7 +830,7 @@
 
                         <div class="form-group">
                             <label for="automationReplyText">Reply Text</label>
-                            <textarea class="form-control" id="automationReplyText" rows="4" 
+                            <textarea class="form-control" id="automationReplyText" rows="4" required
                                 placeholder="Use <#> to separate multiple replies"></textarea>
                             <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
                         </div>
