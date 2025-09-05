@@ -1,4 +1,4 @@
-/// file: public/main.js
+// file: public/main.js
 
 document.addEventListener("DOMContentLoaded", () => {
     const socket = io();
@@ -51,4 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Initial fetch for the default selected tab (stats)
     tabHandlers['stats']();
+    
+    // Add this line to fetch settings immediately on page load
+    fetchSettings();
 });
