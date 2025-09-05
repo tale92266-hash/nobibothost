@@ -7,8 +7,7 @@ import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
 import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
-import { initOwners, fetchOwners } from './owners.js';
-import { initAutomation, fetchAutomationRules } from './automation.js';
+import { initAutomationRules, fetchAutomationRules } from './automation.js'; // NEW: Automation Rules
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -33,11 +32,12 @@ document.addEventListener("DOMContentLoaded", () => {
             // Chat is initialized once, no need to re-fetch
         },
         'additional': () => {
+            // This will handle sub-tab changes when the modules are available.
             initSubNavigation((subTabName) => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
                 } else if (subTabName === 'automation') {
-                    fetchAutomationRules();
+                    fetchAutomationRules(); // NEW: Fetch automation rules
                 }
             });
         }
@@ -55,8 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initVariables();
     initSettings();
     initOwnerRules();
-    initOwners();
-    initAutomation(); // New module initialization
+    initAutomationRules(); // NEW: Initialize automation rules
 
     // Initial load
     async function initialLoad() {
@@ -68,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchVariables(),
                 fetchSettings(),
                 fetchOwnerRules(),
-                fetchAutomationRules() // New fetch call
+                fetchAutomationRules() // NEW: Fetch automation rules on initial load
             ]);
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
