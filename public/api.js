@@ -55,3 +55,4 @@ export const updateOwnersApi = (owners) => apiRequest('/api/owners/update', { me
 // Automation API functions
 export const fetchAutomationRulesApi = () => apiRequest('/api/automation-rules');
 export const updateAutomationRuleApi = (payload) => apiRequest('/api/automation-rules/update', { method: 'POST', body: JSON.stringify(payload) });
+export const deleteAutomationRuleApi = (payload) => apiRequest('/api/automation-rules/update', { method: 'POST', body: JSON.stringify({ type: 'delete', rule: payload }) }); // NEW: Delete function
