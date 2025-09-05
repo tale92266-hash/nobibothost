@@ -135,7 +135,7 @@ function createAutomationRuleElement(rule) {
     ruleDiv.className = 'rule-item';
     ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
     const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
-    const userAccessDisplay = (rule.USER_ACCESS_TYPE === 'DEFINED' && Array.isArray(rule.DEFINED_USERS)) 
+    const userAccessDisplay = (rule.USER_ACCESS_TYPE === 'DEFINED' || rule.USER_ACCESS_TYPE === 'OWNER_DEFINED') && Array.isArray(rule.DEFINED_USERS) && rule.DEFINED_USERS.length > 0
         ? rule.DEFINED_USERS.join(', ')
         : (rule.USER_ACCESS_TYPE || 'ALL');
         
@@ -302,7 +302,7 @@ function validateAutomationRuleForm() {
         return false;
     }
 
-    if (userAccessTypeSelect.value === 'DEFINED' && definedUsersInput.value.trim() === '') {
+    if ((userAccessTypeSelect.value === 'DEFINED' || userAccessTypeSelect.value === 'OWNER_DEFINED') && definedUsersInput.value.trim() === '') {
         showToast('Please enter at least one defined user.', 'warning');
         return false;
     }
@@ -378,4 +378,3 @@ function toggleLoadingAutomation(show) {
         loadingMessageAutomation.style.display = show ? 'flex' : 'none';
     }
 }
-
