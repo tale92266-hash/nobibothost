@@ -53,6 +53,9 @@ function handleOwnerRuleClick(e) {
 async function fetchOwnerRules() {
     if (!ownerRulesList) return;
     ownerRulesList.innerHTML = '';
+    
+    toggleLoading(true);
+
     try {
         const data = await fetchOwnerRulesApi();
         allOwnerRules = data;
@@ -78,6 +81,8 @@ async function fetchOwnerRules() {
                 <p>Please try refreshing the page</p>
             </div>
         `;
+    } finally {
+        toggleLoading(false);
     }
 }
 
