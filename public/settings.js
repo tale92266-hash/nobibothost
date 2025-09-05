@@ -43,6 +43,7 @@ function initSettings() {
     saveRepeatingBtn?.addEventListener('click', saveRepeatingRuleSettings);
     tempHideBtn?.addEventListener('click', showTempHideModal);
     saveTempHideBtn?.addEventListener('click', saveTempHideSettings);
+    // fetchSettings(); // Ab yahan se yeh line hata do
 }
 
 /**
