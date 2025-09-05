@@ -11,7 +11,7 @@ const {
 } = require('./core/state');
 const { processMessage } = require('./core/bot');
 const { Server } = require("socket.io");
-const { Server: HTTPServer } = require("http");
+const { Server: HTTPServer } = "http";
 
 module.exports = (app, server, getIsReady) => {
     const io = new Server(server, { cors: { origin: "*" } });
@@ -272,9 +272,15 @@ module.exports = (app, server, getIsReady) => {
     app.post("/api/bot/status", async (req, res) => {
         try {
             const { isOnline } = req.body;
-            setSettings({ ...getSettings(), isBotOnline: isOnline });
+            const settings = getSettings();
+            settings.isBotOnline = isOnline;
+            setSettings(settings);
             await db.saveSettings();
-            res.json({ success: true, message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.`, settings: getSettings() }); // Added updated settings to response
+            res.json({ 
+                success: true, 
+                message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.`,
+                settings: getSettings()
+            });
             console.log(`🤖 Bot status has been set to ${isOnline ? 'online' : 'offline'}.`);
         } catch (error) {
             console.error("❌ Failed to update bot status:", error);
