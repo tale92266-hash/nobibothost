@@ -13,71 +13,6 @@ const {
     isUserIgnored, matchesTrigger, pick
 } = require('./utils');
 
-async function processOwnerMessage(msg, sessionId, sender, senderName, context) {
-    const startTime = process.hrtime();
-    let reply = null;
-    let regexMatch = null;
-    let matchedRuleId = null;
-
-    for (let rule of getOwnerRules()) {
-        let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
-        let match = false;
-
-        if (rule.RULE_TYPE === "WELCOME") {
-            const hasBeenWelcomed = getWelcomeLog().has(`${senderName}-${rule.RULE_NUMBER}-${context}`);
-            if (!hasBeenWelcomed) {
-                match = true;
-            }
-        } else if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) {
-            match = true;
-        } else if (rule.RULE_TYPE === "PATTERN" && patterns.some(p => new RegExp(`^${p.replace(/\*/g, ".*")}$`, "i").test(msg))) {
-            match = true;
-        } else if (rule.RULE_TYPE === "EXPERT") {
-            for (let pattern of patterns) {
-                try {
-                    const regex = new RegExp(pattern, "i");
-                    const execResult = regex.exec(msg);
-                    if (execResult) {
-                        match = true;
-                        regexMatch = execResult;
-                        break;
-                    }
-                } catch {}
-            }
-        } else if (rule.RULE_TYPE === "DEFAULT") {
-            match = true;
-        }
-
-        if (match) {
-            let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-            if (rule.REPLIES_TYPE === "ALL") {
-                replies = replies.slice(0, 20);
-                reply = replies.join(" ");
-            } else if (rule.REPLIES_TYPE === "ONE") {
-                reply = replies[0];
-            } else {
-                reply = pick(replies);
-            }
-            matchedRuleId = rule.RULE_NUMBER;
-            
-            if (rule.RULE_TYPE === "WELCOME") {
-                addWelcomeLogEntry(rule.RULE_NUMBER, senderName, context);
-                await db.saveWelcomeLog();
-                console.log(`✅ Owner "${senderName}" welcomed with rule #${rule.RULE_NUMBER} in context "${context}".`);
-            }
-            break;
-        }
-    }
-    const endTime = process.hrtime(startTime);
-    const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
-    
-    if (reply) {
-        reply = resolveVariablesRecursively(reply, senderName, msg, processingTime, null, false, regexMatch, matchedRuleId, getStats().totalMsgs);
-    }
-    
-    return reply || null;
-}
-
 async function processMessage(msg, sessionId = "default", sender) {
     const startTime = process.hrtime();
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
@@ -85,13 +20,13 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     const isOwner = getOwnerList().includes(senderName);
 
-    if (isOwner) {
-        console.log(`👑 Owner message detected from: ${senderName}. Processing with owner rules.`);
-        return await processOwnerMessage(msg, sessionId, sender, senderName, context);
-    }
-
     if (getSpecificOverrideUsers().length > 0 && !matchesOverridePattern(senderName, getSpecificOverrideUsers())) {
         console.log(`⚠️ User "${senderName}" is not on the specific override list. Ignoring message.`);
+        return null;
+    }
+    
+    if (!getSettings().isBotOnline) {
+        console.log('🤖 Bot is offline. Skipping message processing.');
         return null;
     }
 
@@ -102,54 +37,43 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     const settings = getSettings();
     const today = new Date().toLocaleDateString();
-
-    let unhideTriggered = false;
-    if (settings.temporaryHide.unhideEnabled) {
-        if (matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.unhideMatchType)) {
-            console.log(`✅ Unhide trigger received from user: ${senderName}`);
-            const updatedIgnoredUsers = getIgnoredOverrideUsers().filter(item => {
-                const nameMatches = matchesOverridePattern(senderName, [item.name]);
-                const contextMatches = matchesOverridePattern(context, [item.context]);
-                return !(nameMatches && contextMatches);
-            });
-
-            if (updatedIgnoredUsers.length < getIgnoredOverrideUsers().length) {
-                setIgnoredOverrideUsers(updatedIgnoredUsers);
-                await db.saveIgnoredOverrideUsers();
-                console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
-                unhideTriggered = true;
-            } else {
-                console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
-            }
+    
+    // Check for master stop trigger
+    if (settings.masterStop.enabled && matchesTrigger(msg, settings.masterStop.triggerText, settings.masterStop.matchType)) {
+        console.log(`⛔ Master stop trigger received from user: ${senderName}`);
+        if (getIsAutomationEnabled()) {
+            setIsAutomationEnabled(false);
+            ruleCooldowns.clear();
+            console.log('🛑 All automation rules have been stopped.');
         }
+        const reply = pick(settings.masterStop.replyText.split('<#>'));
+        return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
     }
     
-    let masterStopTriggered = false;
-    if (settings.masterStop.enabled) {
-        if (matchesTrigger(msg, settings.masterStop.triggerText, settings.masterStop.matchType)) {
-            masterStopTriggered = true;
-            console.log(`⛔ Master stop trigger received from user: ${senderName}`);
-            if (getIsAutomationEnabled()) {
-                setIsAutomationEnabled(false);
-                ruleCooldowns.clear();
-                console.log('🛑 All automation rules have been stopped.');
-            }
-            const reply = pick(settings.masterStop.replyText.split('<#>'));
+    // Check for unhide trigger
+    if (settings.temporaryHide.unhideEnabled && matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.unhideMatchType)) {
+        console.log(`✅ Unhide trigger received from user: ${senderName}`);
+        const updatedIgnoredUsers = getIgnoredOverrideUsers().filter(item => {
+            const nameMatches = matchesOverridePattern(senderName, [item.name]);
+            const contextMatches = matchesOverridePattern(context, [item.context]);
+            return !(nameMatches && contextMatches);
+        });
+
+        if (updatedIgnoredUsers.length < getIgnoredOverrideUsers().length) {
+            setIgnoredOverrideUsers(updatedIgnoredUsers);
+            await db.saveIgnoredOverrideUsers();
+            console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
+            const reply = pick(settings.temporaryHide.unhideReply.split('<#>'));
             return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+        } else {
+            console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
+            return null;
         }
     }
 
-    let temporaryHideTriggered = false;
-    if (settings.temporaryHide.enabled) {
-        if (matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType)) {
-            temporaryHideTriggered = true;
-            console.log(`✅ Hide trigger received from user: ${senderName}`);
-        }
-    }
-
-    const isSenderIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
-
-    if (temporaryHideTriggered) {
+    // Check for hide trigger
+    if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType)) {
+        console.log(`✅ Hide trigger received from user: ${senderName}`);
         const reply = pick(settings.temporaryHide.hideReply.split('<#>'));
         const hideEntry = { name: senderName, context: context };
         const isAlreadyIgnoredInContext = getIgnoredOverrideUsers().some(item => item.name === hideEntry.name && item.context === hideEntry.context);
@@ -162,28 +86,17 @@ async function processMessage(msg, sessionId = "default", sender) {
         }
         return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
     }
-
-    if (unhideTriggered) {
-        const reply = pick(settings.temporaryHide.unhideReply.split('<#>'));
-        return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
-    }
-
+    
+    const isSenderIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
     if (isSenderIgnored) {
         console.log(`🚫 User "${senderName}" is ignored in context "${context}". Skipping reply.`);
         return null;
     }
 
-    if (!getSettings().isBotOnline) {
-        console.log('🤖 Bot is offline. Skipping message processing.');
-        return null;
-    }
-
     console.log(`🔍 Processing message from: ${senderName} (Context: ${context})`);
     
-    const welcomedUsers = getWelcomedUsers();
     let stats = getStats();
     let messageStats = await db.MessageStats.findOne({ sessionId });
-
     if (!messageStats) {
         messageStats = new db.MessageStats({
             sessionId,
@@ -198,96 +111,24 @@ async function processMessage(msg, sessionId = "default", sender) {
             messageStats.receivedCount = 0;
         }
     }
-
     messageStats.receivedCount++;
     await messageStats.save();
 
-    if (!welcomedUsers.includes(senderName)) {
-        const newWelcomedUsers = [...welcomedUsers, senderName];
-        setWelcomedUsers(newWelcomedUsers);
-        await db.User.create({ senderName, sessionId });
-    }
-
     if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
-
     stats.totalMsgs++;
     stats.todayMsgs++;
     if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
     const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: true });
     setStats(updatedStats);
     await db.saveStats();
-
+    
     let reply = null;
     let regexMatch = null;
     let matchedRuleId = null;
 
-    for (let rule of getRules()) {
-        let userMatch = false;
-        const targetUsers = rule.TARGET_USERS || "ALL";
-
-        if (rule.RULE_TYPE === "IGNORED") {
-            if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
-        } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-            if (isSenderIgnored) { userMatch = false; } 
-            else { userMatch = true; }
-        }
-
-        if (!userMatch) { continue; }
-
-        let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
-        let match = false;
-
-        if (rule.RULE_TYPE === "WELCOME") {
-            if (senderName && !welcomedUsers.includes(senderName)) {
-                match = true;
-                const newWelcomedUsers = [...welcomedUsers, senderName];
-                setWelcomedUsers(newWelcomedUsers);
-                await db.User.create({ senderName, sessionId });
-            }
-        } else if (rule.RULE_TYPE === "DEFAULT") {
-            match = true;
-        } else {
-            for (let pattern of patterns) {
-                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; } 
-                else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
-
-                if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
-                else if (rule.RULE_TYPE === "PATTERN") {
-                    let regexStr = pattern.replace(/\*/g, ".*");
-                    if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
-                } else if (rule.RULE_TYPE === "EXPERT") {
-                    try {
-                        const regex = new RegExp(pattern, "i");
-                        const execResult = regex.exec(msg);
-                        if (execResult) {
-                            match = true;
-                            regexMatch = execResult;
-                        }
-                    } catch {}
-                }
-                if (match) {
-                    matchedRuleId = rule.RULE_NUMBER;
-                    break;
-                }
-            }
-        }
-
-        if (match) {
-            let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-            if (rule.REPLIES_TYPE === "ALL") {
-                replies = replies.slice(0, 20);
-                reply = replies.join(" ");
-            } else if (rule.REPLIES_TYPE === "ONE") {
-                reply = replies[0];
-            } else {
-                reply = pick(replies);
-            }
-            break;
-        }
-    }
-
+    // --- STEP 1: Process Automation Rules ---
     const automationRules = getAutomationRules();
-    if (getIsAutomationEnabled() && !reply && msg.startsWith('/') && automationRules.length > 0) {
+    if (getIsAutomationEnabled() && msg.startsWith('/') && automationRules.length > 0) {
         for (const rule of automationRules) {
             const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
             if (ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
@@ -319,13 +160,9 @@ async function processMessage(msg, sessionId = "default", sender) {
 
             if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
                 let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
-                if (rule.REPLIES_TYPE === 'ALL') {
-                    reply = replies.join('\n');
-                } else if (rule.REPLIES_TYPE === 'ONE') {
-                    reply = replies[0];
-                } else { // RANDOM
-                    reply = pick(replies);
-                }
+                if (rule.REPLIES_TYPE === 'ALL') { reply = replies.join('\n'); } 
+                else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
+                else { reply = pick(replies); }
 
                 if (rule.MIN_DELAY > 0) {
                     let delay = rule.MIN_DELAY;
@@ -343,11 +180,122 @@ async function processMessage(msg, sessionId = "default", sender) {
                 }
 
                 matchedRuleId = rule.RULE_NUMBER;
-                break; // Found an automation rule, stop checking
+                break;
             }
         }
     }
 
+    // --- STEP 2: Process Owner Rules (if owner and no automation rule matched) ---
+    if (!reply && isOwner) {
+        console.log(`👑 Owner message detected from: ${senderName}. Checking owner rules.`);
+        for (let rule of getOwnerRules()) {
+            let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+            let match = false;
+
+            if (rule.RULE_TYPE === "WELCOME") {
+                const hasBeenWelcomed = getWelcomeLog().has(`${senderName}-${rule.RULE_NUMBER}-${context}`);
+                if (!hasBeenWelcomed) { match = true; }
+            } else if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) { match = true; } 
+            else if (rule.RULE_TYPE === "PATTERN" && patterns.some(p => new RegExp(`^${p.replace(/\*/g, ".*")}$`, "i").test(msg))) { match = true; } 
+            else if (rule.RULE_TYPE === "EXPERT") {
+                for (let pattern of patterns) {
+                    try {
+                        const regex = new RegExp(pattern, "i");
+                        const execResult = regex.exec(msg);
+                        if (execResult) {
+                            match = true;
+                            regexMatch = execResult;
+                            break;
+                        }
+                    } catch {}
+                }
+            } else if (rule.RULE_TYPE === "DEFAULT") { match = true; }
+
+            if (match) {
+                let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+                if (rule.REPLIES_TYPE === "ALL") {
+                    replies = replies.slice(0, 20);
+                    reply = replies.join(" ");
+                } else if (rule.REPLIES_TYPE === "ONE") { reply = replies[0]; } 
+                else { reply = pick(replies); }
+                matchedRuleId = rule.RULE_NUMBER;
+                
+                if (rule.RULE_TYPE === "WELCOME") {
+                    addWelcomeLogEntry(rule.RULE_NUMBER, senderName, context);
+                    await db.saveWelcomeLog();
+                    console.log(`✅ Owner "${senderName}" welcomed with rule #${rule.RULE_NUMBER} in context "${context}".`);
+                }
+                break;
+            }
+        }
+    }
+
+    // --- STEP 3: Process Normal Rules (if no automation or owner rule matched) ---
+    if (!reply) {
+        console.log(`🔍 Checking normal rules.`);
+        const welcomedUsers = getWelcomedUsers();
+        for (let rule of getRules()) {
+            let userMatch = false;
+            const targetUsers = rule.TARGET_USERS || "ALL";
+    
+            if (rule.RULE_TYPE === "IGNORED") {
+                if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
+            } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
+                if (isSenderIgnored) { userMatch = false; } 
+                else { userMatch = true; }
+            }
+    
+            if (!userMatch) { continue; }
+    
+            let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+            let match = false;
+    
+            if (rule.RULE_TYPE === "WELCOME") {
+                if (senderName && !welcomedUsers.includes(senderName)) {
+                    match = true;
+                    const newWelcomedUsers = [...welcomedUsers, senderName];
+                    setWelcomedUsers(newWelcomedUsers);
+                    await db.User.create({ senderName, sessionId });
+                }
+            } else if (rule.RULE_TYPE === "DEFAULT") {
+                match = true;
+            } else {
+                for (let pattern of patterns) {
+                    if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; } 
+                    else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
+    
+                    if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
+                    else if (rule.RULE_TYPE === "PATTERN") {
+                        let regexStr = pattern.replace(/\*/g, ".*");
+                        if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+                    } else if (rule.RULE_TYPE === "EXPERT") {
+                        try {
+                            const regex = new RegExp(pattern, "i");
+                            const execResult = regex.exec(msg);
+                            if (execResult) {
+                                match = true;
+                                regexMatch = execResult;
+                            }
+                        } catch {}
+                    }
+                    if (match) {
+                        matchedRuleId = rule.RULE_NUMBER;
+                        break;
+                    }
+                }
+            }
+    
+            if (match) {
+                let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+                if (rule.REPLIES_TYPE === "ALL") {
+                    replies = replies.slice(0, 20);
+                    reply = replies.join(" ");
+                } else if (rule.REPLIES_TYPE === "ONE") { reply = replies[0]; } 
+                else { reply = pick(replies); }
+                break;
+            }
+        }
+    }
 
     const endTime = process.hrtime(startTime);
     const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
@@ -382,4 +330,3 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 exports.processMessage = processMessage;
-exports.processOwnerMessage = processOwnerMessage;
