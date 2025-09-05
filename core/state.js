@@ -85,3 +85,8 @@ exports.FILE_PATHS = {
     ownerRulesFilePath,
     automationRulesFilePath // New file path
 };
+
+// Global state for automation rule cooldowns
+// This is intentionally kept here to manage state across different bot functions
+const ruleCooldowns = new Map();
+exports.ruleCooldowns = ruleCooldowns;
