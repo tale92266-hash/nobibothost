@@ -3,6 +3,7 @@
 const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
+const { convertNewlinesBeforeSave } = require('./core/utils');
 
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
@@ -237,7 +238,15 @@ const saveOwnerRules = async () => {
 
 const saveAutomationRules = async () => {
     const automationRulesFromDB = await AutomationRule.find({});
-    fs.writeFileSync(FILE_PATHS.automationRulesFilePath, JSON.stringify({ rules: automationRulesFromDB.map(r => r.toObject()) }, null, 2));
+    const rulesToSave = automationRulesFromDB.map(r => {
+        const ruleObject = r.toObject();
+        // Convert newlines before saving to file
+        if (ruleObject.REPLY_TEXT) {
+            ruleObject.REPLY_TEXT = convertNewlinesBeforeSave(ruleObject.REPLY_TEXT);
+        }
+        return ruleObject;
+    });
+    fs.writeFileSync(FILE_PATHS.automationRulesFilePath, JSON.stringify({ rules: rulesToSave }, null, 2));
 };
 
 const saveIgnoredOverrideUsers = async () => {
