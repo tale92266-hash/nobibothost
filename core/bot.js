@@ -4,7 +4,7 @@ const {
     getRules, getOwnerRules, getAutomationRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
     setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers,
-    getIsAutomationEnabled, setIsAutomationEnabled
+    getIsAutomationEnabled, setIsAutomationEnabled, getWelcomeLog, addWelcomeLogEntry
 } = require('./state');
 const { db } = require('../db');
 const {
@@ -14,7 +14,7 @@ const {
 
 const ruleCooldowns = new Map();
 
-async function processOwnerMessage(msg, sessionId, sender, senderName) {
+async function processOwnerMessage(msg, sessionId, sender, senderName, context) {
     const startTime = process.hrtime();
     let reply = null;
     let regexMatch = null;
@@ -24,7 +24,12 @@ async function processOwnerMessage(msg, sessionId, sender, senderName) {
         let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
         let match = false;
 
-        if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) {
+        if (rule.RULE_TYPE === "WELCOME") {
+            const hasBeenWelcomed = getWelcomeLog().has(`${senderName}-${rule.RULE_NUMBER}-${context}`);
+            if (!hasBeenWelcomed) {
+                match = true;
+            }
+        } else if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) {
             match = true;
         } else if (rule.RULE_TYPE === "PATTERN" && patterns.some(p => new RegExp(`^${p.replace(/\*/g, ".*")}$`, "i").test(msg))) {
             match = true;
@@ -39,10 +44,6 @@ async function processOwnerMessage(msg, sessionId, sender, senderName) {
                         break;
                     }
                 } catch {}
-            }
-        } else if (rule.RULE_TYPE === "WELCOME") {
-            if (senderName && !getWelcomedUsers().includes(senderName)) {
-                match = true;
             }
         } else if (rule.RULE_TYPE === "DEFAULT") {
             match = true;
@@ -59,6 +60,12 @@ async function processOwnerMessage(msg, sessionId, sender, senderName) {
                 reply = pick(replies);
             }
             matchedRuleId = rule.RULE_NUMBER;
+            
+            if (rule.RULE_TYPE === "WELCOME") {
+                addWelcomeLogEntry(rule.RULE_NUMBER, senderName, context);
+                await db.saveWelcomeLog();
+                console.log(`✅ Owner "${senderName}" welcomed with rule #${rule.RULE_NUMBER} in context "${context}".`);
+            }
             break;
         }
     }
@@ -81,7 +88,7 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     if (isOwner) {
         console.log(`👑 Owner message detected from: ${senderName}. Processing with owner rules.`);
-        return await processOwnerMessage(msg, sessionId, sender, senderName);
+        return await processOwnerMessage(msg, sessionId, sender, senderName, context);
     }
 
     if (getSpecificOverrideUsers().length > 0 && !matchesOverridePattern(senderName, getSpecificOverrideUsers())) {
@@ -376,3 +383,4 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 exports.processMessage = processMessage;
+exports.processOwnerMessage = processOwnerMessage;
