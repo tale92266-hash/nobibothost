@@ -1,7 +1,7 @@
 // file: public/automation.js
 
-import { fetchAutomationRulesApi, updateAutomationRuleApi } from './api.js';
-import { showToast } from './ui.js';
+import { fetchAutomationRulesApi, updateAutomationRuleApi, deleteAutomationRuleApi } from './api.js';
+import { showToast, configureModalButtons } from './ui.js';
 
 let currentAutomationRuleNumber = null;
 let allAutomationRules = [];
@@ -10,167 +10,188 @@ let totalAutomationRules = 0;
 const automationRuleModal = new bootstrap.Modal(document.getElementById("automationRuleModal"));
 const automationRuleForm = document.getElementById("automationRuleForm");
 const automationRuleNumberInput = document.getElementById('automationRuleNumber');
-const automationRuleNameInput = document.getElementById('automationRuleName');
+const automationRuleNumberError = document.getElementById('automationRuleNumberError');
 const automationRuleTypeSelect = document.getElementById('automationRuleType');
-const automationKeywordsTextarea = document.getElementById('automationKeywords');
-const automationRepliesTypeSelect = document.getElementById('automationRepliesType');
-const automationReplyTextarea = document.getElementById('automationReplyText');
-const userAccessTypeSelect = document.getElementById('userAccessType');
-const definedUsersField = document.getElementById('definedUsersField');
-const definedUsersInput = document.getElementById('definedUsers');
-const minDelayInput = document.getElementById('minDelay');
-const maxDelayInput = document.getElementById('maxDelay');
+const automationKeywordsField = document.getElementById('automationKeywordsField');
+const automationRepliesTypeField = document.getElementById('automationRepliesTypeField');
+const automationReplyTextField = document.getElementById('automationReplyTextField');
+const automationUserAccessTypeSelect = document.getElementById('automationUserAccessType');
+const automationDefinedUsersField = document.getElementById('automationDefinedUsersField');
+const automationDefinedUsersInput = document.getElementById('automationDefinedUsers');
+const automationDelayField = document.getElementById('automationDelayField');
+const automationMinDelayInput = document.getElementById('automationMinDelay');
+const automationMaxDelayInput = document.getElementById('automationMaxDelay');
 const automationRulesList = document.getElementById("automationRulesList");
+const automationRulesSearchInput = document.getElementById('searchAutomationRules');
 
-export function initAutomation() {
+/**
+ * Initializes automation rules management and sets up event listeners.
+ */
+export function initAutomationRules() {
     document.getElementById("addAutomationRuleBtn")?.addEventListener('click', addNewAutomationRule);
     document.getElementById("saveAutomationRuleBtn")?.addEventListener('click', saveAutomationRule);
     document.getElementById("deleteAutomationRuleBtn")?.addEventListener('click', deleteAutomationRule);
     automationRulesList?.addEventListener('click', handleAutomationRuleClick);
-    userAccessTypeSelect?.addEventListener('change', toggleDefinedUsersField);
-}
+    automationRuleTypeSelect?.addEventListener('change', (e) => toggleAutomationFormFields(e.target.value));
+    automationUserAccessTypeSelect?.addEventListener('change', (e) => toggleAutomationUserAccessFields(e.target.value));
 
-export async function fetchAutomationRules() {
-    if (!automationRulesList) return;
-    automationRulesList.innerHTML = '';
-    try {
-        const data = await fetchAutomationRulesApi();
-        allAutomationRules = data;
-        totalAutomationRules = data.length;
-        if (data.length === 0) {
-            automationRulesList.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-plus-circle fa-3x"></i>
-                    <h5>No Automation Rules Found</h5>
-                    <p>Add your first automation rule to get started!</p>
-                </div>
-            `;
-        } else {
-            displayAutomationRules(data);
-        }
-    } catch (error) {
-        console.error('Failed to fetch automation rules:', error);
-        automationRulesList.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-triangle fa-3x"></i>
-                <h5>Error Loading Automation Rules</h5>
-                <p>Please try refreshing the page</p>
-            </div>
-        `;
+    if (automationRulesSearchInput) {
+        automationRulesSearchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filteredRules = allAutomationRules.filter(rule =>
+                (rule.RULE_NAME || '').toLowerCase().includes(searchTerm) ||
+                (rule.KEYWORDS || '').toLowerCase().includes(searchTerm) ||
+                (rule.REPLY_TEXT || '').toLowerCase().includes(searchTerm)
+            );
+            displayAutomationRules(filteredRules);
+        });
     }
-}
 
-function displayAutomationRules(rules) {
-    automationRulesList.innerHTML = '';
-    rules.forEach(rule => {
-        const ruleElement = createAutomationRuleElement(rule);
-        automationRulesList.appendChild(ruleElement);
+    // Set up modal to clear form on close
+    automationRuleModal._element.addEventListener('hidden.bs.modal', () => {
+        automationRuleForm.reset();
+        automationRuleNumberInput.disabled = false;
+        automationDefinedUsersField.style.display = 'none';
+        automationDefinedUsersInput.required = false;
+        document.getElementById('deleteAutomationRuleBtn').style.display = 'none';
+        automationRuleNumberInput.classList.remove('is-invalid');
     });
 }
 
-function createAutomationRuleElement(rule) {
-    const ruleDiv = document.createElement('div');
-    ruleDiv.className = 'rule-item';
-    ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
-    const userAccessDisplay = rule.USER_ACCESS_TYPE === 'DEFINED' ? rule.DEFINED_USERS.join(', ') : rule.USER_ACCESS_TYPE;
-    const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
-
-    ruleDiv.innerHTML = `
-        <div class="rule-header-new">
-            <div class="rule-title">
-                <span class="rule-number-new">${rule.RULE_NUMBER}</span>
-                <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Automation'}</span>
-            </div>
-            <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
-        </div>
-        <div class="rule-content-new">
-            <div class="rule-line">
-                <strong>Keywords:</strong> ${rule.KEYWORDS || 'N/A'}
-            </div>
-            <div class="rule-line">
-                <strong>Access:</strong> ${userAccessDisplay}
-            </div>
-            <div class="rule-reply">
-                <strong>Reply:</strong>
-                <div class="reply-text">${(rule.REPLY_TEXT || 'No reply text').substring(0, 200)}${rule.REPLY_TEXT && rule.REPLY_TEXT.length > 200 ? '...' : ''}</div>
-            </div>
-        </div>
-    `;
-    return ruleDiv;
-}
-
-function handleAutomationRuleClick(e) {
-    const ruleItem = e.target.closest('.rule-item');
-    if (ruleItem) {
-        const ruleNumber = parseInt(ruleItem.dataset.ruleNumber);
-        const rule = allAutomationRules.find(r => r.RULE_NUMBER === ruleNumber);
-        if (rule) {
-            editAutomationRule(rule);
-        }
+/**
+ * Fetches all automation rules from the server and displays them.
+ */
+export async function fetchAutomationRules() {
+    try {
+        const data = await fetchAutomationRulesApi();
+        allAutomationRules = data.rules;
+        totalAutomationRules = allAutomationRules.length;
+        displayAutomationRules(allAutomationRules);
+    } catch (error) {
+        showToast('Failed to fetch automation rules: ' + error.message, 'fail');
     }
 }
 
+/**
+ * Displays the list of automation rules on the page.
+ * @param {Array<object>} rules - The list of automation rules to display.
+ */
+function displayAutomationRules(rules) {
+    if (!automationRulesList) return;
+    automationRulesList.innerHTML = '';
+    if (rules.length === 0) {
+        automationRulesList.innerHTML = '<div class="alert alert-info">No automation rules found. Add some new rules.</div>';
+        return;
+    }
+    rules.forEach(rule => {
+        const ruleItem = document.createElement('div');
+        ruleItem.className = 'rule-item rule-item-new';
+        ruleItem.dataset.ruleNumber = rule.RULE_NUMBER;
+        const keywords = rule.KEYWORDS ? rule.KEYWORDS.split('//').map(k => `<span class="badge bg-secondary me-1">${k.trim()}</span>`).join('') : '';
+        const userAccess = rule.USER_ACCESS_TYPE ? `<span class="badge bg-info">${rule.USER_ACCESS_TYPE.toUpperCase()}</span>` : '';
+        ruleItem.innerHTML = `
+            <div class="rule-header-new">
+                <span class="rule-number-new">${rule.RULE_NUMBER}</span>
+                <div class="rule-title-new">
+                    <span class="rule-name-new">${rule.RULE_NAME || 'Unnamed Rule'}</span>
+                    <span class="rule-type-new badge bg-primary">${rule.RULE_TYPE}</span>
+                    ${userAccess}
+                </div>
+            </div>
+            <div class="rule-body-new">
+                <p><strong>Keywords:</strong> ${keywords || 'None'}</p>
+                <p><strong>Replies:</strong> ${rule.REPLY_TEXT || 'None'}</p>
+            </div>
+        `;
+        automationRulesList.appendChild(ruleItem);
+    });
+}
+
+/**
+ * Handles the click event on an automation rule item.
+ * @param {Event} e - The click event.
+ */
+async function handleAutomationRuleClick(e) {
+    const ruleItem = e.target.closest('.rule-item');
+    if (!ruleItem) return;
+
+    const ruleNumber = parseInt(ruleItem.dataset.ruleNumber);
+    const rule = allAutomationRules.find(r => r.RULE_NUMBER === ruleNumber);
+    if (!rule) return;
+
+    currentAutomationRuleNumber = ruleNumber;
+    configureModalButtons('edit', automationRuleModal._element);
+    document.getElementById('deleteAutomationRuleBtn').style.display = 'inline-block';
+
+    automationRuleNumberInput.value = rule.RULE_NUMBER;
+    automationRuleNumberInput.disabled = true;
+    document.getElementById('automationRuleName').value = rule.RULE_NAME || '';
+    automationRuleTypeSelect.value = rule.RULE_TYPE;
+    document.getElementById('automationKeywords').value = rule.KEYWORDS;
+    automationRepliesTypeSelect.value = rule.REPLIES_TYPE;
+    document.getElementById('automationReplyText').value = rule.REPLY_TEXT;
+    automationUserAccessTypeSelect.value = rule.USER_ACCESS_TYPE || 'ALL';
+    automationDefinedUsersInput.value = (rule.DEFINED_USERS || []).join(', ');
+    automationMinDelayInput.value = rule.MIN_DELAY || 0;
+    automationMaxDelayInput.value = rule.MAX_DELAY || 0;
+
+    toggleAutomationFormFields(rule.RULE_TYPE);
+    toggleAutomationUserAccessFields(rule.USER_ACCESS_TYPE);
+
+    automationRuleModal.show();
+}
+
+/**
+ * Adds a new automation rule.
+ */
 function addNewAutomationRule() {
     currentAutomationRuleNumber = null;
-    document.getElementById('automationFormTitle').textContent = 'Add New Automation Rule';
+    configureModalButtons('add', automationRuleModal._element);
     automationRuleForm.reset();
     automationRuleNumberInput.value = totalAutomationRules + 1;
-    toggleDefinedUsersField();
+    automationRuleNumberInput.disabled = false;
+    automationDefinedUsersField.style.display = 'none';
+    automationDefinedUsersInput.required = false;
+    document.getElementById('deleteAutomationRuleBtn').style.display = 'none';
     automationRuleModal.show();
 }
 
-function editAutomationRule(rule) {
-    currentAutomationRuleNumber = rule.RULE_NUMBER;
-    document.getElementById('automationFormTitle').textContent = 'Edit Automation Rule';
-    automationRuleNumberInput.value = rule.RULE_NUMBER;
-    automationRuleNameInput.value = rule.RULE_NAME || '';
-    automationRuleTypeSelect.value = rule.RULE_TYPE;
-    automationKeywordsTextarea.value = rule.KEYWORDS || '';
-    automationRepliesTypeSelect.value = rule.REPLIES_TYPE;
-    automationReplyTextarea.value = rule.REPLY_TEXT || '';
-    userAccessTypeSelect.value = rule.USER_ACCESS_TYPE;
-    definedUsersInput.value = (rule.DEFINED_USERS || []).join(', ');
-    minDelayInput.value = rule.MIN_DELAY;
-    maxDelayInput.value = rule.MAX_DELAY > 0 ? rule.MAX_DELAY : '';
-    
-    toggleDefinedUsersField();
-    automationRuleModal.show();
-}
-
-async function saveAutomationRule() {
-    const ruleData = {
-        ruleNumber: parseInt(automationRuleNumberInput.value),
-        ruleName: automationRuleNameInput.value.trim(),
-        ruleType: automationRuleTypeSelect.value,
-        keywords: automationKeywordsTextarea.value.trim(),
-        repliesType: automationRepliesTypeSelect.value,
-        replyText: automationReplyTextarea.value.trim(),
-        userAccessType: userAccessTypeSelect.value,
-        definedUsers: userAccessTypeSelect.value === 'DEFINED' ? definedUsersInput.value.split(',').map(u => u.trim()).filter(Boolean) : [],
-        minDelay: parseInt(minDelayInput.value) || 0,
-        maxDelay: parseInt(maxDelayInput.value) || 0
-    };
-
-    if (!ruleData.ruleNumber || !ruleData.ruleType || !ruleData.keywords || !ruleData.replyText) {
-        showToast('Please fill all required fields.', 'warning');
-        return;
-    }
-    
-    if (ruleData.minDelay > 0 && ruleData.maxDelay > 0 && ruleData.minDelay >= ruleData.maxDelay) {
-        showToast('Max Delay must be greater than Min Delay.', 'warning');
-        return;
-    }
-
+/**
+ * Saves a new or edited automation rule.
+ */
+async function saveAutomationRule(e) {
+    e.preventDefault();
     const isEditing = currentAutomationRuleNumber !== null;
+
+    if (!automationRuleForm.checkValidity()) {
+        automationRuleForm.classList.add('was-validated');
+        return;
+    }
+
     const payload = {
         type: isEditing ? 'edit' : 'add',
-        rule: ruleData,
-        oldRuleNumber: currentAutomationRuleNumber
+        rule: {
+            RULE_NUMBER: parseInt(automationRuleNumberInput.value),
+            RULE_NAME: document.getElementById('automationRuleName').value.trim(),
+            RULE_TYPE: automationRuleTypeSelect.value,
+            KEYWORDS: document.getElementById('automationKeywords').value.trim(),
+            REPLIES_TYPE: automationRepliesTypeSelect.value,
+            REPLY_TEXT: document.getElementById('automationReplyText').value.trim(),
+            USER_ACCESS_TYPE: automationUserAccessTypeSelect.value,
+            DEFINED_USERS: automationUserAccessTypeSelect.value === 'DEFINED_USERS'
+                ? automationDefinedUsersInput.value.split(',').map(u => u.trim()).filter(Boolean)
+                : [],
+            MIN_DELAY: parseInt(automationMinDelayInput.value) || 0,
+            MAX_DELAY: parseInt(automationMaxDelayInput.value) || 0
+        }
     };
+    
+    // Convert newlines for saving
+    payload.rule.REPLY_TEXT = payload.rule.REPLY_TEXT.replace(/\n/g, '<#>');
 
     try {
         const result = await updateAutomationRuleApi(payload);
-        showToast(result.message || 'Automation rule saved successfully!', 'success');
+        showToast(result.message, 'success');
         automationRuleModal.hide();
         await fetchAutomationRules();
     } catch (error) {
@@ -178,29 +199,44 @@ async function saveAutomationRule() {
     }
 }
 
+/**
+ * Deletes an existing automation rule.
+ */
 async function deleteAutomationRule() {
     if (currentAutomationRuleNumber === null) return;
     if (!confirm('Are you sure you want to delete this automation rule?')) return;
 
     try {
-        const result = await updateAutomationRuleApi({
-            type: 'delete',
-            rule: { ruleNumber: currentAutomationRuleNumber }
-        });
-        showToast(result.message || 'Automation rule deleted successfully!', 'success');
+        const payload = { RULE_NUMBER: currentAutomationRuleNumber };
+        const result = await deleteAutomationRuleApi(payload);
+        showToast(result.message, 'success');
         automationRuleModal.hide();
         await fetchAutomationRules();
+        currentAutomationRuleNumber = null;
     } catch (error) {
         showToast('Failed to delete automation rule: ' + error.message, 'fail');
     }
 }
 
-function toggleDefinedUsersField() {
-    if (userAccessTypeSelect.value === 'DEFINED') {
-        definedUsersField.style.display = 'block';
+/**
+ * Toggles form fields based on the selected rule type.
+ * @param {string} ruleType - The selected rule type.
+ */
+function toggleAutomationFormFields(ruleType) {
+    // No fields to toggle yet, but good practice to keep the function.
+}
+
+/**
+ * Toggles the visibility of the "Defined Users" field.
+ * @param {string} userAccessType - The selected user access type.
+ */
+function toggleAutomationUserAccessFields(userAccessType) {
+    if (userAccessType === 'DEFINED_USERS') {
+        automationDefinedUsersField.style.display = 'block';
+        automationDefinedUsersInput.required = true;
     } else {
-        definedUsersField.style.display = 'none';
-        definedUsersInput.value = '';
+        automationDefinedUsersField.style.display = 'none';
+        automationDefinedUsersInput.required = false;
     }
 }
 
