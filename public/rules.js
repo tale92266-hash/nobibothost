@@ -56,6 +56,9 @@ function handleRuleClick(e) {
 async function fetchRules() {
     if (!rulesList) return;
     rulesList.innerHTML = '';
+    
+    toggleLoading(true);
+    
     try {
         const data = await fetchRulesApi();
         allRules = data;
@@ -81,6 +84,8 @@ async function fetchRules() {
                 <p>Please try refreshing the page</p>
             </div>
         `;
+    } finally {
+        toggleLoading(false);
     }
 }
 
