@@ -1,7 +1,7 @@
 // file: core/bot.js
 
 const {
-    getRules, getOwnerRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
+    getRules, getOwnerRules, getAutomationRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
     setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers
 } = require('./state');
@@ -261,6 +261,49 @@ async function processMessage(msg, sessionId = "default", sender) {
             break;
         }
     }
+
+    const automationRules = getAutomationRules();
+    if (!reply && msg.startsWith('/') && automationRules.length > 0) {
+        for (const rule of automationRules) {
+            let userCanRun = false;
+            switch (rule.USER_ACCESS_TYPE) {
+                case 'ALL':
+                    userCanRun = true;
+                    break;
+                case 'OWNER':
+                    userCanRun = isOwner;
+                    break;
+                case 'IGNORED':
+                    const isIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
+                    userCanRun = isIgnored;
+                    break;
+                case 'DEFINED':
+                    userCanRun = rule.DEFINED_USERS.includes(senderName);
+                    break;
+            }
+
+            if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
+                let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
+                if (rule.REPLIES_TYPE === 'ALL') {
+                    reply = replies.join('\n');
+                } else if (rule.REPLIES_TYPE === 'ONE') {
+                    reply = replies[0];
+                } else { // RANDOM
+                    reply = pick(replies);
+                }
+
+                if (rule.MIN_DELAY > 0) {
+                    let delay = rule.MIN_DELAY;
+                    if (rule.MAX_DELAY > rule.MIN_DELAY) {
+                        delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
+                    }
+                    await new Promise(res => setTimeout(res, delay * 1000));
+                }
+                break; // Found an automation rule, stop checking
+            }
+        }
+    }
+
 
     const endTime = process.hrtime(startTime);
     const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
