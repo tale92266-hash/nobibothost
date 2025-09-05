@@ -1,8 +1,5 @@
 // file: public/ownerRules.js
 
-import { fetchOwnerRulesApi, updateOwnerRuleApi } from './api.js';
-import { showToast, configureModalButtons } from './ui.js';
-
 let currentOwnerRuleNumber = null;
 let allOwnerRules = [];
 let totalOwnerRules = 0;
@@ -20,7 +17,7 @@ const ownerRulesList = document.getElementById("ownerRulesList");
 /**
  * Initializes owner rules management and sets up event listeners.
  */
-export function initOwnerRules() {
+function initOwnerRules() {
     document.getElementById("addOwnerRuleBtn")?.addEventListener('click', addNewOwnerRule);
     document.getElementById("saveOwnerRuleBtn")?.addEventListener('click', saveOwnerRule);
     document.getElementById("deleteOwnerRuleBtn")?.addEventListener('click', deleteOwnerRule);
@@ -53,7 +50,7 @@ function handleOwnerRuleClick(e) {
 /**
  * Fetches all owner rules from the server and displays them.
  */
-export async function fetchOwnerRules() {
+async function fetchOwnerRules() {
     if (!ownerRulesList) return;
     ownerRulesList.innerHTML = '';
     try {
