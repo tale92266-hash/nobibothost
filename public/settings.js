@@ -30,6 +30,15 @@ const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
 const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 
+// New Master Stop DOM elements
+const manageMasterStopBtn = document.getElementById('manageMasterStopBtn');
+const masterStopModal = new bootstrap.Modal(document.getElementById('masterStopModal'));
+const masterStopToggle = document.getElementById('masterStopToggle');
+const masterStopMatchTypeSelect = document.getElementById('masterStopMatchType');
+const masterStopTriggerTextarea = document.getElementById('masterStopTriggerText');
+const masterStopReplyTextarea = document.getElementById('masterStopReplyText');
+const saveMasterStopBtn = document.getElementById('saveMasterStopBtn');
+
 /**
  * Initializes settings management and sets up event listeners.
  */
@@ -43,7 +52,10 @@ function initSettings() {
     saveRepeatingBtn?.addEventListener('click', saveRepeatingRuleSettings);
     tempHideBtn?.addEventListener('click', showTempHideModal);
     saveTempHideBtn?.addEventListener('click', saveTempHideSettings);
-    // fetchSettings(); // Ab yahan se yeh line hata do
+
+    // New Master Stop event listeners
+    manageMasterStopBtn?.addEventListener('click', showMasterStopModal);
+    saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
 }
 
 /**
@@ -56,6 +68,7 @@ async function fetchSettings() {
         updateOverrideUsersList();
         updateRepeatingRuleUI();
         updateTempHideUI();
+        updateMasterStopUI();
     } catch (error) {
         console.error('Failed to fetch settings:', error);
     }
@@ -205,5 +218,44 @@ async function saveTempHideSettings() {
         tempHideModal.hide();
     } catch (error) {
         showToast('Failed to save settings: ' + error.message, 'fail');
+    }
+}
+
+// New Master Stop Functions
+function updateMasterStopUI() {
+    if (masterStopToggle) {
+        masterStopToggle.checked = currentSettings.masterStop.enabled;
+    }
+    if (masterStopMatchTypeSelect) {
+        masterStopMatchTypeSelect.value = currentSettings.masterStop.matchType;
+    }
+    if (masterStopTriggerTextarea) {
+        masterStopTriggerTextarea.value = currentSettings.masterStop.triggerText;
+    }
+    if (masterStopReplyTextarea) {
+        masterStopReplyTextarea.value = currentSettings.masterStop.replyText.replace(/<#>/g, '\n<#>\n');
+    }
+}
+
+function showMasterStopModal() {
+    updateMasterStopUI();
+    masterStopModal.show();
+}
+
+async function saveMasterStopSettings() {
+    const payload = {
+        enabled: masterStopToggle.checked,
+        matchType: masterStopMatchTypeSelect.value,
+        triggerText: masterStopTriggerTextarea.value.trim(),
+        replyText: masterStopReplyTextarea.value.trim().replace(/\n<#>\n/g, '<#>')
+    };
+    
+    try {
+        const result = await saveMasterStopSettingsApi(payload);
+        currentSettings.masterStop = payload;
+        showToast(result.message, 'success');
+        masterStopModal.hide();
+    } catch (error) {
+        showToast('Failed to save Master Stop settings: ' + error.message, 'fail');
     }
 }
