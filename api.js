@@ -283,7 +283,8 @@ module.exports = (app, server, getIsReady) => {
     });
 
     app.get("/api/owners", async (req, res) => {
-        res.json({ owners: getOwnerList() });
+        const owners = getOwnerList();
+        res.json(owners);
     });
 
     app.post("/api/owners/update", async (req, res) => {
