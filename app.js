@@ -49,6 +49,7 @@ let isReady = false;
                     unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
                 }
             }},
+            { path: path.join(dataDir, "automation_rules.json"), content: { rules: [] } }
         ];
 
         files.forEach(file => { if (!fs.existsSync(file.path)) { fs.writeFileSync(file.path, JSON.stringify(file.content, null, 2)); } });
