@@ -53,11 +53,11 @@ async function updateBotStatusApi(isOnline) { return apiRequest('/api/bot/status
 async function saveOverrideSettingsApi(endpoint, users) { return apiRequest(endpoint, 'POST', { users }); }
 async function saveRepeatingRuleSettingsApi(payload) { return apiRequest('/api/settings/prevent-repeating-rule', 'POST', payload); }
 async function saveTempHideSettingsApi(payload) { return apiRequest('/api/settings/temporary-hide', 'POST', payload); }
+// New Master Stop API functions
+async function fetchMasterStopSettingsApi() { return apiRequest('/api/settings/master-stop', 'GET'); }
+async function saveMasterStopSettingsApi(payload) { return apiRequest('/api/settings/master-stop', 'POST', payload); }
+
 
 // Owners
 async function fetchOwnersApi() { return apiRequest('/api/owners', 'GET'); }
 async function updateOwnersApi(owners) { return apiRequest('/api/owners/update', 'POST', { owners }); }
-
-// New Master Stop API functions
-async function fetchMasterStopSettingsApi() { return apiRequest('/api/settings/master-stop', 'GET'); }
-async function saveMasterStopSettingsApi(payload) { return apiRequest('/api/settings/master-stop', 'POST', payload); }
