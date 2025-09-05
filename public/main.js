@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else if (subTabName === 'owners') {
                     fetchOwners();
                 } else if (subTabName === 'automation') {
-                    // Automation pane logic here
+                    fetchAutomationRules();
                 }
             });
         }
@@ -48,6 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettings();
     initOwnerRules();
     initOwners();
+    initAutomationRules();
     
     // Initial fetch for the default selected tab (stats)
     tabHandlers['stats']();
