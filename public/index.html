@@ -336,6 +336,18 @@
                                         </button>
                                     </div>
                                 </div>
+                                <div class="settings-card" data-setting="master-stop">
+                                    <div class="settings-card-icon">
+                                        <i class="fas fa-stop-circle"></i>
+                                    </div>
+                                    <div class="settings-card-content">
+                                        <h5>Master Stop</h5>
+                                        <p>Stop all automation rules with a single command.</p>
+                                        <button class="btn btn-primary" id="masterStopBtn">
+                                            <i class="fas fa-arrow-right"></i> Configure
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="settings-card" data-setting="export">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-download"></i>
@@ -702,6 +714,58 @@
         </div>
     </div>
 
+    <div class="modal fade" id="masterStopModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-stop-circle"></i> Master Stop Settings
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Configure a keyword to stop all automation rules globally.</p>
+                    <div class="form-group mt-3">
+                        <div class="form-check form-switch d-flex align-items-center justify-content-between mb-3">
+                            <label class="form-check-label" for="masterStopToggle">
+                                Enable Master Stop
+                            </label>
+                            <input class="form-check-input" type="checkbox" role="switch" id="masterStopToggle">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="masterStopMatchType">Match Type</label>
+                        <select class="form-select" id="masterStopMatchType">
+                            <option value="EXACT">Exact Match</option>
+                            <option value="PATTERN">Pattern Match</option>
+                            <option value="EXPERT">Expert (Regex)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="masterStopTriggerText">Trigger Text (or Pattern)</label>
+                        <textarea class="form-control" id="masterStopTriggerText" rows="3" placeholder="e.g., stop all automation//band karo"></textarea>
+                        <small class="form-text text-muted">Use // to separate multiple keywords. Use * for wildcards in Pattern matching.</small>
+                    </div>
+                    
+                    <div class="form-group mt-3">
+                        <label for="masterStopReplyText">Reply Text</label>
+                        <textarea class="form-control" id="masterStopReplyText" rows="3" placeholder="Use <#> to separate multiple replies"></textarea>
+                        <small class="form-text text-muted">This reply will be sent when the master stop trigger is matched. Use &lt;#&gt; for multiple replies.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveMasterStopBtn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="ownerRuleModal">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
@@ -945,3 +1009,4 @@
 
 </body>
 </html>
+
