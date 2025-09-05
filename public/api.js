@@ -51,3 +51,7 @@ export const fetchOwnerRulesApi = () => apiRequest('/api/owner-rules');
 export const updateOwnerRuleApi = (payload) => apiRequest('/api/owner-rules/update', { method: 'POST', body: JSON.stringify(payload) });
 export const fetchOwnersApi = () => apiRequest('/api/owners');
 export const updateOwnersApi = (owners) => apiRequest('/api/owners/update', { method: 'POST', body: JSON.stringify({ owners }) });
+
+// Automation API functions
+export const fetchAutomationRulesApi = () => apiRequest('/api/automation-rules');
+export const updateAutomationRuleApi = (payload) => apiRequest('/api/automation-rules/update', { method: 'POST', body: JSON.stringify(payload) });
