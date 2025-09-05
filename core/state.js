@@ -19,7 +19,7 @@ let state = {
     welcomedUsers: [],
     rules: [],
     ownerRules: [],
-    automationRules: [], // New state property
+    automationRules: [],
     variables: [],
     ignoredOverrideUsers: [],
     specificOverrideUsers: [],
@@ -36,6 +36,12 @@ let state = {
             unhideMatchType: 'EXACT',
             hideReply: 'Aapko ab chup kar diya gaya hai, mai koi message nahi bhejunga ab.<#>Main ab online nahi hoon. Dobara try mat karna.',
             unhideReply: 'Mai wapas aa gaya, abhi aapko reply karunga.<#>Wapis aane ka intezar kar rahe the? Abhi reply milega.'
+        },
+        masterStop: {
+            enabled: false,
+            matchType: 'EXACT',
+            triggerText: 'stop all automation',
+            replyText: 'Sare automation rules band kar diye gaye hain.'
         }
     },
     recentChatMessages: [],
@@ -48,7 +54,7 @@ exports.getStats = () => state.stats;
 exports.getWelcomedUsers = () => state.welcomedUsers;
 exports.getRules = () => state.rules;
 exports.getOwnerRules = () => state.ownerRules;
-exports.getAutomationRules = () => state.automationRules; // New getter
+exports.getAutomationRules = () => state.automationRules;
 exports.getVariables = () => state.variables;
 exports.getIgnoredOverrideUsers = () => state.ignoredOverrideUsers;
 exports.getSpecificOverrideUsers = () => state.specificOverrideUsers;
@@ -63,7 +69,7 @@ exports.setStats = (stats) => { state.stats = stats; };
 exports.setWelcomedUsers = (users) => { state.welcomedUsers = users; };
 exports.setRules = (rules) => { state.rules = rules; };
 exports.setOwnerRules = (rules) => { state.ownerRules = rules; };
-exports.setAutomationRules = (rules) => { state.automationRules = rules; }; // New setter
+exports.setAutomationRules = (rules) => { state.automationRules = rules; };
 exports.setVariables = (vars) => { state.variables = vars; };
 exports.setIgnoredOverrideUsers = (users) => { state.ignoredOverrideUsers = users; };
 exports.setSpecificOverrideUsers = (users) => { state.specificOverrideUsers = users; };
@@ -83,10 +89,8 @@ exports.FILE_PATHS = {
     ownersListFile,
     settingsFilePath,
     ownerRulesFilePath,
-    automationRulesFilePath // New file path
+    automationRulesFilePath
 };
 
-// Global state for automation rule cooldowns
-// This is intentionally kept here to manage state across different bot functions
 const ruleCooldowns = new Map();
 exports.ruleCooldowns = ruleCooldowns;
