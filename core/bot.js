@@ -11,6 +11,8 @@ const {
     isUserIgnored, matchesTrigger, pick
 } = require('./utils');
 
+const ruleCooldowns = new Map();
+
 async function processOwnerMessage(msg, sessionId, sender, senderName) {
     const startTime = process.hrtime();
     let reply = null;
@@ -265,6 +267,12 @@ async function processMessage(msg, sessionId = "default", sender) {
     const automationRules = getAutomationRules();
     if (!reply && msg.startsWith('/') && automationRules.length > 0) {
         for (const rule of automationRules) {
+            const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
+            if (ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
+                console.log(`🚫 Automation rule "${rule.RULE_NAME}" is on cooldown for this user.`);
+                continue;
+            }
+
             let userCanRun = false;
             switch (rule.USER_ACCESS_TYPE) {
                 case 'ALL':
@@ -273,9 +281,14 @@ async function processMessage(msg, sessionId = "default", sender) {
                 case 'OWNER':
                     userCanRun = isOwner;
                     break;
+                case 'OWNER_IGNORED':
+                    userCanRun = isOwner || isSenderIgnored;
+                    break;
+                case 'OWNER_DEFINED':
+                    userCanRun = isOwner || rule.DEFINED_USERS.includes(senderName);
+                    break;
                 case 'IGNORED':
-                    const isIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
-                    userCanRun = isIgnored;
+                    userCanRun = isSenderIgnored;
                     break;
                 case 'DEFINED':
                     userCanRun = rule.DEFINED_USERS.includes(senderName);
@@ -294,11 +307,20 @@ async function processMessage(msg, sessionId = "default", sender) {
 
                 if (rule.MIN_DELAY > 0) {
                     let delay = rule.MIN_DELAY;
-                    if (rule.MAX_DELAY > rule.MIN_DELAY) {
+                    if (rule.MAX_DELAY && rule.MAX_DELAY > rule.MIN_DELAY) {
                         delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
                     }
+                    console.log(`⏰ Applying a delay of ${delay} seconds for automation rule.`);
                     await new Promise(res => setTimeout(res, delay * 1000));
                 }
+                
+                if (rule.COOLDOWN > 0) {
+                    const cooldownTime = Date.now() + (rule.COOLDOWN * 1000);
+                    ruleCooldowns.set(cooldownKey, cooldownTime);
+                    console.log(`⏱️ Automation rule "${rule.RULE_NAME}" put on cooldown for ${rule.COOLDOWN} seconds.`);
+                }
+
+                matchedRuleId = rule.RULE_NUMBER;
                 break; // Found an automation rule, stop checking
             }
         }
