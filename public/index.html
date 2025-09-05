@@ -235,6 +235,10 @@
                                         <i class="fas fa-plus-circle"></i>
                                         Add New Owner Rule
                                     </button>
+                                    <button class="btn btn-outline-primary btn-lg" id="manageOwnersBtn">
+                                        <i class="fas fa-user-plus"></i>
+                                        Manage Owners
+                                    </button>
                                 </div>
                                 <div class="content-section">
                                     <div class="section-header">
@@ -752,6 +756,34 @@
                     <button type="submit" form="ownerRuleForm" class="btn btn-primary" id="saveOwnerRuleBtn">
                         <span class="spinner-border spinner-border-sm" style="display: none;"></span>
                         <i class="fas fa-save"></i> Save Rule
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal fade" id="ownersModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus"></i> Manage Owners
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group mt-3">
+                        <label for="ownersList">Enter Owner Usernames (comma-separated)</label>
+                        <textarea class="form-control" id="ownersList" rows="5" placeholder="e.g., owner1, owner2, owner3"></textarea>
+                        <small class="form-text text-muted">Aap multiple owners ko comma se separate kar sakte hain.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveOwnersBtn">
+                        <i class="fas fa-save"></i> Save Changes
                     </button>
                 </div>
             </div>
