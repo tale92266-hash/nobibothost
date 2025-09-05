@@ -75,6 +75,7 @@ async function processOwnerMessage(msg, sessionId, sender, senderName) {
 async function processMessage(msg, sessionId = "default", sender) {
     const startTime = process.hrtime();
     const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+    const context = isGroup ? groupName : 'DM';
 
     const isOwner = getOwnerList().includes(senderName);
 
