@@ -1,4 +1,4 @@
-// file: public/main.js
+/// file: public/main.js
 
 import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay, initSubNavigation } from './ui.js';
 import { fetchStatsApi } from './api.js';
@@ -7,6 +7,7 @@ import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
 import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
+import { initOwners, fetchOwners } from './owners.js';
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -31,7 +32,6 @@ document.addEventListener("DOMContentLoaded", () => {
             // Chat is initialized once, no need to re-fetch
         },
         'additional': () => {
-            // This will handle sub-tab changes when the modules are available.
             initSubNavigation((subTabName) => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
@@ -42,9 +42,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     };
     
-    // NOTE: subTabHandlers and initSubNavigation are removed
-    // as there are no longer any sub-tabs.
-
     initBottomNavigation((tabName) => {
         if (tabHandlers[tabName]) {
             tabHandlers[tabName]();
@@ -57,6 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initVariables();
     initSettings();
     initOwnerRules();
+    initOwners();
 
     // Initial load
     async function initialLoad() {
