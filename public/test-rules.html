@@ -584,7 +584,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Setup Modal -->
         <div id="setupModal" class="setup-modal">
             <div class="setup-card">
                 <h2 class="setup-title">
@@ -624,9 +623,7 @@
             </div>
         </div>
 
-        <!-- Chat Interface -->
         <div id="chatInterface" class="hidden">
-            <!-- Fixed Header -->
             <header class="chat-header">
                 <div class="avatar">
                     NB
@@ -644,7 +641,6 @@
                 </div>
             </header>
 
-            <!-- Scrollable Messages Area -->
             <main class="chat-messages" id="chatMessages">
                 <div class="typing-indicator" id="typingIndicator">
                     <div class="typing-dots">
@@ -655,12 +651,10 @@
                 </div>
             </main>
 
-            <!-- Scroll to Bottom Button -->
             <button class="scroll-indicator" id="scrollIndicator">
                 <i class="fas fa-chevron-down"></i>
             </button>
 
-            <!-- Fixed Footer -->
             <footer class="chat-footer">
                 <div class="message-input-container">
                     <div class="message-input-wrapper">
@@ -807,38 +801,31 @@
                         ? `${this.chatSettings.gcName}: ${this.chatSettings.userName}` 
                         : this.chatSettings.userName;
 
-                    setTimeout(async () => {
-                        try {
-                            const response = await fetch('/webhook', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                    query: { 
-                                        message: message, 
-                                        sender: sender 
-                                    } 
-                                })
-                            });
+                    const response = await fetch('/webhook', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            query: { 
+                                message: message, 
+                                sender: sender 
+                            } 
+                        })
+                    });
 
-                            const data = await response.json();
-                            
-                            this.hideTyping();
-                            if (data.replies && data.replies.length > 0) {
-                                this.addMessage(data.replies[0].message, 'received');
-                            } else {
-                                this.addMessage("(No matching rule found)", 'received');
-                            }
-                        } catch (error) {
-                            this.hideTyping();
-                            this.addMessage("Sorry, I'm having trouble connecting. Please try again.", 'received');
+                    const data = await response.json();
+                    
+                    this.hideTyping();
+                    if (data.replies && data.replies.length > 0) {
+                        for (let i = 0; i < data.replies.length; i++) {
+                            await new Promise(resolve => setTimeout(resolve, i === 0 ? 500 : 1000));
+                            this.addMessage(data.replies[i].message, 'received');
                         }
-                    }, 1000 + Math.random() * 1500);
-
+                    } else {
+                        this.addMessage("(No matching rule found)", 'received');
+                    }
                 } catch (error) {
-                    setTimeout(() => {
-                        this.hideTyping();
-                        this.addMessage("Sorry, I'm having trouble connecting. Please try again.", 'received');
-                    }, 1000);
+                    this.hideTyping();
+                    this.addMessage("Sorry, I'm having trouble connecting. Please try again.", 'received');
                 }
             }
 
