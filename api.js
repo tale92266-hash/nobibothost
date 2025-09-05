@@ -1,6 +1,6 @@
 // file: api.js
 
-const { getRules, getOwnerRules, getAutomationRules, getVariables, getSettings, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList } = require('./core/state');
+const { getRules, getOwnerRules, getAutomationRules, getVariables, getSettings, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList, getMessageHistory } = require('./core/state');
 const { db } = require('./db');
 const { convertNewlinesBeforeSave } = require('./core/utils');
 const { getStats } = require('./core/state');
@@ -269,7 +269,7 @@ module.exports = function setupApiRoutes(app, server, isReady) {
             res.status(500).json({ success: false, message: "Failed to save automation rule: " + error.message });
         }
     });
-    
+
     app.get("/stats", async (req, res) => {
         if (!isReady()) return res.status(503).json({ message: "Server is not ready yet." });
         const stats = getStats();
