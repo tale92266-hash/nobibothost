@@ -7,7 +7,6 @@ import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
 import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
-import { initOwners, fetchOwners, setupOwnerButtons } from './owners.js';
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -36,8 +35,6 @@ document.addEventListener("DOMContentLoaded", () => {
             initSubNavigation((subTabName) => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
-                    fetchOwners();
-                    setupOwnerButtons();
                 } else if (subTabName === 'automation') {
                     // Automation pane logic here
                 }
@@ -60,7 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initVariables();
     initSettings();
     initOwnerRules();
-    initOwners();
 
     // Initial load
     async function initialLoad() {
@@ -71,8 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 fetchRules(),
                 fetchVariables(),
                 fetchSettings(),
-                fetchOwnerRules(),
-                fetchOwners()
+                fetchOwnerRules()
             ]);
         } catch (error) {
             showToast('Failed to initialize application', 'fail');
