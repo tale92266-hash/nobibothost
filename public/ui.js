@@ -4,7 +4,7 @@
  * Manages the loading state of the UI.
  * @param {boolean} show - True to show loading, false to hide.
  */
-export function toggleLoading(show) {
+function toggleLoading(show) {
     const loadingMessage = document.getElementById('loadingMessage');
     if (loadingMessage) {
         loadingMessage.style.display = show ? 'flex' : 'none';
@@ -16,7 +16,7 @@ export function toggleLoading(show) {
  * @param {string} message - The message to display.
  * @param {'success' | 'fail' | 'warning'} [type='success'] - The type of toast.
  */
-export function showToast(message, type = 'success') {
+function showToast(message, type = 'success') {
     const toastElement = document.getElementById('liveToast');
     if (!toastElement) return;
     const toastBody = toastElement.querySelector('.toast-body');
@@ -34,7 +34,7 @@ export function showToast(message, type = 'success') {
  * Initializes the bottom navigation.
  * @param {Function} onTabChange - Callback function for tab change.
  */
-export function initBottomNavigation(onTabChange) {
+function initBottomNavigation(onTabChange) {
     const navItems = document.querySelectorAll('.bottom-navigation .nav-item');
     const tabPanes = document.querySelectorAll('.tab-pane');
 
@@ -59,7 +59,7 @@ export function initBottomNavigation(onTabChange) {
  * Initializes the sub-navigation.
  * @param {Function} onSubTabChange - Callback function for sub-tab change.
  */
-export function initSubNavigation(onSubTabChange) {
+function initSubNavigation(onSubTabChange) {
     const subNavItems = document.querySelectorAll('.sub-navigation .nav-item');
     const subTabPanes = document.querySelectorAll('.sub-tab-content .tab-pane');
 
@@ -94,7 +94,7 @@ export function initSubNavigation(onSubTabChange) {
  * @param {'rule' | 'variable' | 'ownerRule'} modalType - The type of modal.
  * @param {'add' | 'edit'} mode - The mode of the modal.
  */
-export function configureModalButtons(modalType, mode) {
+function configureModalButtons(modalType, mode) {
     let deleteBtn, buttonContainer;
     if (modalType === 'rule') {
         deleteBtn = document.getElementById('deleteRuleBtn');
@@ -118,7 +118,7 @@ export function configureModalButtons(modalType, mode) {
  * Updates the stats display on the dashboard.
  * @param {object} data - The stats data.
  */
-export function updateStatsDisplay(data) {
+function updateStatsDisplay(data) {
     const totalUsers = document.getElementById('totalUsers');
     const todayUsers = document.getElementById('todayUsers');
     const totalMsgs = document.getElementById('totalMsgs');
@@ -140,7 +140,7 @@ export function updateStatsDisplay(data) {
  * Updates the bot status button and text.
  * @param {boolean} isOnline - The bot's online status.
  */
-export function updateBotStatusUI(isOnline) {
+function updateBotStatusUI(isOnline) {
     const botStatusBtn = document.getElementById('botStatusBtn');
     const botStatusText = document.getElementById('botStatusText');
 
