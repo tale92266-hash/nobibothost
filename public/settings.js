@@ -52,10 +52,6 @@ function initSettings() {
     saveRepeatingBtn?.addEventListener('click', saveRepeatingRuleSettings);
     tempHideBtn?.addEventListener('click', showTempHideModal);
     saveTempHideBtn?.addEventListener('click', saveTempHideSettings);
-
-    // New Master Stop event listeners
-    manageMasterStopBtn?.addEventListener('click', showMasterStopModal);
-    saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
 }
 
 /**
@@ -221,21 +217,31 @@ async function saveTempHideSettings() {
     }
 }
 
-// New Master Stop Functions
+
+// Master Stop functions
+const masterStopToggle = document.getElementById('masterStopToggle');
+const masterStopMatchTypeSelect = document.getElementById('masterStopMatchType');
+const masterStopTriggerTextarea = document.getElementById('masterStopTriggerText');
+const masterStopReplyTextarea = document.getElementById('masterStopReplyText');
+const saveMasterStopBtn = document.getElementById('saveMasterStopBtn');
+const manageMasterStopBtn = document.getElementById('manageMasterStopBtn');
+const masterStopModal = new bootstrap.Modal(document.getElementById('masterStopModal'));
+
+function initMasterStopSettings() {
+    manageMasterStopBtn?.addEventListener('click', showMasterStopModal);
+    saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
+    // Initial UI update for Master Stop
+    if (currentSettings.masterStop) {
+        updateMasterStopUI();
+    }
+}
+
 function updateMasterStopUI() {
     if (currentSettings.masterStop) {
-        if (masterStopToggle) {
-            masterStopToggle.checked = currentSettings.masterStop.enabled;
-        }
-        if (masterStopMatchTypeSelect) {
-            masterStopMatchTypeSelect.value = currentSettings.masterStop.matchType;
-        }
-        if (masterStopTriggerTextarea) {
-            masterStopTriggerTextarea.value = currentSettings.masterStop.triggerText;
-        }
-        if (masterStopReplyTextarea) {
-            masterStopReplyTextarea.value = currentSettings.masterStop.replyText.replace(/<#>/g, '\n<#>\n');
-        }
+        masterStopToggle.checked = currentSettings.masterStop.enabled;
+        masterStopMatchTypeSelect.value = currentSettings.masterStop.matchType;
+        masterStopTriggerTextarea.value = currentSettings.masterStop.triggerText;
+        masterStopReplyTextarea.value = currentSettings.masterStop.replyText.replace(/<#>/g, '\n<#>\n');
     }
 }
 
