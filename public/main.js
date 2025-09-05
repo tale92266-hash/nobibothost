@@ -49,7 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initOwnerRules();
     initOwners();
     initAutomationRules();
-    initMasterStopSettings();
     
     // Initial fetch for the default selected tab (stats)
     tabHandlers['stats']();

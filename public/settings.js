@@ -30,15 +30,6 @@ const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
 const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 
-// New Master Stop DOM elements
-const manageMasterStopBtn = document.getElementById('manageMasterStopBtn');
-const masterStopModal = new bootstrap.Modal(document.getElementById('masterStopModal'));
-const masterStopToggle = document.getElementById('masterStopToggle');
-const masterStopMatchTypeSelect = document.getElementById('masterStopMatchType');
-const masterStopTriggerTextarea = document.getElementById('masterStopTriggerText');
-const masterStopReplyTextarea = document.getElementById('masterStopReplyText');
-const saveMasterStopBtn = document.getElementById('saveMasterStopBtn');
-
 /**
  * Initializes settings management and sets up event listeners.
  */
@@ -52,10 +43,7 @@ function initSettings() {
     saveRepeatingBtn?.addEventListener('click', saveRepeatingRuleSettings);
     tempHideBtn?.addEventListener('click', showTempHideModal);
     saveTempHideBtn?.addEventListener('click', saveTempHideSettings);
-    
-    // New Master Stop event listeners
-    manageMasterStopBtn?.addEventListener('click', showMasterStopModal);
-    saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
+    // fetchSettings(); // Ab yahan se yeh line hata do
 }
 
 /**
@@ -68,7 +56,6 @@ async function fetchSettings() {
         updateOverrideUsersList();
         updateRepeatingRuleUI();
         updateTempHideUI();
-        updateMasterStopUI();
     } catch (error) {
         console.error('Failed to fetch settings:', error);
     }
@@ -218,56 +205,5 @@ async function saveTempHideSettings() {
         tempHideModal.hide();
     } catch (error) {
         showToast('Failed to save settings: ' + error.message, 'fail');
-    }
-}
-
-
-// Master Stop functions
-const masterStopToggle = document.getElementById('masterStopToggle');
-const masterStopMatchTypeSelect = document.getElementById('masterStopMatchType');
-const masterStopTriggerTextarea = document.getElementById('masterStopTriggerText');
-const masterStopReplyTextarea = document.getElementById('masterStopReplyText');
-const saveMasterStopBtn = document.getElementById('saveMasterStopBtn');
-const manageMasterStopBtn = document.getElementById('manageMasterStopBtn');
-const masterStopModal = new bootstrap.Modal(document.getElementById('masterStopModal'));
-
-function initMasterStopSettings() {
-    manageMasterStopBtn?.addEventListener('click', showMasterStopModal);
-    saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
-    // Initial UI update for Master Stop
-    if (currentSettings.masterStop) {
-        updateMasterStopUI();
-    }
-}
-
-function updateMasterStopUI() {
-    if (currentSettings.masterStop) {
-        masterStopToggle.checked = currentSettings.masterStop.enabled;
-        masterStopMatchTypeSelect.value = currentSettings.masterStop.matchType;
-        masterStopTriggerTextarea.value = currentSettings.masterStop.triggerText;
-        masterStopReplyTextarea.value = currentSettings.masterStop.replyText.replace(/<#>/g, '\n<#>\n');
-    }
-}
-
-function showMasterStopModal() {
-    updateMasterStopUI();
-    masterStopModal.show();
-}
-
-async function saveMasterStopSettings() {
-    const payload = {
-        enabled: masterStopToggle.checked,
-        matchType: masterStopMatchTypeSelect.value,
-        triggerText: masterStopTriggerTextarea.value.trim(),
-        replyText: masterStopReplyTextarea.value.trim().replace(/\n<#>\n/g, '<#>')
-    };
-    
-    try {
-        const result = await saveMasterStopSettingsApi(payload);
-        currentSettings.masterStop = payload;
-        showToast(result.message, 'success');
-        masterStopModal.hide();
-    } catch (error) {
-        showToast('Failed to save Master Stop settings: ' + error.message, 'fail');
     }
 }
