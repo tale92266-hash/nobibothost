@@ -35,6 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
             initSubNavigation((subTabName) => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
+                } else if (subTabName === 'owners') {
+                    fetchOwners();
                 } else if (subTabName === 'automation') {
                     // Automation pane logic here
                 }
@@ -55,25 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettings();
     initOwnerRules();
     initOwners();
-
-    // Initial load
-    async function initialLoad() {
-        toggleLoading(true);
-        try {
-            await Promise.all([
-                fetchStatsApi().then(updateStatsDisplay),
-                fetchRules(),
-                fetchVariables(),
-                fetchSettings(),
-                fetchOwnerRules()
-            ]);
-        } catch (error) {
-            showToast('Failed to initialize application', 'fail');
-            console.error('Initialization error:', error);
-        } finally {
-            toggleLoading(false);
-        }
-    }
-
-    initialLoad();
+    
+    // Initial fetch for the default selected tab (stats)
+    tabHandlers['stats']();
 });
