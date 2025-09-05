@@ -2,16 +2,16 @@
 
 const express = require('express');
 const { db } = require('./db');
-const { convertNewlinesBeforeSave } = require('./core/utils');
-const { 
+const { convertNewlinesBeforeSave, matchesTrigger } = require('./core/utils');
+const {
     getRules, getOwnerRules, getVariables, getSettings, getIgnoredOverrideUsers,
     getSpecificOverrideUsers, getOwnerList, setIgnoredOverrideUsers, setSpecificOverrideUsers,
     setOwnerList, setSettings, getStats, getRecentChatMessages, setRecentChatMessages,
     getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules
 } = require('./core/state');
-const { processMessage } = require('./core/bot');
+const { processMessage, processOwnerMessage } = require('./core/bot');
 const { Server } = require("socket.io");
-const { Server: HTTPServer } = "http";
+const { Server: HTTPServer } = require("http");
 
 module.exports = (app, server, getIsReady) => {
     const io = new Server(server, { cors: { origin: "*" } });
@@ -193,8 +193,8 @@ module.exports = (app, server, getIsReady) => {
                 name: variable.name,
                 value: convertNewlinesBeforeSave(variable.value)
             };
-            if (type === "add") { await db.Variable.create(processedVariable); } 
-            else if (type === "edit") { await db.Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true }); } 
+            if (type === "add") { await db.Variable.create(processedVariable); }
+            else if (type === "edit") { await db.Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true }); }
             else if (type === "delete") { await db.Variable.deleteOne({ name: variable.name }); }
             await db.loadAllVariables();
             res.json({ success: true, message: "Variable updated successfully!" });
@@ -236,13 +236,7 @@ module.exports = (app, server, getIsReady) => {
 
     app.get("/api/settings", async (req, res) => {
         try {
-            const settingsData = {
-                preventRepeatingRule: getSettings().preventRepeatingRule,
-                isBotOnline: getSettings().isBotOnline,
-                temporaryHide: getSettings().temporaryHide,
-                ignoredOverrideUsers: getIgnoredOverrideUsers(),
-                specificOverrideUsers: getSpecificOverrideUsers()
-            };
+            const settingsData = getSettings();
             res.json(settingsData);
         } catch (error) {
             res.status(500).json({ success: false, message: "Server error" });
@@ -252,7 +246,9 @@ module.exports = (app, server, getIsReady) => {
     app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
         try {
             const { enabled, cooldown } = req.body;
-            setSettings({ ...getSettings(), preventRepeatingRule: { enabled, cooldown } });
+            const settings = getSettings();
+            settings.preventRepeatingRule = { enabled, cooldown };
+            setSettings(settings);
             await db.saveSettings();
             res.json({ success: true, message: "Repeating rule setting updated successfully." });
         } catch (error) {
@@ -264,11 +260,27 @@ module.exports = (app, server, getIsReady) => {
     app.post("/api/settings/temporary-hide", async (req, res) => {
         try {
             const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } = req.body;
-            setSettings({ ...getSettings(), temporaryHide: { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } });
+            const settings = getSettings();
+            settings.temporaryHide = { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply };
+            setSettings(settings);
             await db.saveSettings();
             res.json({ success: true, message: "Temporary hide setting updated successfully." });
         } catch (error) {
             console.error("❌ Failed to update temporary hide setting:", error);
+            res.status(500).json({ success: false, message: "Server error" });
+        }
+    });
+
+    app.post("/api/settings/master-stop", async (req, res) => {
+        try {
+            const { enabled, matchType, triggerText, replyText } = req.body;
+            const settings = getSettings();
+            settings.masterStop = { enabled, matchType, triggerText, replyText };
+            setSettings(settings);
+            await db.saveSettings();
+            res.json({ success: true, message: "Master Stop settings updated successfully." });
+        } catch (error) {
+            console.error("❌ Failed to update Master Stop setting:", error);
             res.status(500).json({ success: false, message: "Server error" });
         }
     });
@@ -280,8 +292,8 @@ module.exports = (app, server, getIsReady) => {
             settings.isBotOnline = isOnline;
             setSettings(settings);
             await db.saveSettings();
-            res.json({ 
-                success: true, 
+            res.json({
+                success: true,
                 message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.`,
                 settings: getSettings()
             });
@@ -333,7 +345,7 @@ module.exports = (app, server, getIsReady) => {
                     if (rule.ruleNumber !== oldRuleNumber) {
                         const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
                         const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
-                        if (rule.ruleNumber < oldRuleNumber) { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session }); } 
+                        if (rule.ruleNumber < oldRuleNumber) { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session }); }
                         else { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session }); }
                     }
                     const updateData = {
