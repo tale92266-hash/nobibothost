@@ -99,7 +99,7 @@ function editVariable(variable) {
     currentVariableName = variable.name;
     document.getElementById('variableName').value = variable.name;
     document.getElementById('variableValue').value = variable.value;
-    document.getElementById('variableName').disabled = false; // Ab variable ka naam edit kiya ja sakta hai
+    document.getElementById('variableName').disabled = false;
     configureModalButtons('variable', 'edit');
     variableModal.show();
 }
@@ -110,7 +110,7 @@ function editVariable(variable) {
 function addNewVariable() {
     currentVariableName = null;
     variableForm.reset();
-    document.getElementById('variableName').disabled = false; // Add mode mein enable kiya
+    document.getElementById('variableName').disabled = false;
     configureModalButtons('variable', 'add');
     variableModal.show();
 }
@@ -119,7 +119,7 @@ function addNewVariable() {
  * Saves or updates a variable.
  */
 async function saveVariable(event) {
-    event.preventDefault(); // Page reload ko prevent kiya
+    event.preventDefault();
     const name = document.getElementById('variableName').value.trim();
     const value = document.getElementById('variableValue').value.trim();
     if (!name || !value) {
