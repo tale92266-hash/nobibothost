@@ -478,14 +478,14 @@ module.exports = (app, server, getIsReady) => {
         
         const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
 
-        const replyText = await processMessage(msg, sessionId, sender);
+        const replies = await processMessage(msg, sessionId, sender);
 
         const messageData = {
             sessionId: sessionId,
             senderName: parsedSenderName,
             groupName: isGroup ? groupName : null,
             userMessage: msg,
-            botReply: replyText,
+            botReply: Array.isArray(replies) ? replies.join('\n') : replies,
             timestamp: new Date().toISOString()
         };
 
@@ -499,8 +499,10 @@ module.exports = (app, server, getIsReady) => {
         io.emit('newMessage', messageData);
         emitStats();
 
-        if (!replyText) return res.json({ replies: [] });
-        res.json({ replies: [{ message: replyText }] });
+        if (!replies || replies.length === 0) return res.json({ replies: [] });
+        
+        const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
+        res.json({ replies: formattedReplies });
     });
 
     app.get("/stats", async (req, res) => {
