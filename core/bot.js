@@ -3,8 +3,7 @@
 const {
     getRules, getOwnerRules, getAutomationRules, getWelcomedUsers, getSettings, getIgnoredOverrideUsers,
     getOwnerList, setIgnoredOverrideUsers, setWelcomedUsers, getStats, getMessageHistory,
-    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers,
-    ruleCooldowns
+    setMessageHistory, setLastReplyTimes, getLastReplyTimes, setStats, getSpecificOverrideUsers
 } = require('./state');
 const { db } = require('../db');
 const {
@@ -12,22 +11,13 @@ const {
     isUserIgnored, matchesTrigger, pick
 } = require('./utils');
 
+const ruleCooldowns = new Map();
 
 async function processOwnerMessage(msg, sessionId, sender, senderName) {
     const startTime = process.hrtime();
     let reply = null;
     let regexMatch = null;
     let matchedRuleId = null;
-
-    // START: New logic for Master Stop
-    const masterStopSettings = getSettings().masterStop;
-    if (masterStopSettings.enabled && matchesTrigger(msg, masterStopSettings.triggerText, masterStopSettings.matchType)) {
-        console.log(`⚠️ Owner "${senderName}" requested to stop all automation rules.`);
-        db.clearAutomationRuleCooldowns();
-        const replyText = pick(masterStopSettings.replyText.split('<#>'));
-        return resolveVariablesRecursively(replyText, senderName, msg, 0);
-    }
-    // END: New logic for Master Stop
 
     for (let rule of getOwnerRules()) {
         let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
@@ -216,7 +206,7 @@ async function processMessage(msg, sessionId = "default", sender) {
         if (rule.RULE_TYPE === "IGNORED") {
             if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
         } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-            if (isSenderIgnored) { userMatch = false; }
+            if (isSenderIgnored) { userMatch = false; } 
             else { userMatch = true; }
         }
 
@@ -236,7 +226,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             match = true;
         } else {
             for (let pattern of patterns) {
-                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; }
+                if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; } 
                 else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
 
                 if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
@@ -370,4 +360,3 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 exports.processMessage = processMessage;
-
