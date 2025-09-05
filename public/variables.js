@@ -1,8 +1,5 @@
 // file: public/variables.js
 
-import { fetchVariablesApi, updateVariableApi } from './api.js';
-import { showToast, configureModalButtons } from './ui.js';
-
 let currentVariableName = null;
 let allVariables = [];
 
@@ -13,7 +10,7 @@ const variableForm = document.getElementById('variableForm');
 /**
  * Initializes variables management and sets up event listeners.
  */
-export function initVariables() {
+function initVariables() {
     document.getElementById('addVariableBtn')?.addEventListener('click', addNewVariable);
     document.getElementById('saveVariableBtn')?.addEventListener('click', saveVariable);
     document.getElementById('deleteVariableBtn')?.addEventListener('click', deleteVariable);
@@ -34,7 +31,7 @@ export function initVariables() {
 /**
  * Fetches all variables from the server and displays them.
  */
-export async function fetchVariables() {
+async function fetchVariables() {
     try {
         const data = await fetchVariablesApi();
         allVariables = data;
