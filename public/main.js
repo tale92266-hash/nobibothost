@@ -1,21 +1,12 @@
 /// file: public/main.js
 
-import { toggleLoading, showToast, initBottomNavigation, updateStatsDisplay, initSubNavigation } from './ui.js';
-import { fetchStatsApi } from './api.js';
-import { initChat } from './chat.js';
-import { initRules, fetchRules } from './rules.js';
-import { initVariables, fetchVariables } from './variables.js';
-import { initSettings, fetchSettings } from './settings.js';
-import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
-import { initOwners, fetchOwners } from './owners.js';
-
 document.addEventListener("DOMContentLoaded", () => {
-
     const socket = io();
     socket.on('statsUpdate', (data) => {
         updateStatsDisplay(data);
     });
 
+    // Saare functions ab global scope mein available hain
     const tabHandlers = {
         'stats': async () => {
             try {
