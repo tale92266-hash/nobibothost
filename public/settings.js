@@ -1,14 +1,5 @@
 // file: public/settings.js
 
-import {
-    fetchSettingsApi,
-    updateBotStatusApi,
-    saveOverrideSettingsApi,
-    saveRepeatingRuleSettingsApi,
-    saveTempHideSettingsApi
-} from './api.js';
-import { showToast, updateBotStatusUI } from './ui.js';
-
 let currentSettings = {};
 let currentOverrideType = null;
 
@@ -42,7 +33,7 @@ const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 /**
  * Initializes settings management and sets up event listeners.
  */
-export function initSettings() {
+function initSettings() {
     botStatusBtn?.addEventListener('click', toggleBotStatus);
     ignoredOverrideBtn?.addEventListener('click', showIgnoredOverrideModal);
     specificOverrideBtn?.addEventListener('click', showSpecificOverrideModal);
@@ -57,7 +48,7 @@ export function initSettings() {
 /**
  * Fetches all settings from the server.
  */
-export async function fetchSettings() {
+async function fetchSettings() {
     try {
         currentSettings = await fetchSettingsApi();
         updateBotStatusUI(currentSettings.isBotOnline);
