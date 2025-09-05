@@ -289,7 +289,7 @@ async function deleteAutomationRule() {
 function validateAutomationRuleForm() {
     const ruleNumber = automationRuleNumberInput.value.trim();
     const keywords = document.getElementById('automationKeywords').value.trim();
-    const repliesType = document.getElementById('automationRepliesType').value;
+    const repliesType = document.getElementById('automationRepliesType').value.trim();
     const replyText = document.getElementById('automationReplyText').value.trim();
     
     if (!ruleNumber || !keywords || !repliesType || !replyText) {
