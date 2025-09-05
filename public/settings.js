@@ -52,6 +52,10 @@ function initSettings() {
     saveRepeatingBtn?.addEventListener('click', saveRepeatingRuleSettings);
     tempHideBtn?.addEventListener('click', showTempHideModal);
     saveTempHideBtn?.addEventListener('click', saveTempHideSettings);
+    
+    // New Master Stop event listeners
+    manageMasterStopBtn?.addEventListener('click', showMasterStopModal);
+    saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
 }
 
 /**
