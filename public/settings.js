@@ -49,6 +49,7 @@ function initSettings() {
  * Fetches all settings from the server.
  */
 async function fetchSettings() {
+    toggleLoading(true);
     try {
         currentSettings = await fetchSettingsApi();
         updateBotStatusUI(currentSettings.isBotOnline);
@@ -57,6 +58,8 @@ async function fetchSettings() {
         updateTempHideUI();
     } catch (error) {
         console.error('Failed to fetch settings:', error);
+    } finally {
+        toggleLoading(false);
     }
 }
 
