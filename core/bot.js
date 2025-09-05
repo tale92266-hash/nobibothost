@@ -160,7 +160,13 @@ async function processMessage(msg, sessionId = "default", sender) {
 
             if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
                 let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
-                if (rule.REPLIES_TYPE === 'ALL') { reply = replies.join('\n'); } 
+                if (rule.REPLIES_TYPE === 'ALL') { 
+                    const ruleId = rule.RULE_NUMBER;
+                    const lastReplyIndex = messageStats.ruleReplyCounts.get(`automation-${ruleId}`) || 0;
+                    const nextReplyIndex = lastReplyIndex % replies.length;
+                    reply = replies[nextReplyIndex];
+                    messageStats.ruleReplyCounts.set(`automation-${ruleId}`, nextReplyIndex + 1);
+                } 
                 else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
                 else { reply = pick(replies); }
 
@@ -213,10 +219,14 @@ async function processMessage(msg, sessionId = "default", sender) {
 
             if (match) {
                 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-                if (rule.REPLIES_TYPE === "ALL") {
-                    replies = replies.slice(0, 20);
-                    reply = replies.join(" ");
-                } else if (rule.REPLIES_TYPE === "ONE") { reply = replies[0]; } 
+                 if (rule.REPLIES_TYPE === 'ALL') { 
+                    const ruleId = rule.RULE_NUMBER;
+                    const lastReplyIndex = messageStats.ruleReplyCounts.get(`owner-${ruleId}`) || 0;
+                    const nextReplyIndex = lastReplyIndex % replies.length;
+                    reply = replies[nextReplyIndex];
+                    messageStats.ruleReplyCounts.set(`owner-${ruleId}`, nextReplyIndex + 1);
+                } 
+                else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
                 else { reply = pick(replies); }
                 matchedRuleId = rule.RULE_NUMBER;
                 
@@ -287,10 +297,13 @@ async function processMessage(msg, sessionId = "default", sender) {
     
             if (match) {
                 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-                if (rule.REPLIES_TYPE === "ALL") {
-                    replies = replies.slice(0, 20);
-                    reply = replies.join(" ");
-                } else if (rule.REPLIES_TYPE === "ONE") { reply = replies[0]; } 
+                if (rule.REPLIES_TYPE === 'ALL') { 
+                    const ruleId = rule.RULE_NUMBER;
+                    const lastReplyIndex = messageStats.ruleReplyCounts.get(`normal-${ruleId}`) || 0;
+                    const nextReplyIndex = lastReplyIndex % replies.length;
+                    reply = replies[nextReplyIndex];
+                    messageStats.ruleReplyCounts.set(`normal-${ruleId}`, nextReplyIndex + 1);
+                } else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; } 
                 else { reply = pick(replies); }
                 break;
             }
