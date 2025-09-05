@@ -231,7 +231,7 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     // --- STEP 3: Process Normal Rules (if no automation or owner rule matched) ---
-    if (!reply) {
+    if (!reply && !isOwner) {
         console.log(`🔍 Checking normal rules.`);
         const welcomedUsers = getWelcomedUsers();
         for (let rule of getRules()) {
@@ -330,3 +330,4 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 exports.processMessage = processMessage;
+exports.processOwnerMessage = processOwnerMessage;
