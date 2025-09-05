@@ -29,7 +29,11 @@ module.exports = function setupApiRoutes(app, server, isReady) {
                     await db.Rule.create(rule);
                     console.log(`✅ Rule ${oldRuleNumber} updated to ${rule.ruleNumber}.`);
                 } else {
-                    result = await db.Rule.findOneAndUpdate({ RULE_NUMBER: rule.ruleNumber }, rule, { new: true, upsert: true });
+                    const updateData = { ...rule };
+                    if (updateData.ruleName === '') {
+                        delete updateData.ruleName;
+                    }
+                    result = await db.Rule.findOneAndUpdate({ RULE_NUMBER: rule.ruleNumber }, updateData, { new: true, upsert: true });
                     console.log(`✅ Rule ${rule.ruleNumber} updated.`);
                 }
             } else if (type === 'delete') {
@@ -202,7 +206,11 @@ module.exports = function setupApiRoutes(app, server, isReady) {
                     await db.OwnerRule.create(rule);
                     console.log(`✅ Owner Rule ${oldRuleNumber} updated to ${rule.ruleNumber}.`);
                 } else {
-                    await db.OwnerRule.findOneAndUpdate({ RULE_NUMBER: rule.ruleNumber }, rule, { new: true, upsert: true });
+                    const updateData = { ...rule };
+                    if (updateData.ruleName === '') {
+                        delete updateData.ruleName;
+                    }
+                    await db.OwnerRule.findOneAndUpdate({ RULE_NUMBER: rule.ruleNumber }, updateData, { new: true, upsert: true });
                     console.log(`✅ Owner Rule ${rule.ruleNumber} updated.`);
                 }
             } else if (type === 'delete') {
@@ -255,7 +263,11 @@ module.exports = function setupApiRoutes(app, server, isReady) {
                     await db.AutomationRule.create(rule);
                     console.log(`✅ Automation Rule ${oldRuleNumber} updated to ${rule.ruleNumber}.`);
                 } else {
-                    result = await db.AutomationRule.findOneAndUpdate({ RULE_NUMBER: rule.ruleNumber }, rule, { new: true, upsert: true });
+                    const updateData = { ...rule };
+                    if (updateData.ruleName === '') {
+                        delete updateData.ruleName;
+                    }
+                    result = await db.AutomationRule.findOneAndUpdate({ RULE_NUMBER: rule.ruleNumber }, updateData, { new: true, upsert: true });
                     console.log(`✅ Automation Rule ${rule.ruleNumber} updated.`);
                 }
             } else if (type === 'delete') {
