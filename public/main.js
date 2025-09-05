@@ -7,7 +7,7 @@ import { initRules, fetchRules } from './rules.js';
 import { initVariables, fetchVariables } from './variables.js';
 import { initSettings, fetchSettings } from './settings.js';
 import { initOwnerRules, fetchOwnerRules } from './ownerRules.js';
-import { initOwners, fetchOwners } from './owners.js';
+import { initOwners, fetchOwners, setupOwnerButtons } from './owners.js';
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -36,8 +36,10 @@ document.addEventListener("DOMContentLoaded", () => {
             initSubNavigation((subTabName) => {
                 if (subTabName === 'owner-rules') {
                     fetchOwnerRules();
-                } else if (subTabName === 'owners-list') {
                     fetchOwners();
+                    setupOwnerButtons();
+                } else if (subTabName === 'automation') {
+                    // Automation pane logic here
                 }
             });
         }
