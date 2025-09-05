@@ -7,7 +7,8 @@ const path = require("path");
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
     setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
-    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList
+    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList,
+    setAutomationRules // NEW: Added setAutomationRules to the import list
 } = require('./core/state');
 
 mongoose.connect(process.env.MONGODB_URI)
