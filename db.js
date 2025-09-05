@@ -7,8 +7,7 @@ const path = require("path");
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
     setVariables, setIgnoredOverrideUsers, setSpecificOverrideUsers, setOwnerList,
-    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList,
-    setAutomationRules // NEW: Added setAutomationRules to the import list
+    setSettings, getStats, getSettings, getWelcomedUsers, getIgnoredOverrideUsers, getSpecificOverrideUsers, getOwnerList
 } = require('./core/state');
 
 mongoose.connect(process.env.MONGODB_URI)
@@ -41,21 +40,6 @@ const ownerRuleSchema = new mongoose.Schema({
     REPLY_TEXT: { type: String, required: true }
 });
 const OwnerRule = mongoose.model("OwnerRule", ownerRuleSchema);
-
-const automationRuleSchema = new mongoose.Schema({
-    RULE_NUMBER: { type: Number, required: true, unique: true },
-    RULE_NAME: { type: String, required: false },
-    RULE_TYPE: { type: String, required: true },
-    KEYWORDS: { type: String, required: true },
-    REPLIES_TYPE: { type: String, required: true },
-    REPLY_TEXT: { type: String, required: true },
-    USER_ACCESS_TYPE: { type: String, required: true, default: "ALL" },
-    DEFINED_USERS: { type: [String], default: [] },
-    MIN_DELAY: { type: Number, default: 0 },
-    MAX_DELAY: { type: Number, default: 0 },
-});
-const AutomationRule = mongoose.model("AutomationRule", automationRuleSchema);
-
 
 const statsSchema = new mongoose.Schema({
     totalUsers: [{ type: String }],
@@ -106,12 +90,6 @@ const loadAllOwnerRules = async () => {
     setOwnerRules(ownerRules);
     console.log(`⚡ Loaded ${ownerRules.length} owner rules from MongoDB.`);
 };
-
-const loadAllAutomationRules = async () => {
-    const automationRules = await AutomationRule.find({}).sort({ RULE_NUMBER: 1 });
-    setAutomationRules(automationRules);
-    console.log(`⚡ Loaded ${automationRules.length} automation rules from MongoDB.`);
-}
 
 const loadAllVariables = async () => {
     const variables = await Variable.find({});
@@ -199,7 +177,6 @@ const syncData = async () => {
 
         await loadAllRules();
         await loadAllOwnerRules();
-        await loadAllAutomationRules(); // New function call
         await loadAllVariables();
 
         await loadSettingsFromFiles();
@@ -234,23 +211,6 @@ const saveVariables = async () => {
 const saveOwnerRules = async () => {
     const ownerRulesFromDB = await OwnerRule.find({});
     fs.writeFileSync(FILE_PATHS.ownerRulesFilePath, JSON.stringify({ rules: ownerRulesFromDB.map(r => r.toObject()) }, null, 2));
-};
-
-const saveAutomationRule = async (ruleData) => {
-    const { RULE_NUMBER, ...rest } = ruleData;
-    const rule = await AutomationRule.findOneAndUpdate(
-        { RULE_NUMBER },
-        { $set: rest },
-        { upsert: true, new: true }
-    );
-    await loadAllAutomationRules();
-    return rule;
-};
-
-const deleteAutomationRule = async (RULE_NUMBER) => {
-    await AutomationRule.deleteOne({ RULE_NUMBER });
-    await AutomationRule.updateMany({ RULE_NUMBER: { $gt: RULE_NUMBER } }, { $inc: { RULE_NUMBER: -1 } });
-    await loadAllAutomationRules();
 };
 
 const saveIgnoredOverrideUsers = async () => {
@@ -312,9 +272,9 @@ const scheduleDailyReset = () => {
 };
 
 exports.db = {
-    Rule, OwnerRule, AutomationRule, Stats, Variable, Settings, User, MessageStats, mongoose,
+    Rule, OwnerRule, Stats, Variable, Settings, User, MessageStats, mongoose,
     syncData, loadAllRules, loadAllOwnerRules, loadAllVariables, loadSettingsFromFiles, restoreSettingsFromDb,
-    saveStats, saveWelcomedUsers, saveVariables, saveOwnerRules, saveAutomationRule, deleteAutomationRule,
+    saveStats, saveWelcomedUsers, saveVariables, saveOwnerRules,
     saveIgnoredOverrideUsers, saveSpecificOverrideUsers, saveOwnersList,
     saveSettings, resetDailyStats, scheduleDailyReset
 };
