@@ -467,7 +467,7 @@ module.exports = (app, server, getIsReady) => {
     
     app.post("/webhook", async (req, res) => {
         const { extractSenderNameAndContext } = require('./core/utils');
-        const webhookUrl = process.env.WEBHOOK_URL; // Assuming you have a webhook URL in your .env
+        const webhookUrl = process.env.WEBHOOK_URL;
 
         if (!getIsReady()) {
             console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
@@ -503,28 +503,15 @@ module.exports = (app, server, getIsReady) => {
 
         // New logic to handle multiple replies
         if (replies && replies.length > 0) {
-            if (Array.isArray(replies)) {
-                for (const reply of replies) {
-                    // Send each reply as a separate message via the webhook
-                    try {
-                        const webhookPayload = {
-                            chat_id: sessionId,
-                            text: reply
-                        };
-                        await axios.post(webhookUrl, webhookPayload);
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Delay between messages
-                    } catch (err) {
-                        console.error("❌ Failed to send reply via webhook:", err.message);
-                    }
-                }
-            } else {
-                // If it's a single reply, send it directly
+            for (const reply of replies) {
+                // Send each reply as a separate message via the webhook
                 try {
                     const webhookPayload = {
                         chat_id: sessionId,
-                        text: replies
+                        text: reply
                     };
                     await axios.post(webhookUrl, webhookPayload);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay between messages
                 } catch (err) {
                     console.error("❌ Failed to send reply via webhook:", err.message);
                 }
@@ -532,6 +519,49 @@ module.exports = (app, server, getIsReady) => {
         }
         
         res.json({ success: true, message: "Messages processed and sent to webhook." });
+    });
+
+    app.post("/test-webhook", async (req, res) => {
+        const { extractSenderNameAndContext } = require('./core/utils');
+
+        if (!getIsReady()) {
+            console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
+            return res.status(503).send('Server is initializing. Please try again in a moment.');
+        }
+
+        const sessionId = req.body.session_id || "default_session";
+        const msg = req.body.query?.message || "";
+        const sender = req.body.query?.sender || "";
+        
+        const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+
+        const replies = await processMessage(msg, sessionId, sender);
+
+        const messageData = {
+            sessionId: sessionId,
+            senderName: parsedSenderName,
+            groupName: isGroup ? groupName : null,
+            userMessage: msg,
+            botReply: Array.isArray(replies) ? replies.join('\n') : replies,
+            timestamp: new Date().toISOString()
+        };
+
+        let recentChatMessages = getRecentChatMessages();
+        recentChatMessages.unshift(messageData);
+        if (recentChatMessages.length > MAX_CHAT_HISTORY) { recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY); }
+        setRecentChatMessages(recentChatMessages);
+
+        console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
+        
+        io.emit('newMessage', messageData);
+        emitStats();
+
+        if (!replies || replies.length === 0) {
+            return res.json({ replies: [] });
+        }
+        
+        const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
+        res.json({ replies: formattedReplies });
     });
 
     app.get("/stats", async (req, res) => {
