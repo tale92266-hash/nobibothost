@@ -26,7 +26,7 @@ const tempHideMatchTypeSelect = document.getElementById('tempHideMatchType');
 const tempUnhideMatchTypeSelect = document.getElementById('tempUnhideMatchType');
 const tempHideTriggerTextarea = document.getElementById('tempHideTriggerText');
 const tempUnhideTriggerTextarea = document.getElementById('tempUnhideTriggerText');
-const tempHideReplyTextarea = document.getElementById('tempHideReplyText');
+const tempHideReplyTextarea = document = document.getElementById('tempHideReplyText');
 const tempUnhideReplyTextarea = document.getElementById('tempUnhideReplyText');
 const saveTempHideBtn = document.getElementById('saveTempHideBtn');
 
@@ -49,7 +49,6 @@ function initSettings() {
  * Fetches all settings from the server.
  */
 async function fetchSettings() {
-    toggleLoading(true);
     try {
         currentSettings = await fetchSettingsApi();
         updateBotStatusUI(currentSettings.isBotOnline);
@@ -58,8 +57,6 @@ async function fetchSettings() {
         updateTempHideUI();
     } catch (error) {
         console.error('Failed to fetch settings:', error);
-    } finally {
-        toggleLoading(false);
     }
 }
 
@@ -79,8 +76,8 @@ async function toggleBotStatus() {
     try {
         const newStatus = !oldStatus;
         const result = await updateBotStatusApi(newStatus);
-        currentSettings.isBotOnline = newStatus;
-        updateBotStatusUI(newStatus);
+        currentSettings = result.settings;
+        updateBotStatusUI(currentSettings.isBotOnline);
         showToast(result.message, 'success');
     } catch (error) {
         showToast('Failed to update bot status: ' + error.message, 'fail');
