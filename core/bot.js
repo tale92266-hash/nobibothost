@@ -330,4 +330,3 @@ async function processMessage(msg, sessionId = "default", sender) {
 }
 
 exports.processMessage = processMessage;
-exports.processOwnerMessage = processOwnerMessage;
