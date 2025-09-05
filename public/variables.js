@@ -32,6 +32,7 @@ function initVariables() {
  * Fetches all variables from the server and displays them.
  */
 async function fetchVariables() {
+    toggleLoading(true);
     try {
         const data = await fetchVariablesApi();
         allVariables = data;
@@ -44,6 +45,8 @@ async function fetchVariables() {
                 <p>Please try refreshing the page</p>
             </div>
         `;
+    } finally {
+        toggleLoading(false);
     }
 }
 
@@ -96,6 +99,7 @@ function editVariable(variable) {
     currentVariableName = variable.name;
     document.getElementById('variableName').value = variable.name;
     document.getElementById('variableValue').value = variable.value;
+    document.getElementById('variableName').disabled = true; // Variable name ko edit mode mein disable kiya
     configureModalButtons('variable', 'edit');
     variableModal.show();
 }
@@ -106,6 +110,7 @@ function editVariable(variable) {
 function addNewVariable() {
     currentVariableName = null;
     variableForm.reset();
+    document.getElementById('variableName').disabled = false; // Add mode mein enable kiya
     configureModalButtons('variable', 'add');
     variableModal.show();
 }
@@ -113,13 +118,20 @@ function addNewVariable() {
 /**
  * Saves or updates a variable.
  */
-async function saveVariable() {
+async function saveVariable(event) {
+    event.preventDefault(); // Page reload ko prevent kiya
     const name = document.getElementById('variableName').value.trim();
     const value = document.getElementById('variableValue').value.trim();
     if (!name || !value) {
         showToast('Please fill all required fields', 'warning');
         return;
     }
+    
+    const saveBtn = document.getElementById('saveVariableBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    saveBtn.disabled = true;
+
     try {
         const isEditing = currentVariableName !== null;
         const payload = {
@@ -134,6 +146,9 @@ async function saveVariable() {
         currentVariableName = null;
     } catch (error) {
         showToast('Failed to save variable: ' + error.message, 'fail');
+    } finally {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
     }
 }
 
