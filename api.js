@@ -10,7 +10,7 @@ const {
     getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules,
     getIsAutomationEnabled, setIsAutomationEnabled
 } = require('./core/state');
-const { processMessage } = require('./core/bot');
+const { processMessage, processOwnerMessage } = require('./core/bot');
 const { Server } = require("socket.io");
 const { Server: HTTPServer } = "http";
 
@@ -486,7 +486,8 @@ module.exports = (app, server, getIsReady) => {
         const isOwner = getOwnerList().includes(parsedSenderName);
 
         if (isOwner) {
-            const replyText = await processMessage(msg, sessionId, sender);
+            const context = isGroup ? groupName : 'DM';
+            const replyText = await processOwnerMessage(msg, sessionId, sender, parsedSenderName, context);
             if (!replyText) return res.json({ replies: [] });
             return res.json({ replies: [{ message: replyText }] });
         }
@@ -532,4 +533,3 @@ module.exports = (app, server, getIsReady) => {
         }
     });
 };
-
