@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const fs = require("fs");
 const path = require("path");
 const { convertNewlinesBeforeSave } = require('./core/utils');
+const { ruleCooldowns } = require('./core/state');
 
 const { 
     FILE_PATHS, setStats, setWelcomedUsers, setRules, setOwnerRules,
@@ -307,10 +308,15 @@ const scheduleDailyReset = () => {
     }, timeUntilMidnight);
 };
 
+const clearAutomationRuleCooldowns = () => {
+    ruleCooldowns.clear();
+    console.log("✅ All automation rule cooldowns have been cleared.");
+};
+
 exports.db = {
     Rule, OwnerRule, Stats, Variable, Settings, User, MessageStats, AutomationRule, mongoose,
     syncData, loadAllRules, loadAllOwnerRules, loadAllVariables, loadAllAutomationRules, loadSettingsFromFiles, restoreSettingsFromDb,
     saveStats, saveWelcomedUsers, saveVariables, saveOwnerRules, saveAutomationRules,
     saveIgnoredOverrideUsers, saveSpecificOverrideUsers, saveOwnersList,
-    saveSettings, resetDailyStats, scheduleDailyReset
+    saveSettings, resetDailyStats, scheduleDailyReset, clearAutomationRuleCooldowns
 };
