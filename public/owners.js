@@ -1,7 +1,7 @@
 // file: public/owners.js
 
 import { fetchOwnersApi, updateOwnersApi } from './api.js';
-import { showToast, configureModalButtons } from './ui.js';
+import { showToast } from './ui.js';
 
 let ownersList = [];
 
@@ -37,7 +37,7 @@ export function initOwners() {
  * Fetches all owners from the server and displays them.
  */
 export async function fetchOwners() {
-    const ownersListDiv = document.getElementById('ownersList');
+    const ownersListDiv = document.getElementById('ownerRulesList');
     if (!ownersListDiv) return;
     
     try {
@@ -60,7 +60,7 @@ export async function fetchOwners() {
  * @param {Array<string>} owners - The array of owner usernames.
  */
 function displayOwners(owners) {
-    const ownersListDiv = document.getElementById('ownersList');
+    const ownersListDiv = document.getElementById('ownerRulesList');
     if (!ownersListDiv) return;
 
     if (owners.length === 0) {
