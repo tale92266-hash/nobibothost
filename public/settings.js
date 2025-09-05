@@ -223,17 +223,19 @@ async function saveTempHideSettings() {
 
 // New Master Stop Functions
 function updateMasterStopUI() {
-    if (masterStopToggle) {
-        masterStopToggle.checked = currentSettings.masterStop.enabled;
-    }
-    if (masterStopMatchTypeSelect) {
-        masterStopMatchTypeSelect.value = currentSettings.masterStop.matchType;
-    }
-    if (masterStopTriggerTextarea) {
-        masterStopTriggerTextarea.value = currentSettings.masterStop.triggerText;
-    }
-    if (masterStopReplyTextarea) {
-        masterStopReplyTextarea.value = currentSettings.masterStop.replyText.replace(/<#>/g, '\n<#>\n');
+    if (currentSettings.masterStop) {
+        if (masterStopToggle) {
+            masterStopToggle.checked = currentSettings.masterStop.enabled;
+        }
+        if (masterStopMatchTypeSelect) {
+            masterStopMatchTypeSelect.value = currentSettings.masterStop.matchType;
+        }
+        if (masterStopTriggerTextarea) {
+            masterStopTriggerTextarea.value = currentSettings.masterStop.triggerText;
+        }
+        if (masterStopReplyTextarea) {
+            masterStopReplyTextarea.value = currentSettings.masterStop.replyText.replace(/<#>/g, '\n<#>\n');
+        }
     }
 }
 
