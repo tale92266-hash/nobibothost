@@ -47,7 +47,8 @@ let state = {
     isAutomationEnabled: true,
     recentChatMessages: [],
     messageHistory: [],
-    lastReplyTimes: {}
+    lastReplyTimes: {},
+    welcomeLogs: new Map()
 };
 
 // Getter functions
@@ -65,6 +66,7 @@ exports.getRecentChatMessages = () => state.recentChatMessages;
 exports.getMessageHistory = () => state.messageHistory;
 exports.getLastReplyTimes = () => state.lastReplyTimes;
 exports.getIsAutomationEnabled = () => state.isAutomationEnabled;
+exports.getWelcomeLog = () => state.welcomeLogs;
 
 // Setter functions
 exports.setStats = (stats) => { state.stats = stats; };
@@ -81,6 +83,11 @@ exports.setRecentChatMessages = (messages) => { state.recentChatMessages = messa
 exports.setMessageHistory = (history) => { state.messageHistory = history; };
 exports.setLastReplyTimes = (times) => { state.lastReplyTimes = times; };
 exports.setIsAutomationEnabled = (bool) => { state.isAutomationEnabled = bool; };
+exports.addWelcomeLogEntry = (ruleId, ownerName, context) => {
+    state.welcomeLogs.set(`${ownerName}-${ruleId}-${context}`, true);
+};
+exports.setWelcomeLogs = (logs) => { state.welcomeLogs = logs; };
+
 
 // File path constants
 exports.FILE_PATHS = {
