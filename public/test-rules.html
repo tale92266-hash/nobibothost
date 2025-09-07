@@ -581,6 +581,7 @@
             transform: scale(1.1);
         }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -679,6 +680,7 @@
                 this.initializeElements();
                 this.bindEvents();
                 this.updateUI();
+                this.initSocket();
             }
 
             initializeElements() {
@@ -715,6 +717,24 @@
 
                 // Scroll detection
                 this.chatMessages.addEventListener('scroll', () => this.handleScroll());
+            }
+
+            initSocket() {
+                this.socket = io();
+
+                this.socket.on('connect', () => {
+                    console.log('Connected to Socket.IO server.');
+                });
+
+                this.socket.on('newMessage', (data) => {
+                    if (data.isDelayedReply) {
+                        this.hideTyping();
+                        this.addMessage(data.botReply, 'received');
+                        if (data.replyIndex < data.totalReplies) {
+                            this.showTyping();
+                        }
+                    }
+                });
             }
 
             handleSetup(e) {
@@ -814,18 +834,23 @@
 
                     const data = await response.json();
                     
-                    this.hideTyping();
-                    if (data.replies && data.replies.length > 0) {
-                        for (let i = 0; i < data.replies.length; i++) {
-                            await new Promise(resolve => setTimeout(resolve, i === 0 ? 500 : 1000));
-                            this.addMessage(data.replies[i].message, 'received');
+                    if (data.replies && data.replies.delayedSending) {
+                        this.addMessage(data.replies.message, 'received');
+                        // No need to hide typing, it will be handled by the newMessage event
+                    } else if (data.replies && data.replies.length > 0) {
+                        this.hideTyping();
+                        for (const reply of data.replies) {
+                             this.addMessage(reply.message, 'received');
                         }
                     } else {
+                        this.hideTyping();
                         this.addMessage("(No matching rule found)", 'received');
                     }
+
                 } catch (error) {
                     this.hideTyping();
                     this.addMessage("Sorry, I'm having trouble connecting. Please try again.", 'received');
+                    console.error('Failed to send message:', error);
                 }
             }
 
