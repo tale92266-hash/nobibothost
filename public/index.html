@@ -440,94 +440,105 @@
         </div>
     </nav>
 
-    <div class="modal fade" id="ruleModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="formTitle">
-                        <i class="fas fa-plus-circle"></i> Add New Rule
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal fade" id="ruleModal" tabindex="-1" aria-labelledby="ruleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ruleModalLabel">
+              <i class="fas fa-robot"></i>
+              Add New Rule
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="ruleForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ruleNumber">Rule Number</label>
+                  <input type="number" class="form-control" id="ruleNumber" name="ruleNumber" required>
+                  <div class="invalid-feedback" id="ruleNumberError"></div>
                 </div>
-                <div class="modal-body">
-                    <form id="ruleForm">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="ruleNumber">Rule Number</label>
-                                <input type="number" class="form-control" id="ruleNumber" min="1" required>
-                                <div class="invalid-feedback" id="ruleNumberError"></div>
-                            </div>
-                            <div class="form-group">
-                                <label for="ruleName">Rule Name</label>
-                                <input type="text" class="form-control" id="ruleName" placeholder="Optional">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="ruleType">Rule Type</label>
-                            <select class="form-select" id="ruleType" required>
-                                <option value="">Select Type</option>
-                                <option value="EXACT">Exact Match</option>
-                                <option value="PATTERN">Pattern Match</option>
-                                <option value="EXPERT">Expert (Regex)</option>
-                                <option value="WELCOME">Welcome Message</option>
-                                <option value="DEFAULT">Default Response</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="keywordsField">
-                            <label for="keywords">Keywords</label>
-                            <textarea class="form-control" id="keywords" rows="3" 
-                                placeholder="Separate multiple keywords with // (e.g., hello//hi//hey)"></textarea>
-                            <small class="form-text text-muted">Use // to separate multiple keywords</small>
-                        </div>
-
-                        <div class="form-group" id="repliesTypeField">
-                            <label for="repliesType">Reply Type</label>
-                            <select class="form-select" id="repliesType" required>
-                                <option value="RANDOM">Random Reply</option>
-                                <option value="ONE">First Reply Only</option>
-                                <option value="ALL">All Replies</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="replyTextField">
-                            <label for="replyText">Reply Text</label>
-                            <textarea class="form-control" id="replyText" rows="4" required
-                                placeholder="Use <#> to separate multiple replies"></textarea>
-                            <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="targetUsersToggle">Target Users</label>
-                            <select class="form-select" id="targetUsersToggle">
-                                <option value="ALL">All Users</option>
-                                <option value="TARGET">Specific Users</option>
-                                <option value="IGNORED">Ignored Users</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="targetUsersField" style="display: none;">
-                            <label for="targetUsers">User IDs</label>
-                            <input type="text" class="form-control" id="targetUsers" 
-                                placeholder="Comma-separated user IDs">
-                        </div>
-                    </form>
+                <div class="form-group">
+                  <label for="ruleName">Rule Name</label>
+                  <input type="text" class="form-control" id="ruleName" name="ruleName" placeholder="Optional">
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-danger" id="deleteRuleBtn" style="display: none;">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" form="ruleForm" class="btn btn-primary" id="saveRuleBtn">
-                        <span class="spinner-border spinner-border-sm" style="display: none;"></span>
-                        <i class="fas fa-save"></i> Save Rule
-                    </button>
+              </div>
+
+              <div class="form-group">
+                <label for="ruleType">Rule Type</label>
+                <select class="form-select" id="ruleType" name="ruleType" required>
+                  <option value="EXACT">Exact Match</option>
+                  <option value="PATTERN">Pattern Match</option>
+                  <option value="EXPERT">Expert (Regex)</option>
+                  <option value="WELCOME">Welcome Message</option>
+                  <option value="DEFAULT">Default Rule</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="keywordsField">
+                <label for="keywords">Keywords</label>
+                <input type="text" class="form-control" id="keywords" name="keywords" placeholder="Enter keywords separated by //">
+                <div class="form-text">Use // to separate multiple keywords</div>
+              </div>
+
+              <div class="form-group">
+                <label for="repliesType">Reply Type</label>
+                <select class="form-select" id="repliesType" name="repliesType" required>
+                  <option value="RANDOM">Random Reply</option>
+                  <option value="ONE">First Reply</option>
+                  <option value="ALL">All Replies</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="delayField" style="display: none;">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="enableDelay" name="enableDelay">
+                  <label class="form-check-label" for="enableDelay">
+                    Enable delay between replies
+                  </label>
                 </div>
-            </div>
+                <div class="mt-2">
+                  <label for="replyDelay">Delay (seconds)</label>
+                  <input type="number" class="form-control" id="replyDelay" name="replyDelay" min="1" max="60" placeholder="3">
+                  <div class="form-text">Time delay between each reply (1-60 seconds)</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="replyText">Reply Text</label>
+                <textarea class="form-control" id="replyText" name="replyText" rows="4" placeholder="Enter your reply text. Use <#> to separate multiple replies." required></textarea>
+                <div class="form-text">Use &lt;#&gt; to separate multiple replies</div>
+              </div>
+
+              <div class="form-group">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="targetUsersToggle">
+                  <label class="form-check-label" for="targetUsersToggle">
+                    Target Specific Users
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group" id="targetUsersField" style="display: none;">
+                <label for="targetUsers">Target Users</label>
+                <input type="text" class="form-control" id="targetUsers" name="targetUsers" placeholder="Enter usernames separated by commas">
+                <div class="form-text">Leave empty to target all users</div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="deleteRuleBtn" style="display: none;">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+            <button type="button" class="btn btn-primary" id="saveRuleBtn">
+              <i class="fas fa-save"></i> Save Rule
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
     <div class="modal fade" id="variableModal">
@@ -758,190 +769,209 @@
         </div>
     </div>
 
-    <div class="modal fade" id="ownerRuleModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="ownerRuleFormTitle">
-                        <i class="fas fa-plus-circle"></i> Add New Owner Rule
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal fade" id="ownerRuleModal" tabindex="-1" aria-labelledby="ownerRuleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="ownerRuleModalLabel">
+              <i class="fas fa-crown"></i>
+              Add New Owner Rule
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="ownerRuleForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="ownerRuleNumber">Rule Number</label>
+                  <input type="number" class="form-control" id="ownerRuleNumber" name="ownerRuleNumber" required>
+                  <div class="invalid-feedback" id="ownerRuleNumberError"></div>
                 </div>
-                <div class="modal-body">
-                    <form id="ownerRuleForm">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="ownerRuleNumber">Rule Number</label>
-                                <input type="number" class="form-control" id="ownerRuleNumber" min="1" required>
-                                <div class="invalid-feedback" id="ownerRuleNumberError"></div>
-                            </div>
-                            <div class="form-group">
-                                <label for="ownerRuleName">Rule Name</label>
-                                <input type="text" class="form-control" id="ownerRuleName" placeholder="Optional">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="ownerRuleType">Rule Type</label>
-                            <select class="form-select" id="ownerRuleType" required>
-                                <option value="">Select Type</option>
-                                <option value="EXACT">Exact Match</option>
-                                <option value="PATTERN">Pattern Match</option>
-                                <option value="EXPERT">Expert (Regex)</option>
-                                <option value="WELCOME">Welcome Message</option>
-                                <option value="DEFAULT">Default Response</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="ownerKeywordsField">
-                            <label for="ownerKeywords">Keywords</label>
-                            <textarea class="form-control" id="ownerKeywords" rows="3" 
-                                placeholder="Separate multiple keywords with // (e.g., hello//hi//hey)"></textarea>
-                            <small class="form-text text-muted">Use // to separate multiple keywords</small>
-                        </div>
-
-                        <div class="form-group" id="ownerRepliesTypeField">
-                            <label for="ownerRepliesType">Reply Type</label>
-                            <select class="form-select" id="ownerRepliesType" required>
-                                <option value="RANDOM">Random Reply</option>
-                                <option value="ONE">First Reply Only</option>
-                                <option value="ALL">All Replies</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="ownerReplyTextField">
-                            <label for="ownerReplyText">Reply Text</label>
-                            <textarea class="form-control" id="ownerReplyText" rows="4" required
-                                placeholder="Use <#> to separate multiple replies"></textarea>
-                            <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
-                        </div>
-                    </form>
+                <div class="form-group">
+                  <label for="ownerRuleName">Rule Name</label>
+                  <input type="text" class="form-control" id="ownerRuleName" name="ownerRuleName" placeholder="Optional">
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-danger" id="deleteOwnerRuleBtn" style="display: none;">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" form="ownerRuleForm" class="btn btn-primary" id="saveOwnerRuleBtn">
-                        <span class="spinner-border spinner-border-sm" style="display: none;"></span>
-                        <i class="fas fa-save"></i> Save Rule
-                    </button>
+              </div>
+
+              <div class="form-group">
+                <label for="ownerRuleType">Rule Type</label>
+                <select class="form-select" id="ownerRuleType" name="ownerRuleType" required>
+                  <option value="EXACT">Exact Match</option>
+                  <option value="PATTERN">Pattern Match</option>
+                  <option value="EXPERT">Expert (Regex)</option>
+                  <option value="WELCOME">Welcome Message</option>
+                  <option value="DEFAULT">Default Rule</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="ownerKeywordsField">
+                <label for="ownerKeywords">Keywords</label>
+                <input type="text" class="form-control" id="ownerKeywords" name="ownerKeywords" placeholder="Enter keywords separated by //">
+                <div class="form-text">Use // to separate multiple keywords</div>
+              </div>
+
+              <div class="form-group">
+                <label for="ownerRepliesType">Reply Type</label>
+                <select class="form-select" id="ownerRepliesType" name="ownerRepliesType" required>
+                  <option value="RANDOM">Random Reply</option>
+                  <option value="ONE">First Reply</option>
+                  <option value="ALL">All Replies</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="ownerDelayField" style="display: none;">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="ownerEnableDelay" name="ownerEnableDelay">
+                  <label class="form-check-label" for="ownerEnableDelay">
+                    Enable delay between replies
+                  </label>
                 </div>
-            </div>
+                <div class="mt-2">
+                  <label for="ownerReplyDelay">Delay (seconds)</label>
+                  <input type="number" class="form-control" id="ownerReplyDelay" name="ownerReplyDelay" min="1" max="60" placeholder="3">
+                  <div class="form-text">Time delay between each reply (1-60 seconds)</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="ownerReplyText">Reply Text</label>
+                <textarea class="form-control" id="ownerReplyText" name="ownerReplyText" rows="4" placeholder="Enter your reply text. Use <#> to separate multiple replies." required></textarea>
+                <div class="form-text">Use &lt;#&gt; to separate multiple replies</div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="deleteOwnerRuleBtn" style="display: none;">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+            <button type="button" class="btn btn-primary" id="saveOwnerRuleBtn">
+              <i class="fas fa-save"></i> Save Owner Rule
+            </button>
+          </div>
         </div>
+      </div>
     </div>
     
-    <div class="modal fade" id="automationRuleModal">
-        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="automationRuleFormTitle">
-                        <i class="fas fa-plus-circle"></i> Add New Automation Rule
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal fade" id="automationRuleModal" tabindex="-1" aria-labelledby="automationRuleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="automationRuleModalLabel">
+              <i class="fas fa-cogs"></i>
+              Add New Automation Rule
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="automationRuleForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="automationRuleNumber">Rule Number</label>
+                  <input type="number" class="form-control" id="automationRuleNumber" name="automationRuleNumber" required>
+                  <div class="invalid-feedback" id="automationRuleNumberError"></div>
                 </div>
-                <div class="modal-body">
-                    <form id="automationRuleForm">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="automationRuleNumber">Rule Number</label>
-                                <input type="number" class="form-control" id="automationRuleNumber" min="1" required>
-                                <div class="invalid-feedback" id="automationRuleNumberError"></div>
-                            </div>
-                            <div class="form-group">
-                                <label for="automationRuleName">Rule Name</label>
-                                <input type="text" class="form-control" id="automationRuleName" placeholder="Optional">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="automationRuleType">Rule Type</label>
-                            <select class="form-select" id="automationRuleType" required>
-                                <option value="">Select Type</option>
-                                <option value="EXACT">Exact Match</option>
-                                <option value="PATTERN">Pattern Match</option>
-                                <option value="EXPERT">Expert (Regex)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="automationKeywordsField">
-                            <label for="automationKeywords">Keywords</label>
-                            <textarea class="form-control" id="automationKeywords" rows="3" required
-                                placeholder="Separate multiple keywords with // (e.g., hello//hi//hey)"></textarea>
-                            <small class="form-text text-muted">Use // to separate multiple keywords. Prefix with / to mark as a command (e.g., /status)</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="automationRepliesType">Reply Type</label>
-                            <select class="form-select" id="automationRepliesType" required>
-                                <option value="RANDOM">Random Reply</option>
-                                <option value="ONE">First Reply Only</option>
-                                <option value="ALL">All Replies</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="automationReplyText">Reply Text</label>
-                            <textarea class="form-control" id="automationReplyText" rows="4" required
-                                placeholder="Use <#> to separate multiple replies"></textarea>
-                            <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="userAccessType">User Access</label>
-                            <select class="form-select" id="userAccessType">
-                                <option value="ALL">All Users</option>
-                                <option value="OWNER">Owner</option>
-                                <option value="OWNER_IGNORED">Owner + Ignored Override</option>
-                                <option value="OWNER_DEFINED">Owner + Defined Users</option>
-                                <option value="IGNORED">Ignored Override Users</option>
-                                <option value="DEFINED">Defined Users</option>
-                            </select>
-                        </div>
-
-                        <div class="form-group" id="definedUsersField" style="display: none;">
-                            <label for="definedUsers">Defined User IDs</label>
-                            <input type="text" class="form-control" id="definedUsers" 
-                                placeholder="Comma-separated user IDs">
-                            <small class="form-text text-muted">Enter a comma-separated list of usernames.</small>
-                        </div>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="minDelay">Min Reply Delay (seconds)</label>
-                                <input type="number" class="form-control" id="minDelay" min="0" value="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="maxDelay">Max Reply Delay (seconds, optional)</label>
-                                <input type="number" class="form-control" id="maxDelay" min="0" value="0">
-                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="cooldown">Rule Cooldown (seconds, 0 to disable)</label>
-                            <input type="number" class="form-control" id="cooldown" min="0" value="0">
-                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
-                        </div>
-
-                    </form>
+                <div class="form-group">
+                  <label for="automationRuleName">Rule Name</label>
+                  <input type="text" class="form-control" id="automationRuleName" name="automationRuleName" placeholder="Optional">
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-danger" id="deleteAutomationRuleBtn" style="display: none;">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" form="automationRuleForm" class="btn btn-primary" id="saveAutomationRuleBtn">
-                        <span class="spinner-border spinner-border-sm" style="display: none;"></span>
-                        <i class="fas fa-save"></i> Save Rule
-                    </button>
+              </div>
+
+              <div class="form-group">
+                <label for="automationRuleType">Rule Type</label>
+                <select class="form-select" id="automationRuleType" name="automationRuleType" required>
+                  <option value="EXACT">Exact Match</option>
+                  <option value="PATTERN">Pattern Match</option>
+                  <option value="EXPERT">Expert (Regex)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="automationKeywords">Keywords</label>
+                <input type="text" class="form-control" id="automationKeywords" name="automationKeywords" placeholder="Enter keywords separated by //" required>
+                <div class="form-text">Use // to separate multiple keywords</div>
+              </div>
+
+              <div class="form-group">
+                <label for="automationRepliesType">Reply Type</label>
+                <select class="form-select" id="automationRepliesType" name="automationRepliesType" required>
+                  <option value="RANDOM">Random Reply</option>
+                  <option value="ONE">First Reply</option>
+                  <option value="ALL">All Replies</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="automationDelayField" style="display: none;">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="automationEnableDelay" name="automationEnableDelay">
+                  <label class="form-check-label" for="automationEnableDelay">
+                    Enable delay between replies
+                  </label>
                 </div>
-            </div>
+                <div class="mt-2">
+                  <label for="automationReplyDelay">Delay (seconds)</label>
+                  <input type="number" class="form-control" id="automationReplyDelay" name="automationReplyDelay" min="1" max="60" placeholder="3">
+                  <div class="form-text">Time delay between each reply (1-60 seconds)</div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="automationReplyText">Reply Text</label>
+                <textarea class="form-control" id="automationReplyText" name="automationReplyText" rows="4" placeholder="Enter your reply text. Use <#> to separate multiple replies." required></textarea>
+                <div class="form-text">Use &lt;#&gt; to separate multiple replies</div>
+              </div>
+
+              <div class="form-group">
+                <label for="userAccessType">User Access</label>
+                <select class="form-select" id="userAccessType" name="userAccessType" required>
+                  <option value="ALL">All Users</option>
+                  <option value="OWNER">Owner Only</option>
+                  <option value="OWNER_IGNORED">Owner + Ignored</option>
+                  <option value="OWNER_DEFINED">Owner + Defined</option>
+                  <option value="IGNORED">Ignored Only</option>
+                  <option value="DEFINED">Defined Only</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="definedUsersField" style="display: none;">
+                <label for="definedUsers">Defined Users</label>
+                <input type="text" class="form-control" id="definedUsers" name="definedUsers" placeholder="Enter usernames separated by commas">
+                <div class="form-text">Users who can access this automation rule</div>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="minDelay">Min Delay (seconds)</label>
+                  <input type="number" class="form-control" id="minDelay" name="minDelay" min="0" placeholder="0">
+                </div>
+                <div class="form-group">
+                  <label for="maxDelay">Max Delay (seconds)</label>
+                  <input type="number" class="form-control" id="maxDelay" name="maxDelay" min="0" placeholder="0">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="cooldown">Cooldown (seconds)</label>
+                <input type="number" class="form-control" id="cooldown" name="cooldown" min="0" placeholder="0">
+                <div class="form-text">Prevent spam by setting cooldown between uses</div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" class="btn btn-outline-danger" id="deleteAutomationRuleBtn" style="display: none;">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+            <button type="button" class="btn btn-primary" id="saveAutomationRuleBtn">
+              <i class="fas fa-save"></i> Save Automation Rule
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
 
