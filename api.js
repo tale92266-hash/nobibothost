@@ -304,7 +304,7 @@ const settings = getSettings();
 settings.masterStop = payload;
 setSettings(settings);
 await db.saveSettings();
-res.json({ success: true, true, message: "Master stop setting updated successfully." });
+res.json({ success: true, message: "Master stop setting updated successfully." });
 } catch (error) {
 console.error("❌ Failed to update master stop setting:", error);
 res.status(500).json({ success: false, message: "Server error" });
