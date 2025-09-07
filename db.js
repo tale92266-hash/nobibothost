@@ -87,7 +87,7 @@ const Variable = mongoose.model("Variable", variableSchema);
 
 const settingsSchema = new mongoose.Schema({
 settings_type: { type: String, required: true, unique: true },
-settings_ mongoose.Schema.Types.Mixed
+settings_data: mongoose.Schema.Types.Mixed
 });
 
 const Settings = mongoose.model("Settings", settingsSchema);
