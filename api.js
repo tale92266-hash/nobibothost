@@ -521,34 +521,41 @@ const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAn
 
 const replies = await processMessage(msg, sessionId, sender);
 
-const formattedReplies = [];
+let formattedReplies = [];
+let botReplyForHistory = '';
 
-if (replies && replies.replies) {
-if (replies.enableDelay && replies.replyDelay > 0) {
-// First reply should go immediately
-formattedReplies.push({ message: replies.replies[0] });
-
-// Subsequent replies with delay
-for (let i = 1; i < replies.replies.length; i++) {
-await new Promise(resolve => setTimeout(resolve, replies.replyDelay * 1000));
-formattedReplies.push({ message: replies.replies[i] });
-}
+if (replies) {
+if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
+    // This is the delayed reply case for simple webhook clients
+    for (let i = 0; i < replies.replies.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : replies.replyDelay * 1000));
+        formattedReplies.push({ message: replies.replies[i] });
+    }
+    botReplyForHistory = replies.replies;
+} else if (replies.replies) {
+    // Multiple replies without delay
+    for (const reply of replies.replies) {
+        formattedReplies.push({ message: reply });
+    }
+    botReplyForHistory = replies.replies;
 } else {
-// No delay, send all at once
-for (const reply of replies.replies) {
-formattedReplies.push({ message: reply });
-}
-}
-} else if (replies) {
-// Single reply or multiple replies without delay
-const replyArray = Array.isArray(replies) ? replies : [replies];
-for (const reply of replyArray) {
-formattedReplies.push({ message: reply });
+    // Single reply
+    const replyArray = Array.isArray(replies) ? replies : [replies];
+    for (const reply of replyArray) {
+        formattedReplies.push({ message: reply });
+    }
+    botReplyForHistory = replies;
 }
 }
 
-
-// --- REST OF THE API.JS CODE ---
+let messageData = {
+    sessionId: sessionId,
+    senderName: parsedSenderName,
+    groupName: isGroup ? groupName : null,
+    userMessage: msg,
+    botReply: botReplyForHistory,
+    timestamp: new Date().toISOString()
+};
 
 let recentChatMessages = getRecentChatMessages();
 recentChatMessages.unshift(messageData);
@@ -558,11 +565,6 @@ setRecentChatMessages(recentChatMessages);
 console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
 io.emit('newMessage', messageData);
 emitStats();
-
-if (!replies || replies.length === 0) return res.json({ replies: [] });
-
-// The code block for formatting and sending replies needs to be placed here.
-// I'll provide the corrected code for the whole file.
 
 res.json({ replies: formattedReplies });
 });
