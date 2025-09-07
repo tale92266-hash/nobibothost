@@ -55,4 +55,12 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Add this line to fetch settings immediately on page load
     fetchSettings();
+
+    // New event listener for the test rules button
+    const goToTestRulesBtn = document.getElementById('goToTestRulesBtn');
+    if (goToTestRulesBtn) {
+        goToTestRulesBtn.addEventListener('click', () => {
+            window.location.href = '/test-rules.html';
+        });
+    }
 });
