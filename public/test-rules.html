@@ -70,6 +70,23 @@
             min-height: 64px;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .home-icon {
+            font-size: 24px;
+            cursor: pointer;
+            color: white;
+            transition: opacity 0.2s;
+        }
+
+        .home-icon:hover {
+            opacity: 0.8;
+        }
+
         .avatar {
             width: 40px;
             height: 40px;
@@ -626,13 +643,16 @@
 
         <div id="chatInterface" class="hidden">
             <header class="chat-header">
-                <div class="avatar">
-                    NB
-                    <div class="online-status"></div>
-                </div>
-                <div class="chat-info">
-                    <div class="chat-name" id="chatName">Nobi Bot</div>
-                    <div class="chat-status">Online</div>
+                <div class="header-left">
+                    <i class="fas fa-home home-icon" id="homeIcon"></i>
+                    <div class="avatar">
+                        NB
+                        <div class="online-status"></div>
+                    </div>
+                    <div class="chat-info">
+                        <div class="chat-name" id="chatName">Nobi Bot</div>
+                        <div class="chat-status">Online</div>
+                    </div>
                 </div>
                 <div class="header-actions">
                     <div class="theme-toggle" id="themeToggle"></div>
@@ -698,6 +718,7 @@
                 this.userNameInput = document.getElementById('userName');
                 this.gcNameInput = document.getElementById('gcName');
                 this.scrollIndicator = document.getElementById('scrollIndicator');
+                this.homeIcon = document.getElementById('homeIcon'); // New element
             }
 
             bindEvents() {
@@ -708,6 +729,7 @@
                 this.resetBtn.addEventListener('click', () => this.resetChat());
                 this.themeToggle.addEventListener('click', () => this.toggleTheme());
                 this.scrollIndicator.addEventListener('click', () => this.scrollToBottom(true));
+                this.homeIcon.addEventListener('click', () => window.location.href = '/'); // New event listener
 
                 // Chat type radio buttons
                 const chatTypeRadios = document.querySelectorAll('input[name="chatType"]');
@@ -730,7 +752,7 @@
                     if (data.isDelayedReply) {
                         this.hideTyping();
                         this.addMessage(data.botReply, 'received');
-                        if (data.replyIndex < data.totalReplies) {
+                        if (data.replyIndex < data.totalReplies -1) { // Only show typing if more replies are coming
                             this.showTyping();
                         }
                     }
@@ -836,7 +858,7 @@
                     
                     if (data.replies && data.replies.delayedSending) {
                         this.addMessage(data.replies.message, 'received');
-                        // No need to hide typing, it will be handled by the newMessage event
+                        // Typing indicator remains active, handled by socket.on('newMessage')
                     } else if (data.replies && data.replies.length > 0) {
                         this.hideTyping();
                         for (const reply of data.replies) {
