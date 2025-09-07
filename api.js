@@ -521,7 +521,7 @@ const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAn
 
 const replies = await processMessage(msg, sessionId, sender);
 
-const messageData = {
+let messageData = {
 sessionId: sessionId,
 senderName: parsedSenderName,
 groupName: isGroup ? groupName : null,
@@ -534,7 +534,10 @@ if (replies && typeof replies === 'object' && replies.delayedSending) {
 console.log(`⏰ Starting delayed sending of ${replies.count} replies`);
 res.json({ 
 replies: [{ 
-message: `🔄 Sending ${replies.count} replies with delay...` 
+message: replies.message,
+isDelayedReply: true,
+replyIndex: 1,
+totalReplies: replies.count
 }]
 });
 emitStats();
