@@ -304,7 +304,7 @@ const settings = getSettings();
 settings.masterStop = payload;
 setSettings(settings);
 await db.saveSettings();
-res.json({ success: true, message: "Master stop setting updated successfully." });
+res.json({ success: true, true, message: "Master stop setting updated successfully." });
 } catch (error) {
 console.error("❌ Failed to update master stop setting:", error);
 res.status(500).json({ success: false, message: "Server error" });
@@ -524,29 +524,28 @@ const replies = await processMessage(msg, sessionId, sender);
 let formattedReplies = [];
 let botReplyForHistory = '';
 
-if (replies) {
-if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
+if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0) {
     // This is the delayed reply case for simple webhook clients
     for (let i = 0; i < replies.replies.length; i++) {
         await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : replies.replyDelay * 1000));
         formattedReplies.push({ message: replies.replies[i] });
     }
     botReplyForHistory = replies.replies;
-} else if (replies.replies) {
+} else if (replies && replies.replies) {
     // Multiple replies without delay
     for (const reply of replies.replies) {
         formattedReplies.push({ message: reply });
     }
     botReplyForHistory = replies.replies;
-} else {
-    // Single reply
+} else if (replies) {
+    // Single reply or multiple replies without delay
     const replyArray = Array.isArray(replies) ? replies : [replies];
     for (const reply of replyArray) {
         formattedReplies.push({ message: reply });
     }
     botReplyForHistory = replies;
 }
-}
+
 
 let messageData = {
     sessionId: sessionId,
