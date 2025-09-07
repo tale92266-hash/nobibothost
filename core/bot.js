@@ -9,7 +9,7 @@ ruleCooldowns
 } = require('./state');
 
 const { db } = require('../db');
-const axios = require('axios'); // Add axios for making HTTP requests
+const axios = require('axios');
 
 const {
 resolveVariablesRecursively, extractSenderNameAndContext, matchesOverridePattern,
@@ -23,22 +23,23 @@ ioInstance = io;
 };
 
 // New function to send replies with delay directly to the autoresponder app's API
-const sendDelayedReplies = async (replies, delaySeconds, sessionId, senderName) => {
+const sendDelayedReplies = async (replies, delaySeconds, sessionId, senderName, groupName, isGroup) => {
     // Assuming the autoresponder app has an API endpoint to send messages
     const sendEndpoint = process.env.AUTORESPONDER_API_ENDPOINT; // This needs to be defined in your .env file
     
-    for (let i = 1; i < replies.length; i++) {
+    for (let i = 0; i < replies.length; i++) {
         await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
         
         try {
+            const replyMessage = resolveVariablesRecursively(replies[i], senderName, '', 0, groupName, isGroup);
             await axios.post(sendEndpoint, {
                 sessionId: sessionId,
-                recipient: senderName, // Or whatever the autoresponder app's API expects
-                message: replies[i]
+                recipient: senderName,
+                message: replyMessage
             });
-            console.log(`⏰ Delayed reply ${i + 1}/${replies.length} sent successfully to autoresponder.`);
+            console.log(`⏰ Delayed reply ${i + 2}/${replies.length + 1} sent successfully to autoresponder.`);
         } catch (error) {
-            console.error(`❌ Failed to send delayed reply ${i + 1}/${replies.length}:`, error.message);
+            console.error(`❌ Failed to send delayed reply ${i + 2}/${replies.length + 1}:`, error.message);
         }
     }
 };
@@ -99,7 +100,7 @@ return null;
 }
 }
 
-if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType)) {
+if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.unhideMatchType)) {
 console.log(`✅ Hide trigger received from user: ${senderName}`);
 const reply = pick(settings.temporaryHide.hideReply.split('<#>'));
 const hideEntry = { name: senderName, context: context };
@@ -348,33 +349,29 @@ break;
 const endTime = process.hrtime(startTime);
 const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
-// Formatting for chat history and webhook response
-let formattedReplies = [];
-let firstReply = null;
-let remainingReplies = [];
+let replyToReturn = null;
 
 if (replies) {
     if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
-        firstReply = replies.replies[0];
-        remainingReplies = replies.replies.slice(1);
-    } else if (replies.replies) {
-        formattedReplies = replies.replies;
+        // Separate first reply and remaining replies
+        const firstReply = replies.replies[0];
+        const remainingReplies = replies.replies.slice(1);
+        
+        if (remainingReplies.length > 0) {
+            // Schedule remaining replies to be sent in the background
+            sendDelayedReplies(remainingReplies, replies.replyDelay, sessionId, senderName, groupName, isGroup);
+        }
+        
+        replyToReturn = [firstReply]; // Return an array with the first reply for immediate webhook response
     } else {
-        formattedReplies = replies;
+        replyToReturn = replies.replies || replies; // Return all replies at once
     }
 }
 
-
-if (firstReply) {
-    formattedReplies.push(firstReply);
-    sendDelayedReplies(remainingReplies, replies.replyDelay, sessionId, senderName);
-} else if (formattedReplies) {
-    // This condition might not be needed depending on how replies are structured
-}
-
-
-if (formattedReplies) {
-    botReplyForHistory = (Array.isArray(formattedReplies) ? formattedReplies : [formattedReplies]).map(r => {
+// Map the replies to resolve variables for the final return
+if (replyToReturn) {
+    const replyArray = Array.isArray(replyToReturn) ? replyToReturn : [replyToReturn];
+    const resolvedRepliesForHistory = replyArray.map(r => {
         if (typeof r === 'string') {
             return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
         }
@@ -395,7 +392,7 @@ if (formattedReplies) {
     let messageHistory = getMessageHistory();
     messageHistory.unshift({
         userMessage: msg,
-        botReply: botReplyForHistory,
+        botReply: resolvedRepliesForHistory,
         ruleId: matchedRuleId,
         timestamp: new Date().toISOString()
     });
@@ -403,13 +400,22 @@ if (formattedReplies) {
     const MAX_HISTORY = 50;
     if (messageHistory.length > MAX_HISTORY) { messageHistory.pop(); }
     setMessageHistory(messageHistory);
+
+    // This is the messageData for the live chat
+    const messageData = {
+        sessionId: sessionId,
+        senderName: senderName,
+        groupName: isGroup ? groupName : null,
+        userMessage: msg,
+        botReply: resolvedRepliesForHistory,
+        timestamp: new Date().toISOString()
+    };
+    if (ioInstance) {
+        ioInstance.emit('newMessage', messageData);
+    }
 }
 
-// THIS IS THE LINE THAT IS CAUSING THE ERROR
-// ioInstance.emit('newMessage', messageData);
-
-// The return value should be an object that api.js can understand
-return { formattedReplies, firstReply };
+return replyToReturn || null;
 }
 
 exports.processMessage = processMessage;
