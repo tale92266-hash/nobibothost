@@ -524,19 +524,36 @@ const replies = await processMessage(msg, sessionId, sender);
 let formattedReplies = [];
 let botReplyForHistory = '';
 
-if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0) {
-    // This is the delayed reply case for simple webhook clients
-    for (let i = 0; i < replies.replies.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : replies.replyDelay * 1000));
-        formattedReplies.push({ message: replies.replies[i] });
+if (replies && replies.replies) {
+    if (replies.enableDelay && replies.replyDelay > 0) {
+        // Send first reply immediately
+        formattedReplies.push({ message: replies.replies[0] });
+
+        // Schedule remaining replies with delay
+        for (let i = 1; i < replies.replies.length; i++) {
+            setTimeout(async () => {
+                // Assuming the autoresponder app has an API endpoint to send messages
+                const sendEndpoint = process.env.AUTORESPONDER_API_ENDPOINT;
+                try {
+                    await axios.post(sendEndpoint, {
+                        sessionId: sessionId,
+                        recipient: parsedSenderName,
+                        message: replies.replies[i]
+                    });
+                    console.log(`⏰ Delayed reply ${i + 1}/${replies.replies.length} sent successfully via API.`);
+                } catch (error) {
+                    console.error(`❌ Failed to send delayed reply ${i + 1}/${replies.replies.length} via API:`, error.message);
+                }
+            }, replies.replyDelay * 1000 * i);
+        }
+        botReplyForHistory = replies.replies;
+    } else {
+        // Multiple replies without delay
+        for (const reply of replies.replies) {
+            formattedReplies.push({ message: reply });
+        }
+        botReplyForHistory = replies.replies;
     }
-    botReplyForHistory = replies.replies;
-} else if (replies && replies.replies) {
-    // Multiple replies without delay
-    for (const reply of replies.replies) {
-        formattedReplies.push({ message: reply });
-    }
-    botReplyForHistory = replies.replies;
 } else if (replies) {
     // Single reply or multiple replies without delay
     const replyArray = Array.isArray(replies) ? replies : [replies];
@@ -545,7 +562,6 @@ if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0)
     }
     botReplyForHistory = replies;
 }
-
 
 let messageData = {
     sessionId: sessionId,
