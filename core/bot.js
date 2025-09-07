@@ -349,22 +349,34 @@ const endTime = process.hrtime(startTime);
 const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
 // Formatting for chat history and webhook response
-let formattedReplies = null;
+let formattedReplies = [];
+let botReplyForHistory = null;
+let firstReply = null;
+let remainingReplies = [];
+
 if (replies) {
-    if (enableDelay && replyDelay > 0) {
-        // Send the first reply and then schedule the rest
-        formattedReplies = [replies[0]];
-        sendDelayedReplies(replies, replyDelay, sessionId, senderName);
+    if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
+        firstReply = replies.replies[0];
+        remainingReplies = replies.replies.slice(1);
+    } else if (replies.replies) {
+        formattedReplies = replies.replies;
     } else {
         formattedReplies = replies;
     }
 }
 
-if (formattedReplies) {
-    if (!Array.isArray(formattedReplies)) {
-        formattedReplies = [formattedReplies];
-    }
-    formattedReplies = formattedReplies.map(r => {
+
+if (firstReply) {
+    formattedReplies.push(firstReply);
+    sendDelayedReplies(remainingReplies, replies.replyDelay, sessionId, senderName);
+    botReplyForHistory = [firstReply, ...remainingReplies];
+} else if (formattedReplies) {
+    botReplyForHistory = formattedReplies;
+}
+
+
+if (botReplyForHistory) {
+    botReplyForHistory = (Array.isArray(botReplyForHistory) ? botReplyForHistory : [botReplyForHistory]).map(r => {
         if (typeof r === 'string') {
             return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
         }
@@ -385,7 +397,7 @@ if (formattedReplies) {
     let messageHistory = getMessageHistory();
     messageHistory.unshift({
         userMessage: msg,
-        botReply: formattedReplies,
+        botReply: botReplyForHistory,
         ruleId: matchedRuleId,
         timestamp: new Date().toISOString()
     });
@@ -393,10 +405,17 @@ if (formattedReplies) {
     const MAX_HISTORY = 50;
     if (messageHistory.length > MAX_HISTORY) { messageHistory.pop(); }
     setMessageHistory(messageHistory);
-
-    ioInstance.emit('newMessage', messageData); // This part is still needed for the admin panel's live chat
 }
-return formattedReplies || null;
+
+const finalReply = {
+    message: formattedReplies && formattedReplies.length > 0 ? formattedReplies[0] : null
+};
+
+if (ioInstance) {
+    ioInstance.emit('newMessage', messageData);
+}
+
+return formattedReplies && formattedReplies.length > 0 ? formattedReplies[0] : null;
 }
 
 exports.processMessage = processMessage;
