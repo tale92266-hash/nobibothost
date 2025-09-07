@@ -21,33 +21,9 @@ const setIOInstance = (io) => {
 ioInstance = io;
 };
 
-const sendRepliesWithDelay = async (replies, delaySeconds, sessionId, senderName, groupName, isGroup, matchedRuleId) => {
-if (!ioInstance) {
-console.warn('⚠️ Socket.IO instance not available for delayed replies');
-return;
-}
-
-for (let i = 0; i < replies.length; i++) {
-setTimeout(() => {
-const messageData = {
-sessionId: sessionId,
-senderName: senderName,
-groupName: isGroup ? groupName : null,
-userMessage: '',
-botReply: replies[i],
-timestamp: new Date().toISOString(),
-isDelayedReply: true,
-replyIndex: i + 1,
-totalReplies: replies.length,
-ruleId: matchedRuleId
-};
-
-ioInstance.emit('newMessage', messageData);
-console.log(`⏰ Delayed reply ${i + 1}/${replies.length} sent after ${delaySeconds * (i + 1)} seconds from rule #${matchedRuleId}`);
-}, delaySeconds * 1000 * (i + 1));
-}
-};
-
+// This function is no longer needed in its previous form, but we'll keep a reference
+// to its logic to use directly in the webhook handler in api.js.
+// The core bot logic will now return all replies at once.
 async function processMessage(msg, sessionId = "default", sender) {
 const startTime = process.hrtime();
 const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
@@ -195,44 +171,16 @@ break;
 
 if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
 let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
-
-if (rule.REPLIES_TYPE === 'ALL') {
 const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
-if (rule.ENABLE_DELAY && rule.REPLY_DELAY > 0) {
-const firstReply = resolvedReplies[0];
-const subsequentReplies = resolvedReplies.slice(1);
-
-if (subsequentReplies.length > 0) {
-// Start sending subsequent replies with delay
-for (let i = 0; i < subsequentReplies.length; i++) {
-setTimeout(() => {
-const messageData = {
-sessionId: sessionId,
-senderName: senderName,
-groupName: isGroup ? groupName : null,
-userMessage: '',
-botReply: subsequentReplies[i],
-timestamp: new Date().toISOString(),
-isDelayedReply: true,
-replyIndex: i + 2,
-totalReplies: resolvedReplies.length,
-ruleId: rule.RULE_NUMBER
+if (rule.REPLIES_TYPE === 'ALL') {
+reply = { 
+replies: resolvedReplies, 
+enableDelay: rule.ENABLE_DELAY,
+replyDelay: rule.REPLY_DELAY
 };
-ioInstance.emit('newMessage', messageData);
-console.log(`⏰ Delayed reply ${i + 2}/${resolvedReplies.length} sent after ${rule.REPLY_DELAY * (i + 1)} seconds from rule #${rule.RULE_NUMBER}`);
-}, rule.REPLY_DELAY * 1000 * (i + 1));
-}
-}
-
-// Return the first reply immediately with a delayed sending flag
-reply = { delayedSending: true, message: firstReply, count: resolvedReplies.length };
-
-} else {
-reply = resolvedReplies;
-}
-} else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; }
-else { reply = pick(replies); }
+} else if (rule.REPLIES_TYPE === 'ONE') { reply = [resolvedReplies[0]]; }
+else { reply = [pick(resolvedReplies)]; }
 
 if (rule.MIN_DELAY > 0) {
 let delay = rule.MIN_DELAY;
@@ -283,43 +231,17 @@ break;
 
 if (match) {
 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-
-if (rule.REPLIES_TYPE === 'ALL') {
 const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
-if (rule.ENABLE_DELAY && rule.REPLY_DELAY > 0) {
-const firstReply = resolvedReplies[0];
-const subsequentReplies = resolvedReplies.slice(1);
-
-if (subsequentReplies.length > 0) {
-// Start sending subsequent replies with delay
-for (let i = 0; i < subsequentReplies.length; i++) {
-setTimeout(() => {
-const messageData = {
-sessionId: sessionId,
-senderName: senderName,
-groupName: isGroup ? groupName : null,
-userMessage: '',
-botReply: subsequentReplies[i],
-timestamp: new Date().toISOString(),
-isDelayedReply: true,
-replyIndex: i + 2,
-totalReplies: resolvedReplies.length,
-ruleId: rule.RULE_NUMBER
+if (rule.REPLIES_TYPE === 'ALL') {
+reply = { 
+replies: resolvedReplies, 
+enableDelay: rule.ENABLE_DELAY,
+replyDelay: rule.REPLY_DELAY
 };
-ioInstance.emit('newMessage', messageData);
-console.log(`⏰ Delayed reply ${i + 2}/${resolvedReplies.length} sent after ${rule.REPLY_DELAY * (i + 1)} seconds from rule #${rule.RULE_NUMBER}`);
-}, rule.REPLY_DELAY * 1000 * (i + 1));
-}
-}
+} else if (rule.REPLIES_TYPE === 'ONE') { reply = [resolvedReplies[0]]; }
+else { reply = [pick(resolvedReplies)]; }
 
-// Return the first reply immediately with a delayed sending flag
-reply = { delayedSending: true, message: firstReply, count: resolvedReplies.length };
-} else {
-reply = resolvedReplies;
-}
-} else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; }
-else { reply = pick(replies); }
 
 matchedRuleId = rule.RULE_NUMBER;
 
@@ -392,43 +314,16 @@ break;
 
 if (match) {
 let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-
-if (rule.REPLIES_TYPE === 'ALL') {
 const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
-if (rule.ENABLE_DELAY && rule.REPLY_DELAY > 0) {
-const firstReply = resolvedReplies[0];
-const subsequentReplies = resolvedReplies.slice(1);
-
-if (subsequentReplies.length > 0) {
-// Start sending subsequent replies with delay
-for (let i = 0; i < subsequentReplies.length; i++) {
-setTimeout(() => {
-const messageData = {
-sessionId: sessionId,
-senderName: senderName,
-groupName: isGroup ? groupName : null,
-userMessage: '',
-botReply: subsequentReplies[i],
-timestamp: new Date().toISOString(),
-isDelayedReply: true,
-replyIndex: i + 2,
-totalReplies: resolvedReplies.length,
-ruleId: rule.RULE_NUMBER
+if (rule.REPLIES_TYPE === 'ALL') {
+reply = { 
+replies: resolvedReplies, 
+enableDelay: rule.ENABLE_DELAY,
+replyDelay: rule.REPLY_DELAY
 };
-ioInstance.emit('newMessage', messageData);
-console.log(`⏰ Delayed reply ${i + 2}/${resolvedReplies.length} sent after ${rule.REPLY_DELAY * (i + 1)} seconds from rule #${rule.RULE_NUMBER}`);
-}, rule.REPLY_DELAY * 1000 * (i + 1));
-}
-}
-
-// Return the first reply immediately with a delayed sending flag
-reply = { delayedSending: true, message: firstReply, count: resolvedReplies.length };
-} else {
-reply = resolvedReplies;
-}
-} else if (rule.REPLIES_TYPE === 'ONE') { reply = replies[0]; }
-else { reply = pick(replies); }
+} else if (rule.REPLIES_TYPE === 'ONE') { reply = [resolvedReplies[0]]; }
+else { reply = [pick(resolvedReplies)]; }
 
 break;
 }
@@ -439,20 +334,21 @@ const endTime = process.hrtime(startTime);
 const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
 if (reply) {
-if (!Array.isArray(reply) && typeof reply === 'object' && reply.delayedSending) {
-console.log(`⏰ Starting delayed sending of ${reply.count} replies`);
-} else {
-if (!Array.isArray(reply)) {
-const tempReply = reply;
-reply = [tempReply];
+if (reply.replies) {
+reply.replies = reply.replies.map(r => {
+if (typeof r === 'string') {
+return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
 }
-
+return r;
+});
+} else if (Array.isArray(reply)) {
 reply = reply.map(r => {
 if (typeof r === 'string') {
 return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
 }
 return r;
 });
+}
 
 const lastReplyTimes = getLastReplyTimes();
 lastReplyTimes[senderName] = Date.now();
@@ -464,12 +360,11 @@ const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 
 messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
 }
 await messageStats.save();
-}
 
 let messageHistory = getMessageHistory();
 messageHistory.unshift({
 userMessage: msg,
-botReply: reply,
+botReply: reply.replies || reply,
 ruleId: matchedRuleId,
 timestamp: new Date().toISOString()
 });
