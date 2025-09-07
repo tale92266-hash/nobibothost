@@ -286,7 +286,9 @@ exports.matchesTrigger = (message, triggerText, matchType) => {
             if (new RegExp(`^${regexStr}$`, "i").test(message)) match = true;
         } else if (matchType === 'EXPERT') {
             try {
-                if (new RegExp(trigger, "i").test(message)) match = true;
+                // AutoResponder style expert pattern matching
+                const regex = new RegExp(`(?s)^${trigger}.*$`, "i");
+                if (regex.test(message)) match = true;
             } catch {}
         }
         if (match) return true;
