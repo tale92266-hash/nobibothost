@@ -64,12 +64,13 @@
             padding: 12px 16px;
             display: flex;
             align-items: center;
+            justify-content: space-between; /* Added to space out content */
             gap: 12px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             z-index: 1000;
             min-height: 64px;
         }
-
+        
         .header-left {
             display: flex;
             align-items: center;
@@ -718,7 +719,7 @@
                 this.userNameInput = document.getElementById('userName');
                 this.gcNameInput = document.getElementById('gcName');
                 this.scrollIndicator = document.getElementById('scrollIndicator');
-                this.homeIcon = document.getElementById('homeIcon'); // New element
+                this.homeIcon = document.getElementById('homeIcon');
             }
 
             bindEvents() {
@@ -729,7 +730,7 @@
                 this.resetBtn.addEventListener('click', () => this.resetChat());
                 this.themeToggle.addEventListener('click', () => this.toggleTheme());
                 this.scrollIndicator.addEventListener('click', () => this.scrollToBottom(true));
-                this.homeIcon.addEventListener('click', () => window.location.href = '/'); // New event listener
+                this.homeIcon.addEventListener('click', () => window.location.href = '/');
 
                 // Chat type radio buttons
                 const chatTypeRadios = document.querySelectorAll('input[name="chatType"]');
@@ -752,7 +753,7 @@
                     if (data.isDelayedReply) {
                         this.hideTyping();
                         this.addMessage(data.botReply, 'received');
-                        if (data.replyIndex < data.totalReplies -1) { // Only show typing if more replies are coming
+                        if (data.replyIndex < data.totalReplies -1) {
                             this.showTyping();
                         }
                     }
