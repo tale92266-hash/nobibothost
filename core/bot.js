@@ -9,6 +9,7 @@ ruleCooldowns
 } = require('./state');
 
 const { db } = require('../db');
+const axios = require('axios'); // Add axios for making HTTP requests
 
 const {
 resolveVariablesRecursively, extractSenderNameAndContext, matchesOverridePattern,
@@ -21,9 +22,27 @@ const setIOInstance = (io) => {
 ioInstance = io;
 };
 
-// This function is no longer needed in its previous form, but we'll keep a reference
-// to its logic to use directly in the webhook handler in api.js.
-// The core bot logic will now return all replies at once.
+// New function to send replies with delay directly to the autoresponder app's API
+const sendDelayedReplies = async (replies, delaySeconds, sessionId, senderName) => {
+    // Assuming the autoresponder app has an API endpoint to send messages
+    const sendEndpoint = process.env.AUTORESPONDER_API_ENDPOINT; // This needs to be defined in your .env file
+    
+    for (let i = 1; i < replies.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+        
+        try {
+            await axios.post(sendEndpoint, {
+                sessionId: sessionId,
+                recipient: senderName, // Or whatever the autoresponder app's API expects
+                message: replies[i]
+            });
+            console.log(`⏰ Delayed reply ${i + 1}/${replies.length} sent successfully to autoresponder.`);
+        } catch (error) {
+            console.error(`❌ Failed to send delayed reply ${i + 1}/${replies.length}:`, error.message);
+        }
+    }
+};
+
 async function processMessage(msg, sessionId = "default", sender) {
 const startTime = process.hrtime();
 const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
@@ -57,7 +76,7 @@ console.log('🛑 All automation rules have been stopped.');
 }
 
 const reply = pick(settings.masterStop.replyText.split('<#>'));
-return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
 }
 
 if (settings.temporaryHide.unhideEnabled && matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.unhideMatchType)) {
@@ -73,7 +92,7 @@ setIgnoredOverrideUsers(updatedIgnoredUsers);
 await db.saveIgnoredOverrideUsers();
 console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
 const reply = pick(settings.temporaryHide.unhideReply.split('<#>'));
-return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
 } else {
 console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
 return null;
@@ -94,7 +113,7 @@ await db.saveIgnoredOverrideUsers();
 console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
 }
 
-return resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup);
+return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
 }
 
 const isSenderIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
@@ -134,9 +153,11 @@ const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: t
 setStats(updatedStats);
 await db.saveStats();
 
-let reply = null;
+let replies = null;
 let regexMatch = null;
 let matchedRuleId = null;
+let enableDelay = false;
+let replyDelay = 0;
 
 const automationRules = getAutomationRules();
 if (getIsAutomationEnabled() && msg.startsWith('/') && automationRules.length > 0) {
@@ -170,17 +191,15 @@ break;
 }
 
 if (userCanRun && matchesTrigger(msg, rule.KEYWORDS, rule.RULE_TYPE)) {
-let replies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
-const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+let ruleReplies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean);
+const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-reply = { 
-replies: resolvedReplies, 
-enableDelay: rule.ENABLE_DELAY,
-replyDelay: rule.REPLY_DELAY
-};
-} else if (rule.REPLIES_TYPE === 'ONE') { reply = [resolvedReplies[0]]; }
-else { reply = [pick(resolvedReplies)]; }
+replies = resolvedReplies;
+enableDelay = rule.ENABLE_DELAY;
+replyDelay = rule.REPLY_DELAY;
+} else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
+else { replies = [pick(resolvedReplies)]; }
 
 if (rule.MIN_DELAY > 0) {
 let delay = rule.MIN_DELAY;
@@ -204,7 +223,7 @@ break;
 }
 }
 
-if (!reply && isOwner) {
+if (!replies && isOwner) {
 console.log(`👑 Owner message detected from: ${senderName}. Checking owner rules.`);
 for (let rule of getOwnerRules()) {
 let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
@@ -230,17 +249,15 @@ break;
 } else if (rule.RULE_TYPE === "DEFAULT") { match = true; }
 
 if (match) {
-let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-reply = { 
-replies: resolvedReplies, 
-enableDelay: rule.ENABLE_DELAY,
-replyDelay: rule.REPLY_DELAY
-};
-} else if (rule.REPLIES_TYPE === 'ONE') { reply = [resolvedReplies[0]]; }
-else { reply = [pick(resolvedReplies)]; }
+replies = resolvedReplies;
+enableDelay = rule.ENABLE_DELAY;
+replyDelay = rule.REPLY_DELAY;
+} else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
+else { replies = [pick(resolvedReplies)]; }
 
 
 matchedRuleId = rule.RULE_NUMBER;
@@ -256,7 +273,7 @@ break;
 }
 }
 
-if (!reply && !isOwner) {
+if (!replies && !isOwner) {
 console.log(`🔍 Checking normal rules.`);
 const welcomedUsers = getWelcomedUsers();
 
@@ -313,17 +330,15 @@ break;
 }
 
 if (match) {
-let replies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-const resolvedReplies = replies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-reply = { 
-replies: resolvedReplies, 
-enableDelay: rule.ENABLE_DELAY,
-replyDelay: rule.REPLY_DELAY
-};
-} else if (rule.REPLIES_TYPE === 'ONE') { reply = [resolvedReplies[0]]; }
-else { reply = [pick(resolvedReplies)]; }
+replies = resolvedReplies;
+enableDelay = rule.ENABLE_DELAY;
+replyDelay = rule.REPLY_DELAY;
+} else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
+else { replies = [pick(resolvedReplies)]; }
 
 break;
 }
@@ -333,48 +348,55 @@ break;
 const endTime = process.hrtime(startTime);
 const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
-if (reply) {
-if (reply.replies) {
-reply.replies = reply.replies.map(r => {
-if (typeof r === 'string') {
-return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
-}
-return r;
-});
-} else if (Array.isArray(reply)) {
-reply = reply.map(r => {
-if (typeof r === 'string') {
-return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
-}
-return r;
-});
+// Formatting for chat history and webhook response
+let formattedReplies = null;
+if (replies) {
+    if (enableDelay && replyDelay > 0) {
+        // Send the first reply and then schedule the rest
+        formattedReplies = [replies[0]];
+        sendDelayedReplies(replies, replyDelay, sessionId, senderName);
+    } else {
+        formattedReplies = replies;
+    }
 }
 
-const lastReplyTimes = getLastReplyTimes();
-lastReplyTimes[senderName] = Date.now();
-setLastReplyTimes(lastReplyTimes);
+if (formattedReplies) {
+    if (!Array.isArray(formattedReplies)) {
+        formattedReplies = [formattedReplies];
+    }
+    formattedReplies = formattedReplies.map(r => {
+        if (typeof r === 'string') {
+            return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
+        }
+        return r;
+    });
 
-messageStats.replyCount++;
-if (matchedRuleId) {
-const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
-messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
+    const lastReplyTimes = getLastReplyTimes();
+    lastReplyTimes[senderName] = Date.now();
+    setLastReplyTimes(lastReplyTimes);
+
+    messageStats.replyCount++;
+    if (matchedRuleId) {
+        const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
+        messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
+    }
+    await messageStats.save();
+
+    let messageHistory = getMessageHistory();
+    messageHistory.unshift({
+        userMessage: msg,
+        botReply: formattedReplies,
+        ruleId: matchedRuleId,
+        timestamp: new Date().toISOString()
+    });
+
+    const MAX_HISTORY = 50;
+    if (messageHistory.length > MAX_HISTORY) { messageHistory.pop(); }
+    setMessageHistory(messageHistory);
+
+    ioInstance.emit('newMessage', messageData); // This part is still needed for the admin panel's live chat
 }
-await messageStats.save();
-
-let messageHistory = getMessageHistory();
-messageHistory.unshift({
-userMessage: msg,
-botReply: reply.replies || reply,
-ruleId: matchedRuleId,
-timestamp: new Date().toISOString()
-});
-
-const MAX_HISTORY = 50;
-if (messageHistory.length > MAX_HISTORY) { messageHistory.pop(); }
-setMessageHistory(messageHistory);
-}
-
-return reply || null;
+return formattedReplies || null;
 }
 
 exports.processMessage = processMessage;
