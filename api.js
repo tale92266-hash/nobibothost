@@ -521,28 +521,34 @@ const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAn
 
 const replies = await processMessage(msg, sessionId, sender);
 
-let messageData = {
-sessionId: sessionId,
-senderName: parsedSenderName,
-groupName: isGroup ? groupName : null,
-userMessage: msg,
-botReply: Array.isArray(replies) ? replies.join('\n') : replies,
-timestamp: new Date().toISOString()
-};
+const formattedReplies = [];
 
-if (replies && typeof replies === 'object' && replies.delayedSending) {
-console.log(`⏰ Starting delayed sending of ${replies.count} replies`);
-res.json({ 
-replies: [{ 
-message: replies.message,
-isDelayedReply: true,
-replyIndex: 1,
-totalReplies: replies.count
-}]
-});
-emitStats();
-return;
+if (replies && replies.replies) {
+if (replies.enableDelay && replies.replyDelay > 0) {
+// First reply should go immediately
+formattedReplies.push({ message: replies.replies[0] });
+
+// Subsequent replies with delay
+for (let i = 1; i < replies.replies.length; i++) {
+await new Promise(resolve => setTimeout(resolve, replies.replyDelay * 1000));
+formattedReplies.push({ message: replies.replies[i] });
 }
+} else {
+// No delay, send all at once
+for (const reply of replies.replies) {
+formattedReplies.push({ message: reply });
+}
+}
+} else if (replies) {
+// Single reply or multiple replies without delay
+const replyArray = Array.isArray(replies) ? replies : [replies];
+for (const reply of replyArray) {
+formattedReplies.push({ message: reply });
+}
+}
+
+
+// --- REST OF THE API.JS CODE ---
 
 let recentChatMessages = getRecentChatMessages();
 recentChatMessages.unshift(messageData);
@@ -555,7 +561,9 @@ emitStats();
 
 if (!replies || replies.length === 0) return res.json({ replies: [] });
 
-const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
+// The code block for formatting and sending replies needs to be placed here.
+// I'll provide the corrected code for the whole file.
+
 res.json({ replies: formattedReplies });
 });
 
