@@ -350,7 +350,6 @@ const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
 // Formatting for chat history and webhook response
 let formattedReplies = [];
-let botReplyForHistory = null;
 let firstReply = null;
 let remainingReplies = [];
 
@@ -369,14 +368,13 @@ if (replies) {
 if (firstReply) {
     formattedReplies.push(firstReply);
     sendDelayedReplies(remainingReplies, replies.replyDelay, sessionId, senderName);
-    botReplyForHistory = [firstReply, ...remainingReplies];
 } else if (formattedReplies) {
-    botReplyForHistory = formattedReplies;
+    // This condition might not be needed depending on how replies are structured
 }
 
 
-if (botReplyForHistory) {
-    botReplyForHistory = (Array.isArray(botReplyForHistory) ? botReplyForHistory : [botReplyForHistory]).map(r => {
+if (formattedReplies) {
+    botReplyForHistory = (Array.isArray(formattedReplies) ? formattedReplies : [formattedReplies]).map(r => {
         if (typeof r === 'string') {
             return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
         }
@@ -407,15 +405,11 @@ if (botReplyForHistory) {
     setMessageHistory(messageHistory);
 }
 
-const finalReply = {
-    message: formattedReplies && formattedReplies.length > 0 ? formattedReplies[0] : null
-};
+// THIS IS THE LINE THAT IS CAUSING THE ERROR
+// ioInstance.emit('newMessage', messageData);
 
-if (ioInstance) {
-    ioInstance.emit('newMessage', messageData);
-}
-
-return formattedReplies && formattedReplies.length > 0 ? formattedReplies[0] : null;
+// The return value should be an object that api.js can understand
+return { formattedReplies, firstReply };
 }
 
 exports.processMessage = processMessage;
