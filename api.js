@@ -3,521 +3,572 @@
 const express = require('express');
 const { db } = require('./db');
 const { convertNewlinesBeforeSave } = require('./core/utils');
-const { 
-    getRules, getOwnerRules, getVariables, getSettings, getIgnoredOverrideUsers,
-    getSpecificOverrideUsers, getOwnerList, setIgnoredOverrideUsers, setSpecificOverrideUsers,
-    setOwnerList, setSettings, getStats, getRecentChatMessages, setRecentChatMessages,
-    getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules,
-    getIsAutomationEnabled, setIsAutomationEnabled
+
+const {
+getRules, getOwnerRules, getVariables, getSettings, getIgnoredOverrideUsers,
+getSpecificOverrideUsers, getOwnerList, setIgnoredOverrideUsers, setSpecificOverrideUsers,
+setOwnerList, setSettings, getStats, getRecentChatMessages, setRecentChatMessages,
+getMessageHistory, setMessageHistory, getLastReplyTimes, setLastReplyTimes, getAutomationRules,
+getIsAutomationEnabled, setIsAutomationEnabled
 } = require('./core/state');
-const { processMessage } = require('./core/bot');
+
+const { processMessage, setIOInstance } = require('./core/bot');
 const { Server } = require("socket.io");
-const { Server: HTTPServer } = "http";
 
 module.exports = (app, server, getIsReady) => {
-    const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { cors: { origin: "*" } });
+const MAX_CHAT_HISTORY = 10;
 
-    const MAX_CHAT_HISTORY = 10;
-    
-    const emitStats = () => {
-        const stats = getStats();
-        if (stats) {
-            io.emit("statsUpdate", {
-                totalUsers: stats.totalUsers.length,
-                totalMsgs: stats.totalMsgs,
-                todayUsers: stats.todayUsers.length,
-                todayMsgs: stats.todayMsgs,
-                nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
-            });
-        }
-    };
+setIOInstance(io);
 
-    io.on('connection', (socket) => {
-        console.log('⚡ New client connected');
-        if (getRecentChatMessages().length > 0) {
-            console.log(`📤 Sending ${getRecentChatMessages().length} recent messages to new client`);
-            socket.emit('chatHistory', getRecentChatMessages());
-        }
-        socket.on('disconnect', () => {
-            console.log('❌ Client disconnected');
-        });
-    });
+const emitStats = () => {
+const stats = getStats();
+if (stats) {
+io.emit("statsUpdate", {
+totalUsers: stats.totalUsers.length,
+totalMsgs: stats.totalMsgs,
+todayUsers: stats.todayUsers.length,
+todayMsgs: stats.todayMsgs,
+nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
+});
+}
+};
 
-    app.get("/api/rules", async (req, res) => {
-        try {
-            const rules = await db.Rule.find({}).sort({ RULE_NUMBER: 1 });
-            res.json(rules);
-        } catch (err) {
-            res.status(500).json({ error: "Failed to fetch rules" });
-        }
-    });
+io.on('connection', (socket) => {
+console.log('⚡ New client connected');
+if (getRecentChatMessages().length > 0) {
+console.log(`📤 Sending ${getRecentChatMessages().length} recent messages to new client`);
+socket.emit('chatHistory', getRecentChatMessages());
+}
 
-    app.post("/api/rules/update", async (req, res) => {
-        const { type, rule, oldRuleNumber } = req.body;
-        const session = await db.mongoose.startSession();
-        try {
-            await session.withTransaction(async () => {
-                if (type === "add") {
-                    await db.Rule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
-                    await db.Rule.create([{
-                        RULE_NUMBER: rule.ruleNumber,
-                        RULE_NAME: rule.ruleName,
-                        RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords,
-                        REPLIES_TYPE: rule.repliesType,
-                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                        TARGET_USERS: rule.targetUsers
-                    }], { session });
-                } else if (type === "edit") {
-                    if (rule.ruleNumber !== oldRuleNumber) {
-                        const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
-                        const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
-                        if (rule.ruleNumber < oldRuleNumber) {
-                            await db.Rule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
-                        } else {
-                            await db.Rule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
-                        }
-                    }
-                    const updateData = {
-                        RULE_NUMBER: rule.ruleNumber,
-                        RULE_NAME: rule.ruleName,
-                        RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords,
-                        REPLIES_TYPE: rule.repliesType,
-                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                        TARGET_USERS: rule.targetUsers
-                    };
-                    if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
-                        delete updateData.RULE_NAME;
-                    }
-                    await db.Rule.findOneAndUpdate(
-                        { RULE_NUMBER: oldRuleNumber },
-                        { $set: updateData },
-                        { new: true, session }
-                    );
-                } else if (type === "delete") {
-                    await db.Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
-                    await db.Rule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
-                }
-            });
-            await session.endSession();
-            await db.loadAllRules();
-            res.json({ success: true, message: "Rule updated successfully!" });
-            io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
-        } catch (err) {
-            if (session.inTransaction()) await session.abortTransaction();
-            session.endSession();
-            console.error("❌ Failed to update rule:", err);
-            res.status(500).json({ success: false, message: "Server error: " + err.message });
-        }
-    });
+socket.on('disconnect', () => {
+console.log('❌ Client disconnected');
+});
+});
 
-    app.post("/api/rules/bulk-update", async (req, res) => {
-        const session = await db.mongoose.startSession();
-        try {
-            await session.withTransaction(async () => {
-                const { rules } = req.body;
-                if (!Array.isArray(rules) || rules.length === 0) {
-                    throw new Error('Invalid rules data - must be an array');
-                }
+app.get("/api/rules", async (req, res) => {
+try {
+const rules = await db.Rule.find({}).sort({ RULE_NUMBER: 1 });
+res.json(rules);
+} catch (err) {
+res.status(500).json({ error: "Failed to fetch rules" });
+}
+});
 
-                const tempBulkOps = rules.map((rule, index) => ({
-                    updateOne: {
-                        filter: { _id: new db.mongoose.Types.ObjectId(rule._id) },
-                        update: { $set: { RULE_NUMBER: -(index + 1000) } },
-                        upsert: false
-                    }
-                }));
+app.post("/api/rules/update", async (req, res) => {
+const { type, rule, oldRuleNumber } = req.body;
+const session = await db.mongoose.startSession();
 
-                if (tempBulkOps.length > 0) { await db.Rule.bulkWrite(tempBulkOps, { session, ordered: true }); }
+try {
+await session.withTransaction(async () => {
+if (type === "add") {
+await db.Rule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
+await db.Rule.create([{
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+TARGET_USERS: rule.targetUsers,
+REPLY_DELAY: rule.replyDelay || 0,
+ENABLE_DELAY: rule.enableDelay || false
+}], { session });
+} else if (type === "edit") {
+if (rule.ruleNumber !== oldRuleNumber) {
+const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
+const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
 
-                const finalBulkOps = rules.map(rule => ({
-                    updateOne: {
-                        filter: { _id: new db.mongoose.Types.ObjectId(rule._id) },
-                        update: {
-                            $set: {
-                                RULE_NUMBER: rule.RULE_NUMBER,
-                                RULE_NAME: rule.RULE_NAME || '',
-                                RULE_TYPE: rule.RULE_TYPE,
-                                KEYWORDS: rule.KEYWORDS || '',
-                                REPLIES_TYPE: rule.REPLIES_TYPE,
-                                REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
-                                TARGET_USERS: rule.TARGET_USERS || 'ALL'
-                            }
-                        },
-                        upsert: false
-                    }
-                }));
+if (rule.ruleNumber < oldRuleNumber) {
+await db.Rule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
+} else {
+await db.Rule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+}
+}
 
-                if (finalBulkOps.length > 0) {
-                    const finalResult = await db.Rule.bulkWrite(finalBulkOps, { session, ordered: true });
-                    if (finalResult.modifiedCount !== rules.length) {
-                        throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
-                    }
-                }
-            });
+const updateData = {
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+TARGET_USERS: rule.targetUsers,
+REPLY_DELAY: rule.replyDelay || 0,
+ENABLE_DELAY: rule.enableDelay || false
+};
 
-            await session.endSession();
-            await db.loadAllRules();
-            res.json({
-                success: true,
-                message: `${req.body.rules.length} rules reordered successfully`,
-                updatedCount: req.body.rules.length,
-                totalCount: req.body.rules.length
-            });
-            io.emit('rulesUpdated', {
-                action: 'bulk_reorder_atomic',
-                count: req.body.rules.length,
-                newOrder: getRules().map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
-            });
-        } catch (error) {
-            if (session.inTransaction()) await session.abortTransaction();
-            session.endSession();
-            console.error('❌ Atomic bulk update failed:', error);
-            res.status(500).json({ success: false, message: 'Failed to reorder rules atomically: ' + error.message });
-        }
-    });
+if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
+delete updateData.RULE_NAME;
+}
 
-    app.get("/api/variables", async (req, res) => {
-        try {
-            const variables = await db.Variable.find({});
-            res.json(variables);
-        } catch (err) {
-            res.status(500).json({ error: "Failed to fetch variables" });
-        }
-    });
+await db.Rule.findOneAndUpdate(
+{ RULE_NUMBER: oldRuleNumber },
+{ $set: updateData },
+{ new: true, session }
+);
+} else if (type === "delete") {
+await db.Rule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
+await db.Rule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+}
+});
 
-    app.post("/api/variables/update", async (req, res) => {
-        const { type, variable, oldName } = req.body;
-        try {
-            const processedVariable = {
-                name: variable.name,
-                value: convertNewlinesBeforeSave(variable.value)
-            };
-            if (type === "add") { await db.Variable.create(processedVariable); } 
-            else if (type === "edit") { await db.Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true }); } 
-            else if (type === "delete") { await db.Variable.deleteOne({ name: variable.name }); }
-            await db.loadAllVariables();
-            res.json({ success: true, message: "Variable updated successfully!" });
-            io.emit('variablesUpdated', { action: type, variableName: variable.name });
-        } catch (err) {
-            console.error("❌ Failed to update variable:", err);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+await session.endSession();
+await db.loadAllRules();
+res.json({ success: true, message: "Rule updated successfully!" });
+io.emit('rulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+} catch (err) {
+if (session.inTransaction()) await session.abortTransaction();
+session.endSession();
+console.error("❌ Failed to update rule:", err);
+res.status(500).json({ success: false, message: "Server error: " + err.message });
+}
+});
 
-    app.post("/api/settings/ignored-override", async (req, res) => {
-        try {
-            const { users } = req.body;
-            const updatedUsers = users.split(',').map(userString => {
-                const [name, context] = userString.split(':').map(s => s.trim());
-                return { name, context: context || 'DM' };
-            }).filter(item => item.name);
-            setIgnoredOverrideUsers(updatedUsers);
-            await db.saveIgnoredOverrideUsers();
-            res.json({ success: true, message: "Ignored override users updated successfully." });
-        } catch (error) {
-            console.error("❌ Failed to update ignored override users:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+app.post("/api/rules/bulk-update", async (req, res) => {
+const session = await db.mongoose.startSession();
 
-    app.post("/api/settings/specific-override", async (req, res) => {
-        try {
-            const { users } = req.body;
-            const updatedUsers = users.split(',').map(u => u.trim()).filter(Boolean);
-            setSpecificOverrideUsers(updatedUsers);
-            await db.saveSpecificOverrideUsers();
-            res.json({ success: true, message: "Specific override users updated successfully." });
-        } catch (error) {
-            console.error("❌ Failed to update specific override users:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+try {
+await session.withTransaction(async () => {
+const { rules } = req.body;
+if (!Array.isArray(rules) || rules.length === 0) {
+throw new Error('Invalid rules data - must be an array');
+}
 
-    app.get("/api/settings", async (req, res) => {
-        try {
-            const settingsData = {
-                preventRepeatingRule: getSettings().preventRepeatingRule,
-                isBotOnline: getSettings().isBotOnline,
-                temporaryHide: getSettings().temporaryHide,
-                ignoredOverrideUsers: getIgnoredOverrideUsers(),
-                specificOverrideUsers: getSpecificOverrideUsers(),
-                masterStop: getSettings().masterStop
-            };
-            res.json(settingsData);
-        } catch (error) {
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+const tempBulkOps = rules.map((rule, index) => ({
+updateOne: {
+filter: { _id: new db.mongoose.Types.ObjectId(rule._id) },
+update: { $set: { RULE_NUMBER: -(index + 1000) } },
+upsert: false
+}
+}));
 
-    app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
-        try {
-            const { enabled, cooldown } = req.body;
-            setSettings({ ...getSettings(), preventRepeatingRule: { enabled, cooldown } });
-            await db.saveSettings();
-            res.json({ success: true, message: "Repeating rule setting updated successfully." });
-        } catch (error) {
-            console.error("❌ Failed to update repeating rule setting:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+if (tempBulkOps.length > 0) { await db.Rule.bulkWrite(tempBulkOps, { session, ordered: true }); }
 
-    app.post("/api/settings/temporary-hide", async (req, res) => {
-        try {
-            const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } = req.body;
-            setSettings({ ...getSettings(), temporaryHide: { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } });
-            await db.saveSettings();
-            res.json({ success: true, message: "Temporary hide setting updated successfully." });
-        } catch (error) {
-            console.error("❌ Failed to update temporary hide setting:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
-    
-    app.post("/api/settings/master-stop", async (req, res) => {
-        try {
-            const payload = req.body;
-            const settings = getSettings();
-            settings.masterStop = payload;
-            setSettings(settings);
-            await db.saveSettings();
-            res.json({ success: true, message: "Master stop setting updated successfully." });
-        } catch (error) {
-            console.error("❌ Failed to update master stop setting:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+const finalBulkOps = rules.map(rule => ({
+updateOne: {
+filter: { _id: new db.mongoose.Types.ObjectId(rule._id) },
+update: {
+$set: {
+RULE_NUMBER: rule.RULE_NUMBER,
+RULE_NAME: rule.RULE_NAME || '',
+RULE_TYPE: rule.RULE_TYPE,
+KEYWORDS: rule.KEYWORDS || '',
+REPLIES_TYPE: rule.REPLIES_TYPE,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
+TARGET_USERS: rule.TARGET_USERS || 'ALL',
+REPLY_DELAY: rule.REPLY_DELAY || 0,
+ENABLE_DELAY: rule.ENABLE_DELAY || false
+}
+},
+upsert: false
+}
+}));
 
-    app.post("/api/bot/status", async (req, res) => {
-        try {
-            const { isOnline } = req.body;
-            const settings = getSettings();
-            settings.isBotOnline = isOnline;
-            setSettings(settings);
-            await db.saveSettings();
-            res.json({ 
-                success: true, 
-                message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.`,
-                settings: getSettings()
-            });
-            console.log(`🤖 Bot status has been set to ${isOnline ? 'online' : 'offline'}.`);
-        } catch (error) {
-            console.error("❌ Failed to update bot status:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+if (finalBulkOps.length > 0) {
+const finalResult = await db.Rule.bulkWrite(finalBulkOps, { session, ordered: true });
+if (finalResult.modifiedCount !== rules.length) {
+throw new Error(`Expected ${rules.length} updates, but only ${finalResult.modifiedCount} succeeded`);
+}
+}
+});
 
-    app.get("/api/owners", async (req, res) => {
-        const owners = getOwnerList();
-        res.json(owners);
-    });
+await session.endSession();
+await db.loadAllRules();
 
-    app.post("/api/owners/update", async (req, res) => {
-        try {
-            const { owners } = req.body;
-            setOwnerList(owners);
-            await db.saveOwnersList();
-            res.json({ success: true, message: "Owners list updated successfully." });
-        } catch (error) {
-            console.error("❌ Failed to update owners list:", error);
-            res.status(500).json({ success: false, message: "Server error" });
-        }
-    });
+res.json({
+success: true,
+message: `${req.body.rules.length} rules reordered successfully`,
+updatedCount: req.body.rules.length,
+totalCount: req.body.rules.length
+});
 
-    app.get("/api/owner-rules", async (req, res) => {
-        try {
-            const rules = await db.OwnerRule.find({}).sort({ RULE_NUMBER: 1 });
-            res.json(rules);
-        } catch (err) {
-            res.status(500).json({ error: "Failed to fetch owner rules" });
-        }
-    });
+io.emit('rulesUpdated', {
+action: 'bulk_reorder_atomic',
+count: req.body.rules.length,
+newOrder: getRules().map(r => ({ id: r._id, number: r.RULE_NUMBER, name: r.RULE_NAME }))
+});
+} catch (error) {
+if (session.inTransaction()) await session.abortTransaction();
+session.endSession();
+console.error('❌ Atomic bulk update failed:', error);
+res.status(500).json({ success: false, message: 'Failed to reorder rules atomically: ' + error.message });
+}
+});
 
-    app.post("/api/owner-rules/update", async (req, res) => {
-        const { type, rule, oldRuleNumber } = req.body;
-        const session = await db.mongoose.startSession();
-        try {
-            await session.withTransaction(async () => {
-                if (type === "add") {
-                    await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
-                    await db.OwnerRule.create([{
-                        RULE_NUMBER: rule.ruleNumber, RULE_NAME: rule.ruleName, RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords, REPLIES_TYPE: rule.repliesType, REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText)
-                    }], { session });
-                } else if (type === "edit") {
-                    if (rule.ruleNumber !== oldRuleNumber) {
-                        const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
-                        const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
-                        if (rule.ruleNumber < oldRuleNumber) { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session }); } 
-                        else { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session }); }
-                    }
-                    const updateData = {
-                        RULE_NUMBER: rule.ruleNumber,
-                        RULE_NAME: rule.ruleName,
-                        RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords,
-                        REPLIES_TYPE: rule.repliesType,
-                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText)
-                    };
-                    if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
-                        delete updateData.RULE_NAME;
-                    }
-                    await db.OwnerRule.findOneAndUpdate(
-                        { RULE_NUMBER: oldRuleNumber },
-                        { $set: updateData },
-                        { new: true, session }
-                    );
-                } else if (type === "delete") {
-                    await db.OwnerRule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
-                    await db.OwnerRule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
-                }
-            });
-            await session.endSession();
-            await db.loadAllOwnerRules();
-            await db.saveOwnerRules();
-            res.json({ success: true, message: "Owner rule updated successfully!" });
-            io.emit('ownerRulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
-        } catch (err) {
-            if (session.inTransaction()) await session.abortTransaction();
-            session.endSession();
-            console.error("❌ Failed to update owner rule:", err);
-            res.status(500).json({ success: false, message: "Server error: " + err.message });
-        }
-    });
+app.get("/api/variables", async (req, res) => {
+try {
+const variables = await db.Variable.find({});
+res.json(variables);
+} catch (err) {
+res.status(500).json({ error: "Failed to fetch variables" });
+}
+});
 
-    app.get("/api/automation-rules", async (req, res) => {
-        try {
-            const rules = await db.AutomationRule.find({}).sort({ RULE_NUMBER: 1 });
-            res.json(rules);
-        } catch (err) {
-            res.status(500).json({ error: "Failed to fetch automation rules" });
-        }
-    });
+app.post("/api/variables/update", async (req, res) => {
+const { type, variable, oldName } = req.body;
 
-    app.post("/api/automation-rules/update", async (req, res) => {
-        const { type, rule, oldRuleNumber } = req.body;
-        const session = await db.mongoose.startSession();
-        try {
-            await session.withTransaction(async () => {
-                if (type === "add") {
-                    await db.AutomationRule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
-                    await db.AutomationRule.create([{
-                        RULE_NUMBER: rule.ruleNumber,
-                        RULE_NAME: rule.ruleName,
-                        RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords,
-                        REPLIES_TYPE: rule.repliesType,
-                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                        USER_ACCESS_TYPE: rule.userAccessType,
-                        DEFINED_USERS: rule.definedUsers,
-                        MIN_DELAY: rule.minDelay,
-                        MAX_DELAY: rule.maxDelay,
-                        COOLDOWN: rule.cooldown
-                    }], { session });
-                } else if (type === "edit") {
-                    if (rule.ruleNumber !== oldRuleNumber) {
-                        const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
-                        const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
-                        if (rule.ruleNumber < oldRuleNumber) {
-                            await db.AutomationRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
-                        } else {
-                            await db.AutomationRule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
-                        }
-                    }
-                    const updateData = {
-                        RULE_NUMBER: rule.ruleNumber,
-                        RULE_NAME: rule.ruleName,
-                        RULE_TYPE: rule.ruleType,
-                        KEYWORDS: rule.keywords,
-                        REPLIES_TYPE: rule.repliesType,
-                        REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-                        USER_ACCESS_TYPE: rule.userAccessType,
-                        DEFINED_USERS: rule.definedUsers,
-                        MIN_DELAY: rule.minDelay,
-                        MAX_DELAY: rule.maxDelay,
-                        COOLDOWN: rule.cooldown
-                    };
-                    if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
-                        delete updateData.RULE_NAME;
-                    }
-                    await db.AutomationRule.findOneAndUpdate(
-                        { RULE_NUMBER: oldRuleNumber },
-                        { $set: updateData },
-                        { new: true, session }
-                    );
-                } else if (type === "delete") {
-                    await db.AutomationRule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
-                    await db.AutomationRule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
-                }
-            });
-            await session.endSession();
-            await db.loadAllAutomationRules();
-            await db.saveAutomationRules();
-            res.json({ success: true, message: "Automation rule updated successfully!" });
-            io.emit('automationRulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
-        } catch (err) {
-            if (session.inTransaction()) await session.abortTransaction();
-            session.endSession();
-            console.error("❌ Failed to update automation rule:", err);
-            res.status(500).json({ success: false, message: "Server error: " + err.message });
-        }
-    });
-    
-    app.post("/webhook", async (req, res) => {
-        const { extractSenderNameAndContext } = require('./core/utils');
+try {
+const processedVariable = {
+name: variable.name,
+value: convertNewlinesBeforeSave(variable.value)
+};
 
-        if (!getIsReady()) {
-            console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
-            return res.status(503).send('Server is initializing. Please try again in a moment.');
-        }
+if (type === "add") { await db.Variable.create(processedVariable); }
+else if (type === "edit") { await db.Variable.findOneAndUpdate({ name: oldName }, processedVariable, { new: true }); }
+else if (type === "delete") { await db.Variable.deleteOne({ name: variable.name }); }
 
-        const sessionId = req.body.session_id || "default_session";
-        const msg = req.body.query?.message || "";
-        const sender = req.body.query?.sender || "";
-        
-        const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+await db.loadAllVariables();
+res.json({ success: true, message: "Variable updated successfully!" });
+io.emit('variablesUpdated', { action: type, variableName: variable.name });
+} catch (err) {
+console.error("❌ Failed to update variable:", err);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
 
-        const replies = await processMessage(msg, sessionId, sender);
+app.post("/api/settings/ignored-override", async (req, res) => {
+try {
+const { users } = req.body;
+const updatedUsers = users.split(',').map(userString => {
+const [name, context] = userString.split(':').map(s => s.trim());
+return { name, context: context || 'DM' };
+}).filter(item => item.name);
 
-        const messageData = {
-            sessionId: sessionId,
-            senderName: parsedSenderName,
-            groupName: isGroup ? groupName : null,
-            userMessage: msg,
-            botReply: Array.isArray(replies) ? replies.join('\n') : replies,
-            timestamp: new Date().toISOString()
-        };
+setIgnoredOverrideUsers(updatedUsers);
+await db.saveIgnoredOverrideUsers();
+res.json({ success: true, message: "Ignored override users updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update ignored override users:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
 
-        let recentChatMessages = getRecentChatMessages();
-        recentChatMessages.unshift(messageData);
-        if (recentChatMessages.length > MAX_CHAT_HISTORY) { recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY); }
-        setRecentChatMessages(recentChatMessages);
+app.post("/api/settings/specific-override", async (req, res) => {
+try {
+const { users } = req.body;
+const updatedUsers = users.split(',').map(u => u.trim()).filter(Boolean);
+setSpecificOverrideUsers(updatedUsers);
+await db.saveSpecificOverrideUsers();
+res.json({ success: true, message: "Specific override users updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update specific override users:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
 
-        console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
+app.get("/api/settings", async (req, res) => {
+try {
+const settingsData = {
+preventRepeatingRule: getSettings().preventRepeatingRule,
+isBotOnline: getSettings().isBotOnline,
+temporaryHide: getSettings().temporaryHide,
+ignoredOverrideUsers: getIgnoredOverrideUsers(),
+specificOverrideUsers: getSpecificOverrideUsers(),
+masterStop: getSettings().masterStop
+};
+res.json(settingsData);
+} catch (error) {
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
 
-        io.emit('newMessage', messageData);
-        emitStats();
+app.post("/api/settings/prevent-repeating-rule", async (req, res) => {
+try {
+const { enabled, cooldown } = req.body;
+setSettings({ ...getSettings(), preventRepeatingRule: { enabled, cooldown } });
+await db.saveSettings();
+res.json({ success: true, message: "Repeating rule setting updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update repeating rule setting:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
 
-        if (!replies || replies.length === 0) return res.json({ replies: [] });
-        
-        const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
-        res.json({ replies: formattedReplies });
-    });
+app.post("/api/settings/temporary-hide", async (req, res) => {
+try {
+const { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } = req.body;
+setSettings({ ...getSettings(), temporaryHide: { enabled, matchType, triggerText, unhideEnabled, unhideTriggerText, unhideMatchType, hideReply, unhideReply } });
+await db.saveSettings();
+res.json({ success: true, message: "Temporary hide setting updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update temporary hide setting:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
 
-    app.get("/stats", async (req, res) => {
-        try {
-            const totalUsersCount = await db.User.countDocuments();
-            res.json({
-                totalUsers: totalUsersCount,
-                totalMsgs: getStats().totalMsgs,
-                todayUsers: getStats().todayUsers.length,
-                todayMsgs: getStats().todayMsgs,
-                nobiPapaHideMeCount: getStats().nobiPapaHideMeUsers.length
-            });
-        } catch (err) {
-            console.error('Failed to fetch stats:', err);
-            res.status(500).json({ error: "Failed to fetch stats" });
-        }
-    });
+app.post("/api/settings/master-stop", async (req, res) => {
+try {
+const payload = req.body;
+const settings = getSettings();
+settings.masterStop = payload;
+setSettings(settings);
+await db.saveSettings();
+res.json({ success: true, message: "Master stop setting updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update master stop setting:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
+
+app.post("/api/bot/status", async (req, res) => {
+try {
+const { isOnline } = req.body;
+const settings = getSettings();
+settings.isBotOnline = isOnline;
+setSettings(settings);
+await db.saveSettings();
+
+res.json({
+success: true,
+message: `Bot status updated to ${isOnline ? 'online' : 'offline'}.`,
+settings: getSettings()
+});
+
+console.log(`🤖 Bot status has been set to ${isOnline ? 'online' : 'offline'}.`);
+} catch (error) {
+console.error("❌ Failed to update bot status:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
+
+app.get("/api/owners", async (req, res) => {
+const owners = getOwnerList();
+res.json(owners);
+});
+
+app.post("/api/owners/update", async (req, res) => {
+try {
+const { owners } = req.body;
+setOwnerList(owners);
+await db.saveOwnersList();
+res.json({ success: true, message: "Owners list updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update owners list:", error);
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
+
+app.get("/api/owner-rules", async (req, res) => {
+try {
+const rules = await db.OwnerRule.find({}).sort({ RULE_NUMBER: 1 });
+res.json(rules);
+} catch (err) {
+res.status(500).json({ error: "Failed to fetch owner rules" });
+}
+});
+
+app.post("/api/owner-rules/update", async (req, res) => {
+const { type, rule, oldRuleNumber } = req.body;
+const session = await db.mongoose.startSession();
+
+try {
+await session.withTransaction(async () => {
+if (type === "add") {
+await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
+await db.OwnerRule.create([{
+RULE_NUMBER: rule.ruleNumber, RULE_NAME: rule.ruleName, RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords, REPLIES_TYPE: rule.repliesType, REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+REPLY_DELAY: rule.replyDelay || 0, ENABLE_DELAY: rule.enableDelay || false
+}], { session });
+} else if (type === "edit") {
+if (rule.ruleNumber !== oldRuleNumber) {
+const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
+const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
+
+if (rule.ruleNumber < oldRuleNumber) { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session }); }
+else { await db.OwnerRule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session }); }
+}
+
+const updateData = {
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+REPLY_DELAY: rule.replyDelay || 0,
+ENABLE_DELAY: rule.enableDelay || false
+};
+
+if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
+delete updateData.RULE_NAME;
+}
+
+await db.OwnerRule.findOneAndUpdate(
+{ RULE_NUMBER: oldRuleNumber },
+{ $set: updateData },
+{ new: true, session }
+);
+} else if (type === "delete") {
+await db.OwnerRule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
+await db.OwnerRule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+}
+});
+
+await session.endSession();
+await db.loadAllOwnerRules();
+await db.saveOwnerRules();
+res.json({ success: true, message: "Owner rule updated successfully!" });
+io.emit('ownerRulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+} catch (err) {
+if (session.inTransaction()) await session.abortTransaction();
+session.endSession();
+console.error("❌ Failed to update owner rule:", err);
+res.status(500).json({ success: false, message: "Server error: " + err.message });
+}
+});
+
+app.get("/api/automation-rules", async (req, res) => {
+try {
+const rules = await db.AutomationRule.find({}).sort({ RULE_NUMBER: 1 });
+res.json(rules);
+} catch (err) {
+res.status(500).json({ error: "Failed to fetch automation rules" });
+}
+});
+
+app.post("/api/automation-rules/update", async (req, res) => {
+const { type, rule, oldRuleNumber } = req.body;
+const session = await db.mongoose.startSession();
+
+try {
+await session.withTransaction(async () => {
+if (type === "add") {
+await db.AutomationRule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
+await db.AutomationRule.create([{
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+USER_ACCESS_TYPE: rule.userAccessType,
+DEFINED_USERS: rule.definedUsers,
+MIN_DELAY: rule.minDelay,
+MAX_DELAY: rule.maxDelay,
+COOLDOWN: rule.cooldown,
+REPLY_DELAY: rule.replyDelay || 0,
+ENABLE_DELAY: rule.enableDelay || false
+}], { session });
+} else if (type === "edit") {
+if (rule.ruleNumber !== oldRuleNumber) {
+const startRuleNumber = Math.min(rule.ruleNumber, oldRuleNumber);
+const endRuleNumber = Math.max(rule.ruleNumber, oldRuleNumber);
+
+if (rule.ruleNumber < oldRuleNumber) {
+await db.AutomationRule.updateMany({ RULE_NUMBER: { $gte: startRuleNumber, $lt: endRuleNumber } }, { $inc: { RULE_NUMBER: 1 } }, { session });
+} else {
+await db.AutomationRule.updateMany({ RULE_NUMBER: { $gt: startRuleNumber, $lte: endRuleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+}
+}
+
+const updateData = {
+RULE_NUMBER: rule.ruleNumber,
+RULE_NAME: rule.ruleName,
+RULE_TYPE: rule.ruleType,
+KEYWORDS: rule.keywords,
+REPLIES_TYPE: rule.repliesType,
+REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
+USER_ACCESS_TYPE: rule.userAccessType,
+DEFINED_USERS: rule.definedUsers,
+MIN_DELAY: rule.minDelay,
+MAX_DELAY: rule.maxDelay,
+COOLDOWN: rule.cooldown,
+REPLY_DELAY: rule.replyDelay || 0,
+ENABLE_DELAY: rule.enableDelay || false
+};
+
+if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
+delete updateData.RULE_NAME;
+}
+
+await db.AutomationRule.findOneAndUpdate(
+{ RULE_NUMBER: oldRuleNumber },
+{ $set: updateData },
+{ new: true, session }
+);
+} else if (type === "delete") {
+await db.AutomationRule.deleteOne({ RULE_NUMBER: rule.ruleNumber }, { session });
+await db.AutomationRule.updateMany({ RULE_NUMBER: { $gt: rule.ruleNumber } }, { $inc: { RULE_NUMBER: -1 } }, { session });
+}
+});
+
+await session.endSession();
+await db.loadAllAutomationRules();
+await db.saveAutomationRules();
+res.json({ success: true, message: "Automation rule updated successfully!" });
+io.emit('automationRulesUpdated', { action: type, ruleNumber: rule.ruleNumber });
+} catch (err) {
+if (session.inTransaction()) await session.abortTransaction();
+session.endSession();
+console.error("❌ Failed to update automation rule:", err);
+res.status(500).json({ success: false, message: "Server error: " + err.message });
+}
+});
+
+app.post("/webhook", async (req, res) => {
+const { extractSenderNameAndContext } = require('./core/utils');
+if (!getIsReady()) {
+console.warn('⚠️ Server not ready. Rejecting incoming webhook.');
+return res.status(503).send('Server is initializing. Please try again in a moment.');
+}
+
+const sessionId = req.body.session_id || "default_session";
+const msg = req.body.query?.message || "";
+const sender = req.body.query?.sender || "";
+const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAndContext(sender);
+
+const replies = await processMessage(msg, sessionId, sender);
+
+const messageData = {
+sessionId: sessionId,
+senderName: parsedSenderName,
+groupName: isGroup ? groupName : null,
+userMessage: msg,
+botReply: Array.isArray(replies) ? replies.join('\n') : replies,
+timestamp: new Date().toISOString()
+};
+
+if (replies && typeof replies === 'object' && replies.delayedSending) {
+console.log(`⏰ Starting delayed sending of ${replies.count} replies`);
+res.json({ 
+replies: [{ 
+message: `🔄 Sending ${replies.count} replies with delay...` 
+}]
+});
+emitStats();
+return;
+}
+
+let recentChatMessages = getRecentChatMessages();
+recentChatMessages.unshift(messageData);
+if (recentChatMessages.length > MAX_CHAT_HISTORY) { recentChatMessages = recentChatMessages.slice(0, MAX_CHAT_HISTORY); }
+setRecentChatMessages(recentChatMessages);
+
+console.log(`💬 Chat history updated. Total messages: ${getRecentChatMessages().length}`);
+io.emit('newMessage', messageData);
+emitStats();
+
+if (!replies || replies.length === 0) return res.json({ replies: [] });
+
+const formattedReplies = (Array.isArray(replies) ? replies : [replies]).map(r => ({ message: r }));
+res.json({ replies: formattedReplies });
+});
+
+app.get("/stats", async (req, res) => {
+try {
+const totalUsersCount = await db.User.countDocuments();
+res.json({
+totalUsers: totalUsersCount,
+totalMsgs: getStats().totalMsgs,
+todayUsers: getStats().todayUsers.length,
+todayMsgs: getStats().todayMsgs,
+nobiPapaHideMeCount: getStats().nobiPapaHideMeUsers.length
+});
+} catch (err) {
+console.error('Failed to fetch stats:', err);
+res.status(500).json({ error: "Failed to fetch stats" });
+}
+});
 };
