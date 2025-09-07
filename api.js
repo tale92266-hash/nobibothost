@@ -14,6 +14,7 @@ getIsAutomationEnabled, setIsAutomationEnabled
 
 const { processMessage, setIOInstance } = require('./core/bot');
 const { Server } = require("socket.io");
+const axios = require('axios'); // Add axios here as well
 
 module.exports = (app, server, getIsReady) => {
 const io = new Server(server, { cors: { origin: "*" } });
@@ -522,7 +523,8 @@ const { senderName: parsedSenderName, isGroup, groupName } = extractSenderNameAn
 const replies = await processMessage(msg, sessionId, sender);
 
 let formattedReplies = [];
-let botReplyForHistory = '';
+let botReplyForHistory = null;
+let messageData = {}; // messageData declared here
 
 if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0) {
     // This is the delayed reply case for simple webhook clients
@@ -546,7 +548,7 @@ if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0)
     botReplyForHistory = replies;
 }
 
-let messageData = {
+messageData = {
     sessionId: sessionId,
     senderName: parsedSenderName,
     groupName: isGroup ? groupName : null,
