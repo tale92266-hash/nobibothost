@@ -526,21 +526,25 @@ let formattedReplies = [];
 let botReplyForHistory = null;
 let messageData = {}; // messageData declared here
 
-if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0) {
-    // This is the delayed reply case for simple webhook clients
-    for (let i = 0; i < replies.replies.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : replies.replyDelay * 1000));
-        formattedReplies.push({ message: replies.replies[i] });
+if (replies && Array.isArray(replies) && replies.length > 0) {
+    // Single or multiple replies without delay
+    for (const reply of replies) {
+        formattedReplies.push({ message: reply });
     }
+    botReplyForHistory = replies;
+} else if (replies && replies.replies && replies.enableDelay) {
+    // New logic for delayed replies from `bot.js`
+    const firstReply = replies.replies[0];
+    formattedReplies.push({ message: firstReply });
     botReplyForHistory = replies.replies;
 } else if (replies && replies.replies) {
-    // Multiple replies without delay
+    // Fallback for multiple replies without delay
     for (const reply of replies.replies) {
         formattedReplies.push({ message: reply });
     }
     botReplyForHistory = replies.replies;
 } else if (replies) {
-    // Single reply or multiple replies without delay
+    // Single reply
     const replyArray = Array.isArray(replies) ? replies : [replies];
     for (const reply of replyArray) {
         formattedReplies.push({ message: reply });
