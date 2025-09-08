@@ -389,7 +389,7 @@ KEYWORDS: rule.keywords,
 REPLIES_TYPE: rule.repliesType,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
 REPLY_DELAY: rule.replyDelay || 0,
-ENABLE_DELAY: rule.enableDelay || false
+ENABLE_DELAY: rule.ENABLE_DELAY || false
 };
 
 if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
@@ -526,33 +526,14 @@ let formattedReplies = [];
 let botReplyForHistory = null;
 let messageData = {}; // messageData declared here
 
-if (replies && Array.isArray(replies) && replies.length > 0) {
-    // Single or multiple replies without delay
-    for (const reply of replies) {
-        formattedReplies.push({ message: reply });
-    }
-    botReplyForHistory = replies;
-} else if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0) {
-    // This is the delayed reply case for simple webhook clients
-    for (let i = 0; i < replies.replies.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : replies.replyDelay * 1000));
-        formattedReplies.push({ message: replies.replies[i] });
-    }
-    botReplyForHistory = replies.replies;
-} else if (replies && replies.replies) {
-    // Multiple replies without delay
-    for (const reply of replies.replies) {
-        formattedReplies.push({ message: reply });
-    }
-    botReplyForHistory = replies.replies;
-} else if (replies) {
-    // Single reply or multiple replies without delay
+if (replies) {
     const replyArray = Array.isArray(replies) ? replies : [replies];
     for (const reply of replyArray) {
         formattedReplies.push({ message: reply });
     }
-    botReplyForHistory = replies;
+    botReplyForHistory = replyArray;
 }
+
 
 messageData = {
     sessionId: sessionId,
