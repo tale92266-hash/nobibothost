@@ -333,6 +333,12 @@
     color: var(--white);
 }
 
+/* New CSS rule for the delay-override-card */
+.settings-card[data-setting="delay-override-card"] .settings-card-icon {
+    background: linear-gradient(135deg, #a855f7, #8b5cf6);
+    color: var(--white);
+}
+
 .settings-card[data-setting="repeating-rule"] .settings-card-icon {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     color: var(--white);
@@ -562,6 +568,4 @@
     .form-actions .btn-secondary {
         order: 3;
     }
-}
-
 }
