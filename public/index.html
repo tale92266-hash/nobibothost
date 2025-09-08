@@ -495,24 +495,6 @@
                             </select>
                         </div>
                         
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="minDelay">Min Reply Delay (seconds)</label>
-                                <input type="number" class="form-control" id="minDelay" min="0" value="0">
-                            </div>
-                            <div class="form-group">
-                                <label for="maxDelay">Max Reply Delay (seconds, optional)</label>
-                                <input type="number" class="form-control" id="maxDelay" min="0" value="0">
-                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="cooldown">Rule Cooldown (seconds, 0 to disable)</label>
-                            <input type="number" class="form-control" id="cooldown" min="0" value="0">
-                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
-                        </div>
-
                         <div class="form-group" id="replyTextField">
                             <label for="replyText">Reply Text</label>
                             <textarea class="form-control" id="replyText" rows="4" required
@@ -534,6 +516,25 @@
                             <input type="text" class="form-control" id="targetUsers" 
                                 placeholder="Comma-separated user IDs">
                         </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="minDelay">Min Reply Delay (seconds)</label>
+                                <input type="number" class="form-control" id="minDelay" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="maxDelay">Max Reply Delay (seconds, optional)</label>
+                                <input type="number" class="form-control" id="maxDelay" min="0" value="0">
+                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cooldown">Rule Cooldown (seconds, 0 to disable)</label>
+                            <input type="number" class="form-control" id="cooldown" min="0" value="0">
+                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
+                        </div>
+
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -830,6 +831,13 @@
                                 <option value="ALL">All Replies</option>
                             </select>
                         </div>
+                        
+                        <div class="form-group" id="ownerReplyTextField">
+                            <label for="ownerReplyText">Reply Text</label>
+                            <textarea class="form-control" id="ownerReplyText" rows="4" required
+                                placeholder="Use <#> to separate multiple replies"></textarea>
+                            <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
+                        </div>
 
                         <div class="form-grid">
                             <div class="form-group">
@@ -849,12 +857,6 @@
                             <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
                         </div>
 
-                        <div class="form-group" id="ownerReplyTextField">
-                            <label for="ownerReplyText">Reply Text</label>
-                            <textarea class="form-control" id="ownerReplyText" rows="4" required
-                                placeholder="Use <#> to separate multiple replies"></textarea>
-                            <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
-                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
