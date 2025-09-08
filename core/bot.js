@@ -196,9 +196,7 @@ let ruleReplies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-replies = resolvedReplies;
-enableDelay = rule.ENABLE_DELAY;
-replyDelay = rule.REPLY_DELAY;
+replies = { replies: resolvedReplies, enableDelay: rule.ENABLE_DELAY, replyDelay: rule.REPLY_DELAY };
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -254,9 +252,7 @@ let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-replies = resolvedReplies;
-enableDelay = rule.ENABLE_DELAY;
-replyDelay = rule.REPLY_DELAY;
+replies = { replies: resolvedReplies, enableDelay: rule.ENABLE_DELAY, replyDelay: rule.REPLY_DELAY };
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -335,9 +331,7 @@ let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-replies = resolvedReplies;
-enableDelay = rule.ENABLE_DELAY;
-replyDelay = rule.REPLY_DELAY;
+replies = { replies: resolvedReplies, enableDelay: rule.ENABLE_DELAY, replyDelay: rule.REPLY_DELAY };
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -350,6 +344,7 @@ const endTime = process.hrtime(startTime);
 const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
 let replyToReturn = null;
+let resolvedRepliesForHistory;
 
 if (replies) {
     if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
@@ -363,15 +358,18 @@ if (replies) {
         }
         
         replyToReturn = [firstReply]; // Return an array with the first reply for immediate webhook response
+        resolvedRepliesForHistory = replies.replies;
     } else {
-        replyToReturn = replies.replies || replies; // Return all replies at once
+        replyToReturn = replies.replies || replies;
+        resolvedRepliesForHistory = replies.replies || replies;
     }
 }
+
 
 // Map the replies to resolve variables for the final return
 if (replyToReturn) {
     const replyArray = Array.isArray(replyToReturn) ? replyToReturn : [replyToReturn];
-    const resolvedRepliesForHistory = replyArray.map(r => {
+    const finalReplies = replyArray.map(r => {
         if (typeof r === 'string') {
             return resolveVariablesRecursively(r, senderName, msg, processingTime, groupName, isGroup, regexMatch, matchedRuleId, stats.totalMsgs, messageStats);
         }
@@ -413,6 +411,7 @@ if (replyToReturn) {
     if (ioInstance) {
         ioInstance.emit('newMessage', messageData);
     }
+    return finalReplies;
 }
 
 return replyToReturn || null;
