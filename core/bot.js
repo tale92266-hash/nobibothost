@@ -22,28 +22,6 @@ const setIOInstance = (io) => {
 ioInstance = io;
 };
 
-// New function to send replies with delay directly to the autoresponder app's API
-const sendDelayedReplies = async (replies, delaySeconds, sessionId, senderName, groupName, isGroup) => {
-    // Assuming the autoresponder app has an API endpoint to send messages
-    const sendEndpoint = process.env.AUTORESPONDER_API_ENDPOINT; // This needs to be defined in your .env file
-    
-    for (let i = 0; i < replies.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
-        
-        try {
-            const replyMessage = resolveVariablesRecursively(replies[i], senderName, '', 0, groupName, isGroup);
-            await axios.post(sendEndpoint, {
-                sessionId: sessionId,
-                recipient: senderName,
-                message: replyMessage
-            });
-            console.log(`⏰ Delayed reply ${i + 2}/${replies.length + 1} sent successfully to autoresponder.`);
-        } catch (error) {
-            console.error(`❌ Failed to send delayed reply ${i + 2}/${replies.length + 1}:`, error.message);
-        }
-    }
-};
-
 async function processMessage(msg, sessionId = "default", sender) {
 const startTime = process.hrtime();
 const { senderName, isGroup, groupName } = extractSenderNameAndContext(sender);
@@ -77,7 +55,7 @@ console.log('🛑 All automation rules have been stopped.');
 }
 
 const reply = pick(settings.masterStop.replyText.split('<#>'));
-return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
+return [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)];
 }
 
 if (settings.temporaryHide.unhideEnabled && matchesTrigger(msg, settings.temporaryHide.unhideTriggerText, settings.temporaryHide.unhideMatchType)) {
@@ -93,7 +71,7 @@ setIgnoredOverrideUsers(updatedIgnoredUsers);
 await db.saveIgnoredOverrideUsers();
 console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
 const reply = pick(settings.temporaryHide.unhideReply.split('<#>'));
-return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
+return [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)];
 } else {
 console.log(`⚠️ User "${senderName}" was not in the temporary hide list for context "${context}".`);
 return null;
@@ -114,7 +92,7 @@ await db.saveIgnoredOverrideUsers();
 console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
 }
 
-return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
+return [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)];
 }
 
 const isSenderIgnored = isUserIgnored(senderName, context, getIgnoredOverrideUsers());
@@ -157,8 +135,6 @@ await db.saveStats();
 let replies = null;
 let regexMatch = null;
 let matchedRuleId = null;
-let enableDelay = false;
-let replyDelay = 0;
 
 const automationRules = getAutomationRules();
 if (getIsAutomationEnabled() && msg.startsWith('/') && automationRules.length > 0) {
@@ -196,7 +172,7 @@ let ruleReplies = rule.REPLY_TEXT.split('<#>').map(r => r.trim()).filter(Boolean
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-replies = { replies: resolvedReplies, enableDelay: rule.ENABLE_DELAY, replyDelay: rule.REPLY_DELAY };
+replies = resolvedReplies;
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -252,7 +228,7 @@ let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-replies = { replies: resolvedReplies, enableDelay: rule.ENABLE_DELAY, replyDelay: rule.REPLY_DELAY };
+replies = resolvedReplies;
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -331,7 +307,7 @@ let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
 if (rule.REPLIES_TYPE === 'ALL') {
-replies = { replies: resolvedReplies, enableDelay: rule.ENABLE_DELAY, replyDelay: rule.REPLY_DELAY };
+replies = resolvedReplies;
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -347,26 +323,10 @@ let replyToReturn = null;
 let resolvedRepliesForHistory;
 
 if (replies) {
-    if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
-        // Separate first reply and remaining replies
-        const firstReply = replies.replies[0];
-        const remainingReplies = replies.replies.slice(1);
-        
-        if (remainingReplies.length > 0) {
-            // Schedule remaining replies to be sent in the background
-            sendDelayedReplies(remainingReplies, replies.replyDelay, sessionId, senderName, groupName, isGroup);
-        }
-        
-        replyToReturn = [firstReply]; // Return an array with the first reply for immediate webhook response
-        resolvedRepliesForHistory = replies.replies;
-    } else {
-        replyToReturn = replies.replies || replies;
-        resolvedRepliesForHistory = replies.replies || replies;
-    }
+    replyToReturn = replies;
+    resolvedRepliesForHistory = replies;
 }
 
-
-// Map the replies to resolve variables for the final return
 if (replyToReturn) {
     const replyArray = Array.isArray(replyToReturn) ? replyToReturn : [replyToReturn];
     const finalReplies = replyArray.map(r => {
