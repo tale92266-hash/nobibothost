@@ -23,25 +23,27 @@ const setIOInstance = (io) => {
 };
 
 // New function to send replies with delay directly to the autoresponder app's API
-const sendDelayedReplies = async (replies, delaySeconds, sessionId, senderName, groupName, isGroup) => {
+const sendDelayedReplies = (replies, delaySeconds, sessionId, senderName, groupName, isGroup) => {
     // Assuming the autoresponder app has an API endpoint to send messages
     const sendEndpoint = process.env.AUTORESPONDER_API_ENDPOINT; // This needs to be defined in your .env file
-    
-    for (let i = 0; i < replies.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
-        
-        try {
-            const replyMessage = resolveVariablesRecursively(replies[i], senderName, '', 0, groupName, isGroup);
-            await axios.post(sendEndpoint, {
-                sessionId: sessionId,
-                recipient: senderName,
-                message: replyMessage
-            });
-            console.log(`⏰ Delayed reply ${i + 2}/${replies.length + 1} sent successfully to autoresponder.`);
-        } catch (error) {
-            console.error(`❌ Failed to send delayed reply ${i + 2}/${replies.length + 1}:`, error.message);
-        }
-    }
+
+    replies.forEach((reply, index) => {
+        setTimeout(() => {
+            try {
+                const replyMessage = resolveVariablesRecursively(reply, senderName, '', 0, groupName, isGroup);
+                axios.post(sendEndpoint, {
+                    sessionId: sessionId,
+                    recipient: senderName,
+                    message: replyMessage
+                }).catch(error => {
+                    console.error(`❌ Failed to send delayed reply ${index + 2}:`, error.message);
+                });
+                console.log(`⏰ Delayed reply ${index + 2}/${replies.length + 1} sent successfully in background.`);
+            } catch (error) {
+                console.error(`❌ Failed to process delayed reply ${index + 2}:`, error.message);
+            }
+        }, delaySeconds * 1000);
+    });
 };
 
 async function processMessage(msg, sessionId = "default", sender) {
@@ -57,11 +59,6 @@ async function processMessage(msg, sessionId = "default", sender) {
 
     if (!getSettings().isBotOnline) {
         console.log('🤖 Bot is offline. Skipping message processing.');
-        return null;
-    }
-
-    if (!getStats()) {
-        console.error('❌ Stats object is undefined. Cannot process message.');
         return null;
     }
 
@@ -90,7 +87,7 @@ async function processMessage(msg, sessionId = "default", sender) {
 
         if (updatedIgnoredUsers.length < getIgnoredOverrideUsers().length) {
             setIgnoredOverrideUsers(updatedIgnoredUsers);
-            await db.saveIgnoredOverrideUsers();
+            db.saveIgnoredOverrideUsers().catch(e => console.error("Error saving ignored users:", e)); // Non-blocking
             console.log(`👤 User "${senderName}" has been unhidden in context "${context}".`);
             const reply = pick(settings.temporaryHide.unhideReply.split('<#>'));
             return { replies: [resolveVariablesRecursively(reply, senderName, msg, 0, groupName, isGroup)] };
@@ -110,7 +107,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             const currentIgnoredUsers = getIgnoredOverrideUsers();
             currentIgnoredUsers.push(hideEntry);
             setIgnoredOverrideUsers(currentIgnoredUsers);
-            await db.saveIgnoredOverrideUsers();
+            db.saveIgnoredOverrideUsers().catch(e => console.error("Error saving ignored users:", e)); // Non-blocking
             console.log(`👤 User "${senderName}" has been temporarily hidden in context "${context}".`);
         }
 
@@ -143,15 +140,14 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     messageStats.receivedCount++;
-    await messageStats.save();
+    messageStats.save().catch(e => console.error("Error saving message stats:", e)); // Non-blocking
 
     if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
     stats.totalMsgs++;
     stats.todayMsgs++;
 
-    const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: true });
-    setStats(updatedStats);
-    await db.saveStats();
+    db.Stats.findByIdAndUpdate(stats._id, stats).catch(e => console.error("Error updating stats:", e)); // Non-blocking
+    db.saveStats().catch(e => console.error("Error saving stats:", e)); // Non-blocking
 
     let replies = null;
     let regexMatch = null;
@@ -209,6 +205,7 @@ async function processMessage(msg, sessionId = "default", sender) {
                     }
 
                     console.log(`⏰ Applying a delay of ${delay} seconds for automation rule.`);
+                    // NOTE: This is a deliberate await to enforce delay before reply.
                     await new Promise(res => setTimeout(res, delay * 1000));
                 }
 
@@ -278,6 +275,7 @@ async function processMessage(msg, sessionId = "default", sender) {
                         delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
                     }
                     console.log(`⏰ Applying a delay of ${delay} seconds for owner rule.`);
+                    // NOTE: This is a deliberate await to enforce delay before reply.
                     await new Promise(res => setTimeout(res, delay * 1000));
                 }
 
@@ -301,7 +299,7 @@ async function processMessage(msg, sessionId = "default", sender) {
 
                 if (rule.RULE_TYPE === "WELCOME") {
                     addWelcomeLogEntry(rule.RULE_NUMBER, senderName, context);
-                    await db.saveWelcomeLog();
+                    db.saveWelcomeLog().catch(e => console.error("Error saving welcome log:", e)); // Non-blocking
                     console.log(`✅ Owner "${senderName}" welcomed with rule #${rule.RULE_NUMBER} in context "${context}".`);
                 }
                 return { replies, matchedRuleId, enableDelay, replyDelay };
@@ -376,7 +374,7 @@ async function processMessage(msg, sessionId = "default", sender) {
                     match = true;
                     const newWelcomedUsers = [...welcomedUsers, senderName];
                     setWelcomedUsers(newWelcomedUsers);
-                    await db.User.create({ senderName, sessionId });
+                    db.User.create({ senderName, sessionId }).catch(e => console.error("Error saving user:", e)); // Non-blocking
                 }
             } else if (rule.RULE_TYPE === "DEFAULT") {
                 match = true;
@@ -424,6 +422,7 @@ async function processMessage(msg, sessionId = "default", sender) {
                         delay = Math.floor(Math.random() * (finalMaxDelay - finalMinDelay + 1)) + finalMinDelay;
                     }
                     console.log(`⏰ Applying a delay of ${delay} seconds for normal rule.`);
+                    // NOTE: This is a deliberate await to enforce delay before reply.
                     await new Promise(res => setTimeout(res, delay * 1000));
                 }
 
@@ -481,25 +480,21 @@ async function processMessage(msg, sessionId = "default", sender) {
     const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 
     let replyToReturn = null;
-
     if (replies) {
         if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
-            // Separate first reply and remaining replies
             const firstReply = replies.replies[0];
             const remainingReplies = replies.replies.slice(1);
             
             if (remainingReplies.length > 0) {
-                // Schedule remaining replies to be sent in the background
                 sendDelayedReplies(remainingReplies, replies.replyDelay, sessionId, senderName, groupName, isGroup);
             }
             
-            replyToReturn = [firstReply]; // Return an array with the first reply for immediate webhook response
+            replyToReturn = [firstReply];
         } else {
-            replyToReturn = replies.replies || replies; // Return all replies at once
+            replyToReturn = replies.replies || replies;
         }
     }
 
-    // Map the replies to resolve variables for the final return
     if (replyToReturn) {
         const replyArray = Array.isArray(replyToReturn) ? replyToReturn : [replyToReturn];
         const resolvedRepliesForHistory = replyArray.map(r => {
@@ -518,7 +513,7 @@ async function processMessage(msg, sessionId = "default", sender) {
             const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
             messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
         }
-        await messageStats.save();
+        messageStats.save().catch(e => console.error("Error saving message stats:", e)); // Non-blocking
 
         let messageHistory = getMessageHistory();
         messageHistory.unshift({
@@ -532,7 +527,6 @@ async function processMessage(msg, sessionId = "default", sender) {
         if (messageHistory.length > MAX_HISTORY) { messageHistory.pop(); }
         setMessageHistory(messageHistory);
 
-        // This is the messageData for the live chat
         const messageData = {
             sessionId: sessionId,
             senderName: senderName,
