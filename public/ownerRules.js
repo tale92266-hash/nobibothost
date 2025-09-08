@@ -134,7 +134,9 @@ function createOwnerRuleElement(rule) {
     const cooldownInfo = rule.COOLDOWN > 0
         ? `<span class="rule-cooldown-info">⏱️ ${rule.COOLDOWN}s cooldown</span>`
         : '';
-        
+    
+    const keywordDisplay = (rule.KEYWORDS || 'N/A').length > 150 ? (rule.KEYWORDS.substring(0, 150) + '...') : (rule.KEYWORDS || 'N/A');
+
     ruleDiv.innerHTML = `
         <div class="rule-header-new">
             <div class="rule-title">
@@ -147,7 +149,7 @@ function createOwnerRuleElement(rule) {
         </div>
         <div class="rule-content-new">
             <div class="rule-line">
-                <strong>Keywords:</strong> ${rule.KEYWORDS || 'N/A'}
+                <strong>Keywords:</strong> ${keywordDisplay}
             </div>
             <div class="rule-reply">
                 <strong>Reply:</strong>
