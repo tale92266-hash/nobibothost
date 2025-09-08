@@ -30,30 +30,12 @@ function initAutomationRules() {
     document.getElementById("deleteAutomationRuleBtn")?.addEventListener('click', deleteAutomationRule);
     automationRulesList?.addEventListener('click', handleAutomationRuleClick);
     userAccessTypeSelect?.addEventListener('change', (e) => toggleUserAccessField(e.target.value));
-
-    const automationRepliesTypeSelect = document.getElementById('automationRepliesType');
-    automationRepliesTypeSelect?.addEventListener('change', (e) => toggleAutomationDelayField(e.target.value));
     
     const automationRulesSearchInput = document.getElementById('searchAutomationRules');
     if (automationRulesSearchInput) {
         automationRulesSearchInput.addEventListener('input', (e) => {
             displayAutomationRulesWithSearch(allAutomationRules, e.target.value.toLowerCase());
         });
-    }
-}
-
-/**
- * Toggles the visibility of automation delay fields based on the reply type.
- * @param {string} repliesType - The selected reply type.
- */
-function toggleAutomationDelayField(repliesType) {
-    const delayField = document.getElementById('automationDelayField');
-    if (delayField) {
-        if (repliesType === 'ALL') {
-            delayField.style.display = 'block';
-        } else {
-            delayField.style.display = 'none';
-        }
     }
 }
 
@@ -166,7 +148,6 @@ function createAutomationRuleElement(rule) {
             <div class="rule-title">
                 <span class="rule-number-new">${rule.RULE_NUMBER}</span>
                 <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Rule'}</span>
-                ${delayInfo}
             </div>
             <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
         </div>
@@ -204,7 +185,6 @@ function addNewAutomationRule() {
     automationRepliesTypeSelect.value = 'RANDOM';
     userAccessTypeSelect.value = 'ALL';
     definedUsersField.style.display = 'none';
-    toggleAutomationDelayField('RANDOM');
     setupAutomationRuleNumberValidation(false);
     configureModalButtons('automationRule', 'add');
     automationRuleModal.show();
@@ -229,13 +209,7 @@ function editAutomationRule(rule) {
     maxDelayInput.value = rule.MAX_DELAY || 0;
     cooldownInput.value = rule.COOLDOWN || 0;
     
-    const automationReplyDelay = document.getElementById('automationReplyDelay');
-    const automationEnableDelay = document.getElementById('automationEnableDelay');
-    if (automationReplyDelay) automationReplyDelay.value = rule.REPLY_DELAY || 0;
-    if (automationEnableDelay) automationEnableDelay.checked = rule.ENABLE_DELAY || false;
-
     toggleUserAccessField(rule.USER_ACCESS_TYPE);
-    toggleAutomationDelayField(rule.REPLIES_TYPE);
     setupAutomationRuleNumberValidation(true);
     configureModalButtons('automationRule', 'edit');
     automationRuleModal.show();
@@ -270,8 +244,6 @@ async function saveAutomationRule() {
             minDelay: parseInt(minDelayInput.value) || 0,
             maxDelay: parseInt(maxDelayInput.value) || 0,
             cooldown: parseInt(cooldownInput.value) || 0,
-            replyDelay: parseInt(document.getElementById('automationReplyDelay')?.value) || 0,
-            enableDelay: document.getElementById('automationEnableDelay')?.checked || false,
         };
 
         const isEditing = currentAutomationRuleNumber !== null;
@@ -410,6 +382,4 @@ function toggleLoadingAutomation(show) {
     if (loadingMessageAutomation) {
         loadingMessageAutomation.style.display = show ? 'flex' : 'none';
     }
-}
-
 }
