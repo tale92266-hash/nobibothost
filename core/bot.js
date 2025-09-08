@@ -157,10 +157,8 @@ await db.saveStats();
 let replies = null;
 let regexMatch = null;
 let matchedRuleId = null;
-let enableDelay = false;
 let replyDelay = 0;
-let cooldown = 0;
-
+let enableDelay = false;
 
 const automationRules = getAutomationRules();
 if (getIsAutomationEnabled() && msg.startsWith('/') && automationRules.length > 0) {
@@ -261,10 +259,19 @@ if (match) {
 let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
+if (rule.MIN_DELAY > 0 || rule.MAX_DELAY > 0) {
+let delay = rule.MIN_DELAY;
+if (rule.MAX_DELAY > rule.MIN_DELAY) {
+delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
+}
+console.log(`⏰ Applying a delay of ${delay} seconds for owner rule.`);
+await new Promise(res => setTimeout(res, delay * 1000));
+}
+
 if (rule.REPLIES_TYPE === 'ALL') {
 replies = resolvedReplies;
-enableDelay = rule.ENABLE_DELAY;
-replyDelay = rule.REPLY_DELAY;
+enableDelay = true;
+replyDelay = 0; // The per-reply delay is handled by the initial delay setting, not a separate field here.
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -353,10 +360,19 @@ if (match) {
 let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
+if (rule.MIN_DELAY > 0 || rule.MAX_DELAY > 0) {
+let delay = rule.MIN_DELAY;
+if (rule.MAX_DELAY > rule.MIN_DELAY) {
+delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
+}
+console.log(`⏰ Applying a delay of ${delay} seconds for normal rule.`);
+await new Promise(res => setTimeout(res, delay * 1000));
+}
+
 if (rule.REPLIES_TYPE === 'ALL') {
 replies = resolvedReplies;
-enableDelay = rule.ENABLE_DELAY;
-replyDelay = rule.REPLY_DELAY;
+enableDelay = true;
+replyDelay = 0; // The per-reply delay is handled by the initial delay setting, not a separate field here.
 } else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
 else { replies = [pick(resolvedReplies)]; }
 
@@ -377,7 +393,7 @@ const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
 let replyToReturn = null;
 
 if (replies) {
-    if (replies.enableDelay && replies.replyDelay > 0) {
+    if (replies.replies && replies.enableDelay && replies.replyDelay > 0) {
         // Separate first reply and remaining replies
         const firstReply = replies.replies[0];
         const remainingReplies = replies.replies.slice(1);
