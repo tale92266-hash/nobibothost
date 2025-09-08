@@ -27,29 +27,11 @@ function initRules() {
     ruleTypeSelect?.addEventListener('change', (e) => toggleFormFields(e.target.value));
     targetUsersToggle?.addEventListener('change', toggleTargetUsersField);
     
-    const repliesTypeSelect = document.getElementById('repliesType');
-    repliesTypeSelect?.addEventListener('change', (e) => toggleDelayField(e.target.value));
-
     const rulesSearchInput = document.getElementById('searchRules');
     if (rulesSearchInput) {
         rulesSearchInput.addEventListener('input', (e) => {
             displayRulesWithSearch(allRules, e.target.value.toLowerCase());
         });
-    }
-}
-
-/**
- * Toggles the visibility of delay fields based on the reply type.
- * @param {string} repliesType - The selected reply type.
- */
-function toggleDelayField(repliesType) {
-    const delayField = document.getElementById('delayField');
-    if (delayField) {
-        if (repliesType === 'ALL') {
-            delayField.style.display = 'block';
-        } else {
-            delayField.style.display = 'none';
-        }
     }
 }
 
@@ -150,17 +132,12 @@ function createRuleElement(rule) {
     const targetUsersDisplay = Array.isArray(rule.TARGET_USERS) 
         ? rule.TARGET_USERS.join(', ') 
         : (rule.TARGET_USERS || 'ALL');
-    
-    const delayInfo = (rule.REPLIES_TYPE === 'ALL' && rule.ENABLE_DELAY)
-        ? `<span class="rule-delay-info">⏰ ${rule.REPLY_DELAY}s delay</span>` 
-        : '';
 
     ruleDiv.innerHTML = `
         <div class="rule-header-new">
             <div class="rule-title">
                 <span class="rule-number-new">${rule.RULE_NUMBER}</span>
                 <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Rule'}</span>
-                ${delayInfo}
             </div>
             <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
         </div>
@@ -193,7 +170,6 @@ function addNewRule() {
     document.getElementById('targetUsersToggle').value = 'ALL';
     targetUsersField.style.display = 'none';
     toggleFormFields('EXACT');
-    toggleDelayField('RANDOM');
     setupRuleNumberValidation(false);
     configureModalButtons('rule', 'add');
     ruleModal.show();
@@ -213,11 +189,6 @@ function editRule(rule) {
     document.getElementById('repliesType').value = rule.REPLIES_TYPE;
     document.getElementById('replyText').value = rule.REPLY_TEXT || '';
     
-    const replyDelay = document.getElementById('replyDelay');
-    const enableDelay = document.getElementById('enableDelay');
-    if (replyDelay) replyDelay.value = rule.REPLY_DELAY || 0;
-    if (enableDelay) enableDelay.checked = rule.ENABLE_DELAY || false;
-
     if (Array.isArray(rule.TARGET_USERS)) {
         document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
         document.getElementById('targetUsersToggle').value = 'TARGET';
@@ -228,7 +199,6 @@ function editRule(rule) {
         targetUsersField.style.display = 'none';
     }
     toggleFormFields(rule.RULE_TYPE);
-    toggleDelayField(rule.REPLIES_TYPE);
     setupRuleNumberValidation(true);
     configureModalButtons('rule', 'edit');
     ruleModal.show();
@@ -253,8 +223,6 @@ async function saveRule() {
             keywords: document.getElementById('keywords').value.trim(),
             repliesType: document.getElementById('repliesType').value,
             replyText: document.getElementById('replyText').value.trim(),
-            replyDelay: parseInt(document.getElementById('replyDelay')?.value) || 0,
-            enableDelay: document.getElementById('enableDelay')?.checked || false,
             targetUsers: document.getElementById('targetUsers').value.trim() || 'ALL'
         };
 
@@ -396,4 +364,6 @@ function validateRuleNumber(num, isEditing) {
     }
     ruleNumberError.style.display = 'none';
     return true;
+}
+
 }
