@@ -269,10 +269,26 @@ isBotOnline: getSettings().isBotOnline,
 temporaryHide: getSettings().temporaryHide,
 ignoredOverrideUsers: getIgnoredOverrideUsers(),
 specificOverrideUsers: getSpecificOverrideUsers(),
-masterStop: getSettings().masterStop
+masterStop: getSettings().masterStop,
+delayOverride: getSettings().delayOverride,
 };
 res.json(settingsData);
 } catch (error) {
+res.status(500).json({ success: false, message: "Server error" });
+}
+});
+
+app.post("/api/settings/delay-override", async (req, res) => {
+try {
+const { minDelay, maxDelay } = req.body;
+const settings = getSettings();
+settings.delayOverride.minDelay = minDelay;
+settings.delayOverride.maxDelay = maxDelay;
+setSettings(settings);
+await db.saveSettings();
+res.json({ success: true, message: "Delay override settings updated successfully." });
+} catch (error) {
+console.error("❌ Failed to update delay override setting:", error);
 res.status(500).json({ success: false, message: "Server error" });
 }
 });
