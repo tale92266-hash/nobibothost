@@ -320,6 +320,18 @@
                                         </button>
                                     </div>
                                 </div>
+                                <div class="settings-card" data-setting="delay-override-card">
+                                    <div class="settings-card-icon">
+                                        <i class="fas fa-hourglass-half"></i>
+                                    </div>
+                                    <div class="settings-card-content">
+                                        <h5>Delay Override</h5>
+                                        <p>Set a default delay for rules with no delay configured.</p>
+                                        <button class="btn btn-primary" id="delayOverrideBtn">
+                                            <i class="fas fa-arrow-right"></i> Configure
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="settings-card" data-setting="repeating-rule">
                                     <div class="settings-card-icon">
                                         <i class="fas fa-history"></i>
@@ -495,21 +507,6 @@
                             </select>
                         </div>
                         
-                        <div class="form-group" id="delayField" style="display: none;">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="enableDelay">
-                                <label class="form-check-label" for="enableDelay">Enable Delay</label>
-                            </div>
-                            <label for="replyDelay" class="form-label">Delay (in seconds)</label>
-                            <input type="number" class="form-control" id="replyDelay" value="0">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="cooldown">Rule Cooldown (seconds, 0 to disable)</label>
-                            <input type="number" class="form-control" id="cooldown" min="0" value="0">
-                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
-                        </div>
-
                         <div class="form-group" id="replyTextField">
                             <label for="replyText">Reply Text</label>
                             <textarea class="form-control" id="replyText" rows="4" required
@@ -531,6 +528,25 @@
                             <input type="text" class="form-control" id="targetUsers" 
                                 placeholder="Comma-separated user IDs">
                         </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="minDelay">Min Reply Delay (seconds)</label>
+                                <input type="number" class="form-control" id="minDelay" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="maxDelay">Max Reply Delay (seconds, optional)</label>
+                                <input type="number" class="form-control" id="maxDelay" min="0" value="0">
+                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cooldown">Rule Cooldown (seconds, 0 to disable)</label>
+                            <input type="number" class="form-control" id="cooldown" min="0" value="0">
+                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
+                        </div>
+
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -605,6 +621,41 @@
                         <i class="fas fa-times"></i> Cancel
                     </button>
                     <button type="button" class="btn btn-primary" id="saveOverrideBtn">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="delayOverrideModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="delayOverrideModalTitle">
+                        <i class="fas fa-hourglass-half"></i> Delay Override
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Set a default delay for normal rules that have no delay configured.</p>
+                    <div class="form-grid mt-3">
+                        <div class="form-group">
+                            <label for="delayOverrideMin">Min Reply Delay (seconds)</label>
+                            <input type="number" class="form-control" id="delayOverrideMin" min="0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="delayOverrideMax">Max Reply Delay (seconds, optional)</label>
+                            <input type="number" class="form-control" id="delayOverrideMax" min="0" value="0">
+                            <small class="form-text text-muted">Leave at 0 for no max delay.</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveDelayOverrideBtn">
                         <i class="fas fa-save"></i> Save Changes
                     </button>
                 </div>
@@ -827,28 +878,32 @@
                                 <option value="ALL">All Replies</option>
                             </select>
                         </div>
-
-                        <div class="form-group" id="ownerDelayField" style="display: none;">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="ownerEnableDelay">
-                                <label class="form-check-label" for="ownerEnableDelay">Enable Delay</label>
-                            </div>
-                            <label for="ownerReplyDelay" class="form-label">Delay (in seconds)</label>
-                            <input type="number" class="form-control" id="ownerReplyDelay" value="0">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="ownerCooldown">Rule Cooldown (seconds, 0 to disable)</label>
-                            <input type="number" class="form-control" id="ownerCooldown" min="0" value="0">
-                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
-                        </div>
-
+                        
                         <div class="form-group" id="ownerReplyTextField">
                             <label for="ownerReplyText">Reply Text</label>
                             <textarea class="form-control" id="ownerReplyText" rows="4" required
                                 placeholder="Use <#> to separate multiple replies"></textarea>
                             <small class="form-text text-muted">Use &lt;#&gt; to separate multiple replies</small>
                         </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="ownerMinDelay">Min Reply Delay (seconds)</label>
+                                <input type="number" class="form-control" id="ownerMinDelay" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="ownerMaxDelay">Max Reply Delay (seconds, optional)</label>
+                                <input type="number" class="form-control" id="ownerMaxDelay" min="0" value="0">
+                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ownerCooldown">Rule Cooldown (seconds, 0 to disable)</label>
+                            <input type="number" class="form-control" id="ownerCooldown" min="0" value="0">
+                            <small class="form-text text-muted">This rule cannot be triggered by the same user again for this duration.</small>
+                        </div>
+
                     </form>
                 </div>
                 <div class="modal-footer">
