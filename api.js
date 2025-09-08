@@ -72,8 +72,9 @@ KEYWORDS: rule.keywords,
 REPLIES_TYPE: rule.repliesType,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
 TARGET_USERS: rule.targetUsers,
-REPLY_DELAY: rule.replyDelay || 0,
-ENABLE_DELAY: rule.enableDelay || false
+MIN_DELAY: rule.minDelay,
+MAX_DELAY: rule.maxDelay,
+COOLDOWN: rule.cooldown
 }], { session });
 } else if (type === "edit") {
 if (rule.ruleNumber !== oldRuleNumber) {
@@ -95,8 +96,9 @@ KEYWORDS: rule.keywords,
 REPLIES_TYPE: rule.repliesType,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
 TARGET_USERS: rule.targetUsers,
-REPLY_DELAY: rule.replyDelay || 0,
-ENABLE_DELAY: rule.enableDelay || false
+MIN_DELAY: rule.minDelay,
+MAX_DELAY: rule.maxDelay,
+COOLDOWN: rule.cooldown
 };
 
 if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
@@ -158,8 +160,9 @@ KEYWORDS: rule.KEYWORDS || '',
 REPLIES_TYPE: rule.REPLIES_TYPE,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.REPLY_TEXT || ''),
 TARGET_USERS: rule.TARGET_USERS || 'ALL',
-REPLY_DELAY: rule.REPLY_DELAY || 0,
-ENABLE_DELAY: rule.ENABLE_DELAY || false
+MIN_DELAY: rule.MIN_DELAY,
+MAX_DELAY: rule.MAX_DELAY,
+COOLDOWN: rule.COOLDOWN
 }
 },
 upsert: false
@@ -370,7 +373,9 @@ await db.OwnerRule.updateMany({ RULE_NUMBER: { $gte: rule.ruleNumber } }, { $inc
 await db.OwnerRule.create([{
 RULE_NUMBER: rule.ruleNumber, RULE_NAME: rule.ruleName, RULE_TYPE: rule.ruleType,
 KEYWORDS: rule.keywords, REPLIES_TYPE: rule.repliesType, REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-REPLY_DELAY: rule.replyDelay || 0, ENABLE_DELAY: rule.enableDelay || false
+MIN_DELAY: rule.minDelay,
+MAX_DELAY: rule.maxDelay,
+COOLDOWN: rule.cooldown
 }], { session });
 } else if (type === "edit") {
 if (rule.ruleNumber !== oldRuleNumber) {
@@ -388,8 +393,9 @@ RULE_TYPE: rule.ruleType,
 KEYWORDS: rule.keywords,
 REPLIES_TYPE: rule.repliesType,
 REPLY_TEXT: convertNewlinesBeforeSave(rule.replyText),
-REPLY_DELAY: rule.replyDelay || 0,
-ENABLE_DELAY: rule.ENABLE_DELAY || false
+MIN_DELAY: rule.minDelay,
+MAX_DELAY: rule.maxDelay,
+COOLDOWN: rule.cooldown
 };
 
 if (updateData.RULE_NAME === null || updateData.RULE_NAME === undefined || updateData.RULE_NAME.trim() === '') {
@@ -526,14 +532,27 @@ let formattedReplies = [];
 let botReplyForHistory = null;
 let messageData = {}; // messageData declared here
 
-if (replies) {
+if (replies && replies.replies && replies.enableDelay && replies.replyDelay > 0) {
+    // This is the delayed reply case for simple webhook clients
+    for (let i = 0; i < replies.replies.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, i === 0 ? 0 : replies.replyDelay * 1000));
+        formattedReplies.push({ message: replies.replies[i] });
+    }
+    botReplyForHistory = replies.replies;
+} else if (replies && replies.replies) {
+    // Multiple replies without delay
+    for (const reply of replies.replies) {
+        formattedReplies.push({ message: reply });
+    }
+    botReplyForHistory = replies.replies;
+} else if (replies) {
+    // Single reply or multiple replies without delay
     const replyArray = Array.isArray(replies) ? replies : [replies];
     for (const reply of replyArray) {
         formattedReplies.push({ message: reply });
     }
-    botReplyForHistory = replyArray;
+    botReplyForHistory = replies;
 }
-
 
 messageData = {
     sessionId: sessionId,
