@@ -26,12 +26,30 @@ function initRules() {
     rulesList?.addEventListener('click', handleRuleClick);
     ruleTypeSelect?.addEventListener('change', (e) => toggleFormFields(e.target.value));
     targetUsersToggle?.addEventListener('change', toggleTargetUsersField);
-    
+
+    const repliesTypeSelect = document.getElementById('repliesType');
+    repliesTypeSelect?.addEventListener('change', (e) => toggleDelayField(e.target.value));
+
     const rulesSearchInput = document.getElementById('searchRules');
     if (rulesSearchInput) {
         rulesSearchInput.addEventListener('input', (e) => {
             displayRulesWithSearch(allRules, e.target.value.toLowerCase());
         });
+    }
+}
+
+/**
+ * Toggles the visibility of delay fields based on the reply type.
+ * @param {string} repliesType - The selected reply type.
+ */
+function toggleDelayField(repliesType) {
+    const delayField = document.getElementById('delayField');
+    if (delayField) {
+        if (repliesType === 'ALL') {
+            delayField.style.display = 'block';
+        } else {
+            delayField.style.display = 'none';
+        }
     }
 }
 
@@ -56,9 +74,9 @@ function handleRuleClick(e) {
 async function fetchRules() {
     if (!rulesList) return;
     rulesList.innerHTML = '';
-    
+
     toggleLoading(true);
-    
+
     try {
         const data = await fetchRulesApi();
         allRules = data;
@@ -129,19 +147,23 @@ function createRuleElement(rule) {
     ruleDiv.className = 'rule-item';
     ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
     const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
-    const targetUsersDisplay = Array.isArray(rule.TARGET_USERS) 
-        ? rule.TARGET_USERS.join(', ') 
+    const targetUsersDisplay = Array.isArray(rule.TARGET_USERS)
+        ? rule.TARGET_USERS.join(', ')
         : (rule.TARGET_USERS || 'ALL');
-    
+
     const delayInfo = (rule.REPLIES_TYPE === 'ALL' && rule.ENABLE_DELAY)
-        ? `<span class="rule-delay-info">⏰ ${rule.REPLY_DELAY}s delay</span>` 
+        ? `<span class="rule-delay-info">⏰ ${rule.REPLY_DELAY}s delay</span>`
         : '';
+
+    const cooldownInfo = rule.COOLDOWN > 0 ? `<span class="rule-cooldown-info">⏱️ ${rule.COOLDOWN}s cooldown</span>` : '';
 
     ruleDiv.innerHTML = `
         <div class="rule-header-new">
             <div class="rule-title">
                 <span class="rule-number-new">${rule.RULE_NUMBER}</span>
                 <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Rule'}</span>
+                ${delayInfo}
+                ${cooldownInfo}
             </div>
             <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
         </div>
@@ -174,6 +196,7 @@ function addNewRule() {
     document.getElementById('targetUsersToggle').value = 'ALL';
     targetUsersField.style.display = 'none';
     toggleFormFields('EXACT');
+    toggleDelayField('RANDOM');
     setupRuleNumberValidation(false);
     configureModalButtons('rule', 'add');
     ruleModal.show();
@@ -192,7 +215,13 @@ function editRule(rule) {
     document.getElementById('keywords').value = rule.KEYWORDS || '';
     document.getElementById('repliesType').value = rule.REPLIES_TYPE;
     document.getElementById('replyText').value = rule.REPLY_TEXT || '';
-    
+    document.getElementById('cooldown').value = rule.COOLDOWN || 0;
+
+    const replyDelay = document.getElementById('replyDelay');
+    const enableDelay = document.getElementById('enableDelay');
+    if (replyDelay) replyDelay.value = rule.REPLY_DELAY || 0;
+    if (enableDelay) enableDelay.checked = rule.ENABLE_DELAY || false;
+
     if (Array.isArray(rule.TARGET_USERS)) {
         document.getElementById('targetUsers').value = rule.TARGET_USERS.join(',');
         document.getElementById('targetUsersToggle').value = 'TARGET';
@@ -203,6 +232,7 @@ function editRule(rule) {
         targetUsersField.style.display = 'none';
     }
     toggleFormFields(rule.RULE_TYPE);
+    toggleDelayField(rule.REPLIES_TYPE);
     setupRuleNumberValidation(true);
     configureModalButtons('rule', 'edit');
     ruleModal.show();
@@ -227,6 +257,9 @@ async function saveRule() {
             keywords: document.getElementById('keywords').value.trim(),
             repliesType: document.getElementById('repliesType').value,
             replyText: document.getElementById('replyText').value.trim(),
+            replyDelay: parseInt(document.getElementById('replyDelay')?.value) || 0,
+            enableDelay: document.getElementById('enableDelay')?.checked || false,
+            cooldown: parseInt(document.getElementById('cooldown')?.value) || 0,
             targetUsers: document.getElementById('targetUsers').value.trim() || 'ALL'
         };
 
@@ -278,12 +311,12 @@ function validateRuleForm() {
     const ruleNumber = ruleNumberInput.value.trim();
     const keywords = document.getElementById('keywords').value.trim();
     const replyText = document.getElementById('replyText').value.trim();
-    
+
     if (!ruleNumber || !keywords || !replyText) {
         showToast('Please fill all required fields', 'warning');
         return false;
     }
-    
+
     const ruleNum = parseInt(ruleNumber);
     if (isNaN(ruleNum) || ruleNum < 1) {
         showToast('Rule number must be a valid number', 'warning');
@@ -331,7 +364,7 @@ function setupRuleNumberValidation(isEditing = false) {
     const maxAllowed = isEditing ? totalRules : totalRules + 1;
     ruleNumberInput.setAttribute('max', maxAllowed);
     ruleNumberInput.setAttribute('min', 1);
-    
+
     const handler = (e) => {
         let value = parseInt(e.target.value);
         if (isNaN(value)) return;
@@ -341,12 +374,12 @@ function setupRuleNumberValidation(isEditing = false) {
             showToast(`Maximum rule number in ${isEditing ? 'edit' : 'add'} mode is ${maxAllowed}`, 'warning');
         }
         if (!validateRuleNumber(e.target.value, isEditing)) {
-             ruleNumberInput.classList.add('is-invalid');
+            ruleNumberInput.classList.add('is-invalid');
         } else {
-             ruleNumberInput.classList.remove('is-invalid');
+            ruleNumberInput.classList.remove('is-invalid');
         }
     };
-    
+
     ruleNumberInput.removeEventListener('input', ruleNumberInput._currentHandler);
     ruleNumberInput.addEventListener('input', handler);
     ruleNumberInput._currentHandler = handler;
