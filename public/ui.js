@@ -132,7 +132,7 @@ function updateStatsDisplay(data) {
     if (todayUsers) todayUsers.textContent = data.todayUsers || 0;
     if (totalMsgs) totalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
     if (todayMsgs) todayMsgs.textContent = (data.todayMsgs || 0).toLocaleString();
-    if (hiddenUsers) hiddenUsers.textContent = data.nobiPapaHideMeCount || 0;
+    if (hiddenUsers) hiddenUsers.textContent = data.hiddenUsersCount || 0;
     if (headerTotalUsers) headerTotalUsers.textContent = data.totalUsers || 0;
     if (headerTotalMsgs) headerTotalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
     if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString();
