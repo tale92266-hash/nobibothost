@@ -26,7 +26,7 @@ function initOwnerRules() {
 
     const ownerRepliesTypeSelect = document.getElementById('ownerRepliesType');
     ownerRepliesTypeSelect?.addEventListener('change', (e) => toggleOwnerDelayField(e.target.value));
-
+    
     const ownerRulesSearchInput = document.getElementById('searchOwnerRules');
     if (ownerRulesSearchInput) {
         ownerRulesSearchInput.addEventListener('input', (e) => {
@@ -72,7 +72,7 @@ function handleOwnerRuleClick(e) {
 async function fetchOwnerRules() {
     if (!ownerRulesList) return;
     ownerRulesList.innerHTML = '';
-
+    
     toggleLoading(true);
 
     try {
@@ -145,13 +145,15 @@ function createOwnerRuleElement(rule) {
     ruleDiv.className = 'rule-item';
     ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
     const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
-
+    
     const delayInfo = (rule.REPLIES_TYPE === 'ALL' && rule.ENABLE_DELAY)
-        ? `<span class="rule-delay-info">⏰ ${rule.REPLY_DELAY}s delay</span>`
+        ? `<span class="rule-delay-info">⏰ ${rule.REPLY_DELAY}s delay</span>` 
         : '';
-
-    const cooldownInfo = rule.COOLDOWN > 0 ? `<span class="rule-cooldown-info">⏱️ ${rule.COOLDOWN}s cooldown</span>` : '';
-
+        
+    const cooldownInfo = rule.COOLDOWN > 0
+        ? `<span class="rule-cooldown-info">⏱️ ${rule.COOLDOWN}s cooldown</span>`
+        : '';
+        
     ruleDiv.innerHTML = `
         <div class="rule-header-new">
             <div class="rule-title">
@@ -205,12 +207,12 @@ function editOwnerRule(rule) {
     document.getElementById('ownerKeywords').value = rule.KEYWORDS || '';
     document.getElementById('ownerRepliesType').value = rule.REPLIES_TYPE;
     document.getElementById('ownerReplyText').value = rule.REPLY_TEXT || '';
-    document.getElementById('ownerCooldown').value = rule.COOLDOWN || 0;
 
     const ownerReplyDelay = document.getElementById('ownerReplyDelay');
     const ownerEnableDelay = document.getElementById('ownerEnableDelay');
     if (ownerReplyDelay) ownerReplyDelay.value = rule.REPLY_DELAY || 0;
     if (ownerEnableDelay) ownerEnableDelay.checked = rule.ENABLE_DELAY || false;
+    document.getElementById('ownerCooldown').value = rule.COOLDOWN || 0;
 
     toggleOwnerFormFields(rule.RULE_TYPE);
     toggleOwnerDelayField(rule.REPLIES_TYPE);
@@ -240,7 +242,7 @@ async function saveOwnerRule() {
             replyText: document.getElementById('ownerReplyText').value.trim(),
             replyDelay: parseInt(document.getElementById('ownerReplyDelay')?.value) || 0,
             enableDelay: document.getElementById('ownerEnableDelay')?.checked || false,
-            cooldown: parseInt(document.getElementById('ownerCooldown')?.value) || 0,
+            cooldown: parseInt(document.getElementById('ownerCooldown')?.value) || 0
         };
 
         const isEditing = currentOwnerRuleNumber !== null;
@@ -291,12 +293,12 @@ function validateOwnerRuleForm() {
     const ruleNumber = ownerRuleNumberInput.value.trim();
     const keywords = document.getElementById('ownerKeywords').value.trim();
     const replyText = document.getElementById('ownerReplyText').value.trim();
-
+    
     if (!ruleNumber || !keywords || !replyText) {
         showToast('Please fill all required fields', 'warning');
         return false;
     }
-
+    
     const ruleNum = parseInt(ruleNumber);
     if (isNaN(ruleNum) || ruleNum < 1) {
         showToast('Rule number must be a valid number', 'warning');
@@ -333,7 +335,7 @@ function setupOwnerRuleNumberValidation(isEditing = false) {
     const maxAllowed = isEditing ? totalOwnerRules : totalOwnerRules + 1;
     ownerRuleNumberInput.setAttribute('max', maxAllowed);
     ownerRuleNumberInput.setAttribute('min', 1);
-
+    
     const handler = (e) => {
         let value = parseInt(e.target.value);
         if (isNaN(value)) return;
@@ -343,12 +345,12 @@ function setupOwnerRuleNumberValidation(isEditing = false) {
             showToast(`Maximum rule number in ${isEditing ? 'edit' : 'add'} mode is ${maxAllowed}`, 'warning');
         }
         if (!validateOwnerRuleNumber(e.target.value, isEditing)) {
-            ownerRuleNumberInput.classList.add('is-invalid');
+             ownerRuleNumberInput.classList.add('is-invalid');
         } else {
-            ownerRuleNumberInput.classList.remove('is-invalid');
+             ownerRuleNumberInput.classList.remove('is-invalid');
         }
     };
-
+    
     ownerRuleNumberInput.removeEventListener('input', ownerRuleNumberInput._currentHandler);
     ownerRuleNumberInput.addEventListener('input', handler);
     ownerRuleNumberInput._currentHandler = handler;
