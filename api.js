@@ -30,7 +30,7 @@ totalUsers: stats.totalUsers.length,
 totalMsgs: stats.totalMsgs,
 todayUsers: stats.todayUsers.length,
 todayMsgs: stats.todayMsgs,
-nobiPapaHideMeCount: stats.nobiPapaHideMeUsers.length
+hiddenUsersCount: getIgnoredOverrideUsers().length
 });
 }
 };
@@ -599,7 +599,7 @@ totalUsers: totalUsersCount,
 totalMsgs: getStats().totalMsgs,
 todayUsers: getStats().todayUsers.length,
 todayMsgs: getStats().todayMsgs,
-nobiPapaHideMeCount: getStats().nobiPapaHideMeUsers.length
+hiddenUsersCount: getIgnoredOverrideUsers().length
 });
 } catch (err) {
 console.error('Failed to fetch stats:', err);
