@@ -115,7 +115,13 @@ function showIgnoredOverrideModal() {
     overrideModalTitle.textContent = 'Ignored Contact Override';
     overrideModalDescription.textContent = 'Globally ignore these users for ALL rules.';
     const usersText = (currentSettings.ignoredOverrideUsers || [])
-        .map(user => typeof user === 'string' ? user : `${user.name}:${user.context}`)
+        .map(user => {
+            if (user.context === '*') {
+                return user.name;
+            } else {
+                return `${user.name}:${user.context}`;
+            }
+        })
         .join(', ');
     overrideUsersList.value = usersText;
     overrideModal.show();
@@ -133,16 +139,27 @@ function showSpecificOverrideModal() {
 async function saveOverrideSettings() {
     const users = overrideUsersList.value.trim();
     const endpoint = currentOverrideType === 'ignored' ? '/api/settings/ignored-override' : '/api/settings/specific-override';
+    
+    // Naya parsing logic
+    const updatedUsersArray = users.split(',').map(userString => {
+        let trimmedUser = userString.trim();
+        if (trimmedUser === '') return null;
+
+        const parts = trimmedUser.split(':');
+        const name = parts[0].trim();
+        const context = parts.length > 1 ? parts.slice(1).join(':').trim() : '*';
+
+        return { name, context };
+    }).filter(item => item !== null);
+    
+    const formattedUsers = updatedUsersArray.map(user => `${user.name}:${user.context}`).join(',');
 
     try {
-        const result = await saveOverrideSettingsApi(endpoint, users);
+        const result = await saveOverrideSettingsApi(endpoint, formattedUsers);
         if (currentOverrideType === 'ignored') {
-            currentSettings.ignoredOverrideUsers = users.split(',').map(userString => {
-                const [name, context] = userString.split(':').map(s => s.trim());
-                return { name, context: context || 'DM' };
-            }).filter(item => item.name);
+            currentSettings.ignoredOverrideUsers = updatedUsersArray;
         } else {
-            currentSettings.specificOverrideUsers = users.split(',').map(u => u.trim()).filter(Boolean);
+            currentSettings.specificOverrideUsers = updatedUsersArray.map(user => user.name);
         }
         showToast(result.message, 'success');
         overrideModal.hide();
