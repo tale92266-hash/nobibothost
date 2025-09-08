@@ -140,7 +140,6 @@ async function processMessage(msg, sessionId = "default", sender) {
     }
 
     messageStats.receivedCount++;
-    messageStats.save().catch(e => console.error("Error saving message stats:", e)); // Non-blocking
 
     if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
     stats.totalMsgs++;
@@ -513,6 +512,8 @@ async function processMessage(msg, sessionId = "default", sender) {
             const ruleCount = messageStats.ruleReplyCounts.get(matchedRuleId.toString()) || 0;
             messageStats.ruleReplyCounts.set(matchedRuleId.toString(), ruleCount + 1);
         }
+        
+        // Final save after all updates are complete
         messageStats.save().catch(e => console.error("Error saving message stats:", e)); // Non-blocking
 
         let messageHistory = getMessageHistory();
