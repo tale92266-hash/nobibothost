@@ -43,6 +43,8 @@ const saveOverrideSettingsApi = (endpoint, users) => apiRequest(endpoint, { meth
 const saveRepeatingRuleSettingsApi = (payload) => apiRequest('/api/settings/prevent-repeating-rule', { method: 'POST', body: JSON.stringify(payload) });
 const saveTempHideSettingsApi = (payload) => apiRequest('/api/settings/temporary-hide', { method: 'POST', body: JSON.stringify(payload) });
 const saveMasterStopSettingsApi = (payload) => apiRequest('/api/settings/master-stop', { method: 'POST', body: JSON.stringify(payload) });
+const saveDelayOverrideSettingsApi = (payload) => apiRequest('/api/settings/delay-override', { method: 'POST', body: JSON.stringify(payload) });
+
 
 // Stats API function
 const fetchStatsApi = () => apiRequest('/stats');
