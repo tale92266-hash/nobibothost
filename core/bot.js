@@ -148,7 +148,9 @@ await messageStats.save();
 if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
 stats.totalMsgs++;
 stats.todayMsgs++;
-if (msg.includes("nobi papa hide me") && !stats.nobiPapaHideMeUsers.includes(sessionId)) stats.nobiPapaHideMeUsers.push(sessionId);
+if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.unhideMatchType) && !stats.nobiPapaHideMeUsers.includes(sessionId)) {
+    stats.nobiPapaHideMeUsers.push(sessionId);
+}
 
 const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: true });
 setStats(updatedStats);
@@ -159,6 +161,7 @@ let regexMatch = null;
 let matchedRuleId = null;
 let replyDelay = 0;
 let enableDelay = false;
+
 
 const automationRules = getAutomationRules();
 if (getIsAutomationEnabled() && msg.startsWith('/') && automationRules.length > 0) {
@@ -360,10 +363,17 @@ if (match) {
 let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
 const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
 
-if (rule.MIN_DELAY > 0 || rule.MAX_DELAY > 0) {
-let delay = rule.MIN_DELAY;
-if (rule.MAX_DELAY > rule.MIN_DELAY) {
-delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
+let finalMinDelay = rule.MIN_DELAY;
+let finalMaxDelay = rule.MAX_DELAY;
+if ((finalMinDelay === 0 && finalMaxDelay === 0) && (settings.delayOverride.minDelay > 0 || settings.delayOverride.maxDelay > 0)) {
+    finalMinDelay = settings.delayOverride.minDelay;
+    finalMaxDelay = settings.delayOverride.maxDelay;
+}
+
+if (finalMinDelay > 0 || finalMaxDelay > 0) {
+let delay = finalMinDelay;
+if (finalMaxDelay > finalMinDelay) {
+delay = Math.floor(Math.random() * (finalMaxDelay - finalMinDelay + 1)) + finalMinDelay;
 }
 console.log(`⏰ Applying a delay of ${delay} seconds for normal rule.`);
 await new Promise(res => setTimeout(res, delay * 1000));
