@@ -30,8 +30,8 @@ KEYWORDS: { type: String, required: true },
 REPLIES_TYPE: { type: String, required: true },
 REPLY_TEXT: { type: String, required: true },
 TARGET_USERS: { type: mongoose.Schema.Types.Mixed, default: "ALL" },
-REPLY_DELAY: { type: Number, default: 0 },
-ENABLE_DELAY: { type: Boolean, default: false },
+MIN_DELAY: { type: Number, default: 0 },
+MAX_DELAY: { type: Number, default: 0 },
 COOLDOWN: { type: Number, default: 0 }
 });
 
@@ -44,8 +44,8 @@ RULE_TYPE: { type: String, required: true },
 KEYWORDS: { type: String, required: true },
 REPLIES_TYPE: { type: String, required: true },
 REPLY_TEXT: { type: String, required: true },
-REPLY_DELAY: { type: Number, default: 0 },
-ENABLE_DELAY: { type: Boolean, default: false },
+MIN_DELAY: { type: Number, default: 0 },
+MAX_DELAY: { type: Number, default: 0 },
 COOLDOWN: { type: Number, default: 0 }
 });
 
