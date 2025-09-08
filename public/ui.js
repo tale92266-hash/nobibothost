@@ -123,6 +123,7 @@ function updateStatsDisplay(data) {
     const todayUsers = document.getElementById('todayUsers');
     const totalMsgs = document.getElementById('totalMsgs');
     const todayMsgs = document.getElementById('todayMsgs');
+    const hiddenUsers = document.getElementById('hiddenUsers');
     const headerTotalUsers = document.getElementById('headerTotalUsers');
     const headerTotalMsgs = document.getElementById('headerTotalMsgs');
     const lastUpdate = document.getElementById('lastUpdate');
@@ -131,6 +132,7 @@ function updateStatsDisplay(data) {
     if (todayUsers) todayUsers.textContent = data.todayUsers || 0;
     if (totalMsgs) totalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
     if (todayMsgs) todayMsgs.textContent = (data.todayMsgs || 0).toLocaleString();
+    if (hiddenUsers) hiddenUsers.textContent = data.nobiPapaHideMeCount || 0;
     if (headerTotalUsers) headerTotalUsers.textContent = data.totalUsers || 0;
     if (headerTotalMsgs) headerTotalMsgs.textContent = (data.totalMsgs || 0).toLocaleString();
     if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString();
