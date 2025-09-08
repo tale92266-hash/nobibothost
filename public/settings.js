@@ -36,6 +36,11 @@ const masterStopMatchTypeSelect = document.getElementById('masterStopMatchType')
 const masterStopTriggerTextarea = document.getElementById('masterStopTriggerText');
 const masterStopReplyTextarea = document.getElementById('masterStopReplyText');
 const saveMasterStopBtn = document.getElementById('saveMasterStopBtn');
+const delayOverrideBtn = document.getElementById('delayOverrideBtn');
+const delayOverrideModal = new bootstrap.Modal(document.getElementById('delayOverrideModal'));
+const delayOverrideMinInput = document.getElementById('delayOverrideMin');
+const delayOverrideMaxInput = document.getElementById('delayOverrideMax');
+const saveDelayOverrideBtn = document.getElementById('saveDelayOverrideBtn');
 
 /**
  * Initializes settings management and sets up event listeners.
@@ -52,6 +57,8 @@ function initSettings() {
     saveTempHideBtn?.addEventListener('click', saveTempHideSettings);
     masterStopBtn?.addEventListener('click', showMasterStopModal);
     saveMasterStopBtn?.addEventListener('click', saveMasterStopSettings);
+    delayOverrideBtn?.addEventListener('click', showDelayOverrideModal);
+    saveDelayOverrideBtn?.addEventListener('click', saveDelayOverrideSettings);
     // fetchSettings(); // Ab yahan se yeh line hata do
 }
 
@@ -66,6 +73,7 @@ async function fetchSettings() {
         updateRepeatingRuleUI();
         updateTempHideUI();
         updateMasterStopUI();
+        updateDelayOverrideUI();
     } catch (error) {
         console.error('Failed to fetch settings:', error);
     }
@@ -246,5 +254,35 @@ async function saveMasterStopSettings() {
         masterStopModal.hide();
     } catch (error) {
         showToast('Failed to save settings: ' + error.message, 'fail');
+    }
+}
+
+// Delay Override Functions
+function updateDelayOverrideUI() {
+    if (delayOverrideMinInput) {
+        delayOverrideMinInput.value = currentSettings.delayOverride?.minDelay || 0;
+    }
+    if (delayOverrideMaxInput) {
+        delayOverrideMaxInput.value = currentSettings.delayOverride?.maxDelay || 0;
+    }
+}
+
+function showDelayOverrideModal() {
+    updateDelayOverrideUI();
+    delayOverrideModal.show();
+}
+
+async function saveDelayOverrideSettings() {
+    const minDelay = parseInt(delayOverrideMinInput.value) || 0;
+    const maxDelay = parseInt(delayOverrideMaxInput.value) || 0;
+    const payload = { minDelay, maxDelay };
+
+    try {
+        const result = await saveDelayOverrideSettingsApi(payload);
+        currentSettings.delayOverride = payload;
+        showToast(result.message, 'success');
+        delayOverrideModal.hide();
+    } catch (error) {
+        showToast('Failed to save delay override settings: ' + error.message, 'fail');
     }
 }
