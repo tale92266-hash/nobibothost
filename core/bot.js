@@ -100,7 +100,7 @@ return null;
 }
 }
 
-if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.unhideMatchType)) {
+if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType)) {
 console.log(`✅ Hide trigger received from user: ${senderName}`);
 const reply = pick(settings.temporaryHide.hideReply.split('<#>'));
 const hideEntry = { name: senderName, context: context };
@@ -148,7 +148,7 @@ await messageStats.save();
 if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
 stats.totalMsgs++;
 stats.todayMsgs++;
-if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.unhideMatchType) && !stats.nobiPapaHideMeUsers.includes(sessionId)) {
+if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType) && !stats.nobiPapaHideMeUsers.includes(sessionId)) {
     stats.nobiPapaHideMeUsers.push(sessionId);
 }
 
