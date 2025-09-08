@@ -148,9 +148,6 @@ await messageStats.save();
 if (!stats.todayUsers.includes(senderName)) { stats.todayUsers.push(senderName); }
 stats.totalMsgs++;
 stats.todayMsgs++;
-if (settings.temporaryHide.enabled && matchesTrigger(msg, settings.temporaryHide.triggerText, settings.temporaryHide.matchType) && !stats.nobiPapaHideMeUsers.includes(sessionId)) {
-    stats.nobiPapaHideMeUsers.push(sessionId);
-}
 
 const updatedStats = await db.Stats.findByIdAndUpdate(stats._id, stats, { new: true });
 setStats(updatedStats);
