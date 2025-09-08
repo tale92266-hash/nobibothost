@@ -495,13 +495,16 @@
                             </select>
                         </div>
                         
-                        <div class="form-group" id="delayField" style="display: none;">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="enableDelay">
-                                <label class="form-check-label" for="enableDelay">Enable Delay</label>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="minDelay">Min Reply Delay (seconds)</label>
+                                <input type="number" class="form-control" id="minDelay" min="0" value="0">
                             </div>
-                            <label for="replyDelay" class="form-label">Delay (in seconds)</label>
-                            <input type="number" class="form-control" id="replyDelay" value="0">
+                            <div class="form-group">
+                                <label for="maxDelay">Max Reply Delay (seconds, optional)</label>
+                                <input type="number" class="form-control" id="maxDelay" min="0" value="0">
+                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
+                            </div>
                         </div>
 
                         <div class="form-group">
@@ -828,15 +831,18 @@
                             </select>
                         </div>
 
-                        <div class="form-group" id="ownerDelayField" style="display: none;">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="ownerEnableDelay">
-                                <label class="form-check-label" for="ownerEnableDelay">Enable Delay</label>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="ownerMinDelay">Min Reply Delay (seconds)</label>
+                                <input type="number" class="form-control" id="ownerMinDelay" min="0" value="0">
                             </div>
-                            <label for="ownerReplyDelay" class="form-label">Delay (in seconds)</label>
-                            <input type="number" class="form-control" id="ownerReplyDelay" value="0">
+                            <div class="form-group">
+                                <label for="ownerMaxDelay">Max Reply Delay (seconds, optional)</label>
+                                <input type="number" class="form-control" id="ownerMaxDelay" min="0" value="0">
+                                <small class="form-text text-muted">Leave at 0 for no max delay.</small>
+                            </div>
                         </div>
-
+                        
                         <div class="form-group">
                             <label for="ownerCooldown">Rule Cooldown (seconds, 0 to disable)</label>
                             <input type="number" class="form-control" id="ownerCooldown" min="0" value="0">
