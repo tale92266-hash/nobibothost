@@ -42,6 +42,10 @@ let state = {
             matchType: 'EXACT',
             triggerText: 'stop all automation',
             replyText: 'Sare automation rules band kar diye gaye hain.'
+        },
+        delayOverride: {
+            minDelay: 0,
+            maxDelay: 0
         }
     },
     isAutomationEnabled: true,
