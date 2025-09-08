@@ -219,180 +219,263 @@ console.log(`⏱️ Automation rule "${rule.RULE_NAME}" put on cooldown for ${ru
 }
 
 matchedRuleId = rule.RULE_NUMBER;
-break;
 }
 }
 }
 
+// Owner Rules check
 if (!replies && isOwner) {
 console.log(`👑 Owner message detected from: ${senderName}. Checking owner rules.`);
-for (let rule of getOwnerRules()) {
-const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
-if (rule.COOLDOWN > 0 && ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
-console.log(`🚫 Owner rule "${rule.RULE_NAME}" is on cooldown for this user.`);
-continue;
+const ownerRules = getOwnerRules();
+const exactMatches = ownerRules.filter(r => r.RULE_TYPE === 'EXACT');
+const patternMatches = ownerRules.filter(r => r.RULE_TYPE === 'PATTERN');
+const expertMatches = ownerRules.filter(r => r.RULE_TYPE === 'EXPERT');
+const defaultMatches = ownerRules.filter(r => r.RULE_TYPE === 'DEFAULT' || r.RULE_TYPE === 'WELCOME');
+
+const checkAndProcessRule = async (rule, ruleSet) => {
+    const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
+    if (rule.COOLDOWN > 0 && ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
+        console.log(`🚫 Owner rule "${rule.RULE_NAME}" is on cooldown for this user.`);
+        return null;
+    }
+
+    let match = false;
+    let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+    let execResult = null;
+
+    if (rule.RULE_TYPE === "WELCOME") {
+        const hasBeenWelcomed = getWelcomeLog().has(`${senderName}-${rule.RULE_NUMBER}-${context}`);
+        if (!hasBeenWelcomed) {
+            match = true;
+        }
+    } else if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) {
+        match = true;
+    } else if (rule.RULE_TYPE === "PATTERN" && patterns.some(p => new RegExp(`^${p.replace(/\*/g, ".*")}$`, "i").test(msg))) {
+        match = true;
+    } else if (rule.RULE_TYPE === "EXPERT") {
+        for (let pattern of patterns) {
+            try {
+                const regex = new RegExp(pattern, "i");
+                const result = regex.exec(msg);
+                if (result) {
+                    match = true;
+                    execResult = result;
+                    break;
+                }
+            } catch {}
+        }
+    } else if (rule.RULE_TYPE === "DEFAULT") {
+        match = true;
+    }
+
+    if (match) {
+        let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+        const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, execResult, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+
+        if (rule.MIN_DELAY > 0 || rule.MAX_DELAY > 0) {
+            let delay = rule.MIN_DELAY;
+            if (rule.MAX_DELAY > rule.MIN_DELAY) {
+                delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
+            }
+            console.log(`⏰ Applying a delay of ${delay} seconds for owner rule.`);
+            await new Promise(res => setTimeout(res, delay * 1000));
+        }
+
+        if (rule.REPLIES_TYPE === 'ALL') {
+            replies = resolvedReplies;
+            enableDelay = true;
+            replyDelay = 0;
+        } else if (rule.REPLIES_TYPE === 'ONE') {
+            replies = [resolvedReplies[0]];
+        } else {
+            replies = [pick(resolvedReplies)];
+        }
+
+        if (rule.COOLDOWN > 0) {
+            const cooldownTime = Date.now() + (rule.COOLDOWN * 1000);
+            ruleCooldowns.set(cooldownKey, cooldownTime);
+            console.log(`⏱️ Owner rule "${rule.RULE_NAME}" put on cooldown for ${rule.COOLDOWN} seconds.`);
+        }
+
+        matchedRuleId = rule.RULE_NUMBER;
+
+        if (rule.RULE_TYPE === "WELCOME") {
+            addWelcomeLogEntry(rule.RULE_NUMBER, senderName, context);
+            await db.saveWelcomeLog();
+            console.log(`✅ Owner "${senderName}" welcomed with rule #${rule.RULE_NUMBER} in context "${context}".`);
+        }
+        return { replies, matchedRuleId, enableDelay, replyDelay };
+    }
+    return null;
+};
+
+// Reordered rule checking for owners
+for (const rule of exactMatches) {
+    const result = await checkAndProcessRule(rule);
+    if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
 }
 
-let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
-let match = false;
-
-if (rule.RULE_TYPE === "WELCOME") {
-const hasBeenWelcomed = getWelcomeLog().has(`${senderName}-${rule.RULE_NUMBER}-${context}`);
-if (!hasBeenWelcomed) { match = true; }
-} else if (rule.RULE_TYPE === "EXACT" && patterns.some(p => p.toLowerCase() === msg.toLowerCase())) { match = true; }
-else if (rule.RULE_TYPE === "PATTERN" && patterns.some(p => new RegExp(`^${p.replace(/\*/g, ".*")}$`, "i").test(msg))) { match = true; }
-else if (rule.RULE_TYPE === "EXPERT") {
-for (let pattern of patterns) {
-try {
-const regex = new RegExp(pattern, "i");
-const execResult = regex.exec(msg);
-if (execResult) {
-match = true;
-regexMatch = execResult;
-break;
-}
-} catch {}
-}
-} else if (rule.RULE_TYPE === "DEFAULT") { match = true; }
-
-if (match) {
-let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
-
-if (rule.MIN_DELAY > 0 || rule.MAX_DELAY > 0) {
-let delay = rule.MIN_DELAY;
-if (rule.MAX_DELAY > rule.MIN_DELAY) {
-delay = Math.floor(Math.random() * (rule.MAX_DELAY - rule.MIN_DELAY + 1)) + rule.MIN_DELAY;
-}
-console.log(`⏰ Applying a delay of ${delay} seconds for owner rule.`);
-await new Promise(res => setTimeout(res, delay * 1000));
+if (!replies) {
+    for (const rule of patternMatches) {
+        const result = await checkAndProcessRule(rule);
+        if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
+    }
 }
 
-if (rule.REPLIES_TYPE === 'ALL') {
-replies = resolvedReplies;
-enableDelay = true;
-replyDelay = 0; // The per-reply delay is handled by the initial delay setting, not a separate field here.
-} else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
-else { replies = [pick(resolvedReplies)]; }
-
-if (rule.COOLDOWN > 0) {
-const cooldownTime = Date.now() + (rule.COOLDOWN * 1000);
-ruleCooldowns.set(cooldownKey, cooldownTime);
-console.log(`⏱️ Owner rule "${rule.RULE_NAME}" put on cooldown for ${rule.COOLDOWN} seconds.`);
+if (!replies) {
+    for (const rule of expertMatches) {
+        const result = await checkAndProcessRule(rule);
+        if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
+    }
 }
 
-matchedRuleId = rule.RULE_NUMBER;
-
-if (rule.RULE_TYPE === "WELCOME") {
-addWelcomeLogEntry(rule.RULE_NUMBER, senderName, context);
-await db.saveWelcomeLog();
-console.log(`✅ Owner "${senderName}" welcomed with rule #${rule.RULE_NUMBER} in context "${context}".`);
-}
-
-break;
-}
+if (!replies) {
+    for (const rule of defaultMatches) {
+        const result = await checkAndProcessRule(rule);
+        if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
+    }
 }
 }
 
+
+// Normal Rules check
 if (!replies && !isOwner) {
 console.log(`🔍 Checking normal rules.`);
 const welcomedUsers = getWelcomedUsers();
+const normalRules = getRules();
+const exactMatches = normalRules.filter(r => r.RULE_TYPE === 'EXACT');
+const patternMatches = normalRules.filter(r => r.RULE_TYPE === 'PATTERN');
+const expertMatches = normalRules.filter(r => r.RULE_TYPE === 'EXPERT');
+const defaultMatches = normalRules.filter(r => r.RULE_TYPE === 'DEFAULT' || r.RULE_TYPE === 'WELCOME');
 
-for (let rule of getRules()) {
-const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
-if (rule.COOLDOWN > 0 && ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
-console.log(`🚫 Normal rule "${rule.RULE_NAME}" is on cooldown for this user.`);
-continue;
+const checkAndProcessRule = async (rule, ruleSet) => {
+    const cooldownKey = `${sessionId}-${rule.RULE_NUMBER}`;
+    if (rule.COOLDOWN > 0 && ruleCooldowns.has(cooldownKey) && Date.now() < ruleCooldowns.get(cooldownKey)) {
+        console.log(`🚫 Normal rule "${rule.RULE_NAME}" is on cooldown for this user.`);
+        return null;
+    }
+
+    let userMatch = false;
+    const targetUsers = rule.TARGET_USERS || "ALL";
+
+    if (rule.RULE_TYPE === "IGNORED") {
+        if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
+    } else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
+        if (isSenderIgnored) { userMatch = false; }
+        else { userMatch = true; }
+    }
+
+    if (!userMatch) { return null; }
+
+    let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
+    let match = false;
+    let execResult = null;
+
+    if (rule.RULE_TYPE === "WELCOME") {
+        if (senderName && !welcomedUsers.includes(senderName)) {
+            match = true;
+            const newWelcomedUsers = [...welcomedUsers, senderName];
+            setWelcomedUsers(newWelcomedUsers);
+            await db.User.create({ senderName, sessionId });
+        }
+    } else if (rule.RULE_TYPE === "DEFAULT") {
+        match = true;
+    } else {
+        for (let pattern of patterns) {
+            if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; }
+            else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
+
+            if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
+            else if (rule.RULE_TYPE === "PATTERN") {
+                let regexStr = pattern.replace(/\*/g, ".*");
+                if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
+            } else if (rule.RULE_TYPE === "EXPERT") {
+                try {
+                    const regex = new RegExp(pattern, "i");
+                    const result = regex.exec(msg);
+                    if (result) {
+                        match = true;
+                        execResult = result;
+                    }
+                } catch {}
+            }
+
+            if (match) {
+                matchedRuleId = rule.RULE_NUMBER;
+                break;
+            }
+        }
+    }
+
+    if (match) {
+        let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
+        const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, execResult, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
+        
+        let finalMinDelay = rule.MIN_DELAY;
+        let finalMaxDelay = rule.MAX_DELAY;
+        if ((finalMinDelay === 0 && finalMaxDelay === 0) && (settings.delayOverride.minDelay > 0 || settings.delayOverride.maxDelay > 0)) {
+            finalMinDelay = settings.delayOverride.minDelay;
+            finalMaxDelay = settings.delayOverride.maxDelay;
+        }
+
+        if (finalMinDelay > 0 || finalMaxDelay > 0) {
+            let delay = finalMinDelay;
+            if (finalMaxDelay > finalMinDelay) {
+                delay = Math.floor(Math.random() * (finalMaxDelay - finalMinDelay + 1)) + finalMinDelay;
+            }
+            console.log(`⏰ Applying a delay of ${delay} seconds for normal rule.`);
+            await new Promise(res => setTimeout(res, delay * 1000));
+        }
+
+        if (rule.REPLIES_TYPE === 'ALL') {
+            replies = resolvedReplies;
+            enableDelay = true;
+            replyDelay = 0;
+        } else if (rule.REPLIES_TYPE === 'ONE') {
+            replies = [resolvedReplies[0]];
+        } else {
+            replies = [pick(resolvedReplies)];
+        }
+
+        if (rule.COOLDOWN > 0) {
+            const cooldownTime = Date.now() + (rule.COOLDOWN * 1000);
+            ruleCooldowns.set(cooldownKey, cooldownTime);
+            console.log(`⏱️ Normal rule "${rule.RULE_NAME}" put on cooldown for ${rule.COOLDOWN} seconds.`);
+        }
+        matchedRuleId = rule.RULE_NUMBER;
+        return { replies, matchedRuleId, enableDelay, replyDelay };
+    }
+    return null;
+};
+
+// Reordered rule checking for normal users
+for (const rule of exactMatches) {
+    const result = await checkAndProcessRule(rule);
+    if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
 }
 
-let userMatch = false;
-const targetUsers = rule.TARGET_USERS || "ALL";
-
-if (rule.RULE_TYPE === "IGNORED") {
-if (Array.isArray(targetUsers) && !targetUsers.includes(senderName)) { userMatch = true; }
-} else if (targetUsers === "ALL" || (Array.isArray(targetUsers) && targetUsers.includes(senderName))) {
-if (isSenderIgnored) { userMatch = false; }
-else { userMatch = true; }
+if (!replies) {
+    for (const rule of patternMatches) {
+        const result = await checkAndProcessRule(rule);
+        if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
+    }
 }
 
-if (!userMatch) { continue; }
-
-let patterns = rule.KEYWORDS.split("//").map(p => p.trim()).filter(Boolean);
-let match = false;
-
-if (rule.RULE_TYPE === "WELCOME") {
-if (senderName && !welcomedUsers.includes(senderName)) {
-match = true;
-const newWelcomedUsers = [...welcomedUsers, senderName];
-setWelcomedUsers(newWelcomedUsers);
-await db.User.create({ senderName, sessionId });
-}
-} else if (rule.RULE_TYPE === "DEFAULT") {
-match = true;
-} else {
-for (let pattern of patterns) {
-if (pattern.toUpperCase() === 'DM_ONLY' && isGroup) { continue; }
-else if (pattern.toUpperCase() === 'GROUP_ONLY' && !isGroup) { continue; }
-
-if (rule.RULE_TYPE === "EXACT" && pattern.toLowerCase() === msg.toLowerCase()) match = true;
-else if (rule.RULE_TYPE === "PATTERN") {
-let regexStr = pattern.replace(/\*/g, ".*");
-if (new RegExp(`^${regexStr}$`, "i").test(msg)) match = true;
-} else if (rule.RULE_TYPE === "EXPERT") {
-try {
-const regex = new RegExp(pattern, "i");
-const execResult = regex.exec(msg);
-if (execResult) {
-match = true;
-regexMatch = execResult;
-}
-} catch {}
+if (!replies) {
+    for (const rule of expertMatches) {
+        const result = await checkAndProcessRule(rule);
+        if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
+    }
 }
 
-if (match) {
-matchedRuleId = rule.RULE_NUMBER;
-break;
-}
+if (!replies) {
+    for (const rule of defaultMatches) {
+        const result = await checkAndProcessRule(rule);
+        if (result) { replies = result.replies; matchedRuleId = result.matchedRuleId; enableDelay = result.enableDelay; replyDelay = result.replyDelay; break; }
+    }
 }
 }
 
-if (match) {
-let ruleReplies = rule.REPLY_TEXT.split("<#>").map(r => r.trim()).filter(Boolean);
-const resolvedReplies = ruleReplies.map(r => resolveVariablesRecursively(r, senderName, msg, 0, groupName, isGroup, regexMatch, rule.RULE_NUMBER, stats.totalMsgs, messageStats));
-
-let finalMinDelay = rule.MIN_DELAY;
-let finalMaxDelay = rule.MAX_DELAY;
-if ((finalMinDelay === 0 && finalMaxDelay === 0) && (settings.delayOverride.minDelay > 0 || settings.delayOverride.maxDelay > 0)) {
-    finalMinDelay = settings.delayOverride.minDelay;
-    finalMaxDelay = settings.delayOverride.maxDelay;
-}
-
-if (finalMinDelay > 0 || finalMaxDelay > 0) {
-let delay = finalMinDelay;
-if (finalMaxDelay > finalMinDelay) {
-delay = Math.floor(Math.random() * (finalMaxDelay - finalMinDelay + 1)) + finalMinDelay;
-}
-console.log(`⏰ Applying a delay of ${delay} seconds for normal rule.`);
-await new Promise(res => setTimeout(res, delay * 1000));
-}
-
-if (rule.REPLIES_TYPE === 'ALL') {
-replies = resolvedReplies;
-enableDelay = true;
-replyDelay = 0; // The per-reply delay is handled by the initial delay setting, not a separate field here.
-} else if (rule.REPLIES_TYPE === 'ONE') { replies = [resolvedReplies[0]]; }
-else { replies = [pick(resolvedReplies)]; }
-
-if (rule.COOLDOWN > 0) {
-const cooldownTime = Date.now() + (rule.COOLDOWN * 1000);
-ruleCooldowns.set(cooldownKey, cooldownTime);
-console.log(`⏱️ Normal rule "${rule.RULE_NAME}" put on cooldown for ${rule.COOLDOWN} seconds.`);
-}
-
-break;
-}
-}
-}
 
 const endTime = process.hrtime(startTime);
 const processingTime = (endTime[0] * 1000 + endTime[1] / 1e6).toFixed(2);
