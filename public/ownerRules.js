@@ -24,9 +24,6 @@ function initOwnerRules() {
     ownerRulesList?.addEventListener('click', handleOwnerRuleClick);
     ownerRuleTypeSelect?.addEventListener('change', (e) => toggleOwnerFormFields(e.target.value));
 
-    const ownerRepliesTypeSelect = document.getElementById('ownerRepliesType');
-    ownerRepliesTypeSelect?.addEventListener('change', (e) => toggleOwnerDelayField(e.target.value));
-    
     const ownerRulesSearchInput = document.getElementById('searchOwnerRules');
     if (ownerRulesSearchInput) {
         ownerRulesSearchInput.addEventListener('input', (e) => {
@@ -34,22 +31,6 @@ function initOwnerRules() {
         });
     }
 }
-
-/**
- * Toggles the visibility of owner delay fields based on the reply type.
- * @param {string} repliesType - The selected reply type.
- */
-function toggleOwnerDelayField(repliesType) {
-    const delayField = document.getElementById('ownerDelayField');
-    if (delayField) {
-        if (repliesType === 'ALL') {
-            delayField.style.display = 'block';
-        } else {
-            delayField.style.display = 'none';
-        }
-    }
-}
-
 
 /**
  * Handles clicks on the owner rules list to open the edit modal.
@@ -146,16 +127,11 @@ function createOwnerRuleElement(rule) {
     ruleDiv.setAttribute('data-rule-number', rule.RULE_NUMBER);
     const ruleTypeClass = (rule.RULE_TYPE || '').toLowerCase();
     
-    const delayInfo = (rule.REPLIES_TYPE === 'ALL' && rule.ENABLE_DELAY)
-        ? `<span class="rule-delay-info">⏰ ${rule.REPLY_DELAY}s delay</span>` 
-        : '';
-        
     ruleDiv.innerHTML = `
         <div class="rule-header-new">
             <div class="rule-title">
                 <span class="rule-number-new">${rule.RULE_NUMBER}</span>
                 <span class="rule-name-new">${rule.RULE_NAME || 'Untitled Rule'}</span>
-                ${delayInfo}
             </div>
             <span class="rule-type ${ruleTypeClass}">${rule.RULE_TYPE}</span>
         </div>
@@ -183,7 +159,6 @@ function addNewOwnerRule() {
     document.getElementById('ownerRuleType').value = 'EXACT';
     document.getElementById('ownerRepliesType').value = 'RANDOM';
     toggleOwnerFormFields('EXACT');
-    toggleOwnerDelayField('RANDOM');
     setupOwnerRuleNumberValidation(false);
     configureModalButtons('ownerRule', 'add');
     ownerRuleModal.show();
@@ -202,14 +177,7 @@ function editOwnerRule(rule) {
     document.getElementById('ownerKeywords').value = rule.KEYWORDS || '';
     document.getElementById('ownerRepliesType').value = rule.REPLIES_TYPE;
     document.getElementById('ownerReplyText').value = rule.REPLY_TEXT || '';
-
-    const ownerReplyDelay = document.getElementById('ownerReplyDelay');
-    const ownerEnableDelay = document.getElementById('ownerEnableDelay');
-    if (ownerReplyDelay) ownerReplyDelay.value = rule.REPLY_DELAY || 0;
-    if (ownerEnableDelay) ownerEnableDelay.checked = rule.ENABLE_DELAY || false;
-
     toggleOwnerFormFields(rule.RULE_TYPE);
-    toggleOwnerDelayField(rule.REPLIES_TYPE);
     setupOwnerRuleNumberValidation(true);
     configureModalButtons('ownerRule', 'edit');
     ownerRuleModal.show();
@@ -234,8 +202,6 @@ async function saveOwnerRule() {
             keywords: document.getElementById('ownerKeywords').value.trim(),
             repliesType: document.getElementById('ownerRepliesType').value,
             replyText: document.getElementById('ownerReplyText').value.trim(),
-            replyDelay: parseInt(document.getElementById('ownerReplyDelay')?.value) || 0,
-            enableDelay: document.getElementById('ownerEnableDelay')?.checked || false,
         };
 
         const isEditing = currentOwnerRuleNumber !== null;
@@ -365,6 +331,4 @@ function validateOwnerRuleNumber(num, isEditing) {
     }
     ownerRuleNumberError.style.display = 'none';
     return true;
-}
-
 }
